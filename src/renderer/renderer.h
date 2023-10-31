@@ -26,6 +26,7 @@ private:
   vk::Extent2D size{1280, 720};
   const bool enableValidationLayers;
   vk::Instance instance;
+  vk::DebugUtilsMessengerEXT debugMessenger;
 
   void createWindow();
   static void framebufferResizeCallback(GLFWwindow *window, int width, int height);
@@ -58,6 +59,11 @@ private:
 
     return VK_FALSE;
   }
+  void setupDebugMessenger();
+  VkResult createDebugUtilsMessengerEXT(const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
+                                        const VkAllocationCallbacks *pAllocator,
+                                        VkDebugUtilsMessengerEXT *pDebugMessenger);
+  void destroyDebugUtilsMessengerEXT(const VkAllocationCallbacks *pAllocator);
 };
 
 } // namespace plaxel

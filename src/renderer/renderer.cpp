@@ -14,6 +14,13 @@ Renderer::Renderer()
 
 Renderer::~Renderer() {
   if (window) {
+
+    if (enableValidationLayers) {
+      destroyDebugUtilsMessengerEXT(nullptr);
+    }
+
+    instance.destroy();
+
     glfwDestroyWindow(window);
     glfwTerminate();
   }
@@ -61,7 +68,10 @@ void Renderer::draw() { glfwPollEvents(); }
 
 void Renderer::loadShader(std::string fileName) {}
 
-void Renderer::initVulkan() { createInstance(); }
+void Renderer::initVulkan() {
+  createInstance();
+  setupDebugMessenger();
+}
 
 const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
 
@@ -146,4 +156,38 @@ vk::DebugUtilsMessengerCreateInfoEXT Renderer::createDebugMessengerCreateInfo() 
                            vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance;
   createInfo.pfnUserCallback = debugCallback;
   return createInfo;
+}
+
+void Renderer::setupDebugMessenger() {
+  if (!enableValidationLayers)
+    return;
+
+  VkDebugUtilsMessengerCreateInfoEXT createInfo = createDebugMessengerCreateInfo();
+
+  VkDebugUtilsMessengerEXT natDebugMessenger{};
+  if (createDebugUtilsMessengerEXT(&createInfo, nullptr, &natDebugMessenger) != VK_SUCCESS) {
+    throw std::runtime_error("failed to set up debug messenger!");
+  }
+  debugMessenger = natDebugMessenger;
+}
+
+VkResult
+Renderer::createDebugUtilsMessengerEXT(const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
+                                       const VkAllocationCallbacks *pAllocator,
+                                       VkDebugUtilsMessengerEXT *pDebugMessenger) {
+  auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
+      instance, "vkCreateDebugUtilsMessengerEXT");
+  if (func != nullptr) {
+    return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
+  } else {
+    return VK_ERROR_EXTENSION_NOT_PRESENT;
+  }
+}
+
+void Renderer::destroyDebugUtilsMessengerEXT(const VkAllocationCallbacks *pAllocator) {
+  auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
+      instance, "vkDestroyDebugUtilsMessengerEXT");
+  if (func != nullptr) {
+    func(instance, debugMessenger, pAllocator);
+  }
 }
