@@ -2,10 +2,52 @@
 #define PLAXEL_RENDERER_H
 
 #include <vulkan/vulkan.hpp>
+
 #include <GLFW/glfw3.h>
 #include <iostream>
+#include <optional>
 
 namespace plaxel {
+
+struct QueueFamilyIndices {
+  std::optional<uint32_t> graphicsAndComputeFamily;
+  std::optional<uint32_t> presentFamily;
+
+  bool isComplete() { return graphicsAndComputeFamily.has_value() && presentFamily.has_value(); }
+};
+
+struct SwapChainSupportDetails {
+  vk::SurfaceCapabilitiesKHR capabilities;
+  std::vector<vk::SurfaceFormatKHR> formats;
+  std::vector<vk::PresentModeKHR> presentModes;
+};
+
+const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
+const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+
+static VKAPI_ATTR VkBool32 VKAPI_CALL
+debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+              VkDebugUtilsMessageTypeFlagsEXT messageType,
+              const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData) {
+
+  switch (vk::DebugUtilsMessageSeverityFlagBitsEXT(messageType)) {
+  case vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose:
+    std::cerr << "(V) ";
+    break;
+  case vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo:
+    std::cerr << "(INFO) ";
+    break;
+  case vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning:
+    std::cerr << "(WARN) ";
+    break;
+  case vk::DebugUtilsMessageSeverityFlagBitsEXT::eError:
+    std::cerr << "(ERR) ";
+    break;
+  }
+  std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+
+  return VK_FALSE;
+}
 
 class Renderer {
 public:
@@ -29,6 +71,7 @@ private:
   vk::DispatchLoaderDynamic dispatchLoader;
   vk::DebugUtilsMessengerEXT debugMessenger;
   vk::SurfaceKHR surface;
+  vk::PhysicalDevice physicalDevice = VK_NULL_HANDLE;
 
   void createWindow();
   static void framebufferResizeCallback(GLFWwindow *window, int width, int height);
@@ -37,36 +80,13 @@ private:
   bool checkValidationLayerSupport();
   std::vector<const char *> getRequiredExtensions();
   vk::DebugUtilsMessengerCreateInfoEXT createDebugMessengerCreateInfo();
-
-  static VKAPI_ATTR VkBool32 VKAPI_CALL
-  debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-                VkDebugUtilsMessageTypeFlagsEXT messageType,
-                const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData) {
-
-    switch (vk::DebugUtilsMessageSeverityFlagBitsEXT(messageType)) {
-    case vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose:
-      std::cerr << "(V) ";
-      break;
-    case vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo:
-      std::cerr << "(INFO) ";
-      break;
-    case vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning:
-      std::cerr << "(WARN) ";
-      break;
-    case vk::DebugUtilsMessageSeverityFlagBitsEXT::eError:
-      std::cerr << "(ERR) ";
-      break;
-    }
-    std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
-
-    return VK_FALSE;
-  }
   void setupDebugMessenger();
-  VkResult createDebugUtilsMessengerEXT(const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
-                                        const VkAllocationCallbacks *pAllocator,
-                                        VkDebugUtilsMessengerEXT *pDebugMessenger);
-  void destroyDebugUtilsMessengerEXT(const VkAllocationCallbacks *pAllocator);
   void createSurface();
+  void pickPhysicalDevice();
+  bool isDeviceSuitable(vk::PhysicalDevice device);
+  QueueFamilyIndices findQueueFamilies(vk::PhysicalDevice device);
+  bool checkDeviceExtensionSupport(vk::PhysicalDevice device);
+  SwapChainSupportDetails querySwapChainSupport(vk::PhysicalDevice device);
 };
 
 } // namespace plaxel

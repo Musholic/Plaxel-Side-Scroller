@@ -1,4 +1,5 @@
 #include "renderer.h"
+#include <set>
 
 using namespace plaxel;
 
@@ -73,9 +74,8 @@ void Renderer::initVulkan() {
   createInstance();
   setupDebugMessenger();
   createSurface();
+  pickPhysicalDevice();
 }
-
-const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
 
 void Renderer::createInstance() {
   if (enableValidationLayers && !checkValidationLayerSupport()) {
@@ -176,4 +176,83 @@ void Renderer::createSurface() {
     throw std::runtime_error("failed to create window surface!");
   }
   surface = natSurface;
+}
+
+void Renderer::pickPhysicalDevice() {
+  std::vector<vk::PhysicalDevice> devices = instance.enumeratePhysicalDevices();
+
+  for (const auto &device : devices) {
+    if (isDeviceSuitable(device)) {
+      physicalDevice = device;
+      break;
+    }
+  }
+
+  if (physicalDevice == VK_NULL_HANDLE) {
+    throw std::runtime_error("failed to find a suitable GPU!");
+  }
+}
+
+bool Renderer::isDeviceSuitable(vk::PhysicalDevice device) {
+  QueueFamilyIndices indices = findQueueFamilies(device);
+
+  bool extensionsSupported = checkDeviceExtensionSupport(device);
+
+  bool swapChainAdequate = false;
+  if (extensionsSupported) {
+    SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device);
+    swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
+  }
+
+  return indices.isComplete() && extensionsSupported && swapChainAdequate;
+}
+
+QueueFamilyIndices Renderer::findQueueFamilies(vk::PhysicalDevice device) {
+  QueueFamilyIndices indices;
+
+  std::vector<vk::QueueFamilyProperties> queueFamilies = device.getQueueFamilyProperties();
+
+  int i = 0;
+  for (const auto &queueFamily : queueFamilies) {
+    if ((queueFamily.queueFlags & vk::QueueFlagBits::eGraphics) &&
+        (queueFamily.queueFlags & vk::QueueFlagBits::eCompute)) {
+      indices.graphicsAndComputeFamily = i;
+    }
+
+    VkBool32 presentSupport = device.getSurfaceSupportKHR(i, surface);
+
+    if (presentSupport) {
+      indices.presentFamily = i;
+    }
+
+    if (indices.isComplete()) {
+      break;
+    }
+
+    i++;
+  }
+
+  return indices;
+}
+
+bool Renderer::checkDeviceExtensionSupport(vk::PhysicalDevice device) {
+  std::vector<vk::ExtensionProperties> availableExtensions = device.enumerateDeviceExtensionProperties();
+
+  std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
+
+  for (const auto &extension : availableExtensions) {
+    requiredExtensions.erase(extension.extensionName.data());
+  }
+
+  return requiredExtensions.empty();
+}
+
+SwapChainSupportDetails Renderer::querySwapChainSupport(vk::PhysicalDevice device) {
+  SwapChainSupportDetails details;
+
+  details.capabilities = device.getSurfaceCapabilitiesKHR(surface);
+  details.formats = device.getSurfaceFormatsKHR(surface);
+  details.presentModes = device.getSurfacePresentModesKHR(surface);
+
+  return details;
 }
