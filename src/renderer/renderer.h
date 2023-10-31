@@ -1,9 +1,9 @@
 #ifndef PLAXEL_RENDERER_H
 #define PLAXEL_RENDERER_H
 
+#include <vulkan/vulkan.hpp>
 #include <GLFW/glfw3.h>
 #include <iostream>
-#include <vulkan/vulkan.hpp>
 
 namespace plaxel {
 
@@ -26,7 +26,9 @@ private:
   vk::Extent2D size{1280, 720};
   const bool enableValidationLayers;
   vk::Instance instance;
+  vk::DispatchLoaderDynamic dispatchLoader;
   vk::DebugUtilsMessengerEXT debugMessenger;
+  vk::SurfaceKHR surface;
 
   void createWindow();
   static void framebufferResizeCallback(GLFWwindow *window, int width, int height);
@@ -64,6 +66,7 @@ private:
                                         const VkAllocationCallbacks *pAllocator,
                                         VkDebugUtilsMessengerEXT *pDebugMessenger);
   void destroyDebugUtilsMessengerEXT(const VkAllocationCallbacks *pAllocator);
+  void createSurface();
 };
 
 } // namespace plaxel

@@ -16,9 +16,10 @@ Renderer::~Renderer() {
   if (window) {
 
     if (enableValidationLayers) {
-      destroyDebugUtilsMessengerEXT(nullptr);
+      instance.destroyDebugUtilsMessengerEXT(debugMessenger, nullptr, dispatchLoader);
     }
 
+    instance.destroySurfaceKHR(surface);
     instance.destroy();
 
     glfwDestroyWindow(window);
@@ -71,6 +72,7 @@ void Renderer::loadShader(std::string fileName) {}
 void Renderer::initVulkan() {
   createInstance();
   setupDebugMessenger();
+  createSurface();
 }
 
 const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
@@ -109,6 +111,8 @@ void Renderer::createInstance() {
   if (vk::createInstance(&createInfo, nullptr, &instance) != vk::Result::eSuccess) {
     throw std::runtime_error("failed to create instance!");
   }
+
+  dispatchLoader = vk::DispatchLoaderDynamic(instance, vkGetInstanceProcAddr);
 }
 
 bool Renderer::checkValidationLayerSupport() {
@@ -162,32 +166,14 @@ void Renderer::setupDebugMessenger() {
   if (!enableValidationLayers)
     return;
 
-  VkDebugUtilsMessengerCreateInfoEXT createInfo = createDebugMessengerCreateInfo();
-
-  VkDebugUtilsMessengerEXT natDebugMessenger{};
-  if (createDebugUtilsMessengerEXT(&createInfo, nullptr, &natDebugMessenger) != VK_SUCCESS) {
-    throw std::runtime_error("failed to set up debug messenger!");
-  }
-  debugMessenger = natDebugMessenger;
+  vk::DebugUtilsMessengerCreateInfoEXT createInfo = createDebugMessengerCreateInfo();
+  debugMessenger = instance.createDebugUtilsMessengerEXT(createInfo, nullptr, dispatchLoader);
 }
 
-VkResult
-Renderer::createDebugUtilsMessengerEXT(const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
-                                       const VkAllocationCallbacks *pAllocator,
-                                       VkDebugUtilsMessengerEXT *pDebugMessenger) {
-  auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
-      instance, "vkCreateDebugUtilsMessengerEXT");
-  if (func != nullptr) {
-    return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
-  } else {
-    return VK_ERROR_EXTENSION_NOT_PRESENT;
+void Renderer::createSurface() {
+  VkSurfaceKHR natSurface = nullptr;
+  if (glfwCreateWindowSurface(instance, window, nullptr, &natSurface) != VK_SUCCESS) {
+    throw std::runtime_error("failed to create window surface!");
   }
-}
-
-void Renderer::destroyDebugUtilsMessengerEXT(const VkAllocationCallbacks *pAllocator) {
-  auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
-      instance, "vkDestroyDebugUtilsMessengerEXT");
-  if (func != nullptr) {
-    func(instance, debugMessenger, pAllocator);
-  }
+  surface = natSurface;
 }
