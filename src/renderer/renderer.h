@@ -80,6 +80,11 @@ private:
   vk::DebugUtilsMessengerEXT debugMessenger;
   vk::SurfaceKHR surface;
   vk::PhysicalDevice physicalDevice = VK_NULL_HANDLE;
+  vk::Device device;
+
+  vk::Queue graphicsQueue;
+  vk::Queue computeQueue;
+  vk::Queue presentQueue;
 
   void createWindow();
   static void framebufferResizeCallback(GLFWwindow *window, int width, int height);
@@ -95,6 +100,7 @@ private:
   QueueFamilyIndices findQueueFamilies(vk::PhysicalDevice device);
   bool checkDeviceExtensionSupport(vk::PhysicalDevice device);
   SwapChainSupportDetails querySwapChainSupport(vk::PhysicalDevice device);
+  void createLogicalDevice();
 };
 
 } // namespace plaxel

@@ -15,6 +15,7 @@ Renderer::Renderer()
 
 Renderer::~Renderer() {
   if (window) {
+    device.destroy();
 
     if (enableValidationLayers) {
       instance.destroyDebugUtilsMessengerEXT(debugMessenger, nullptr, dispatchLoader);
@@ -77,6 +78,7 @@ void Renderer::initVulkan() {
   setupDebugMessenger();
   createSurface();
   pickPhysicalDevice();
+  createLogicalDevice();
 }
 
 void Renderer::createInstance() {
@@ -258,4 +260,49 @@ SwapChainSupportDetails Renderer::querySwapChainSupport(vk::PhysicalDevice devic
   details.presentModes = device.getSurfacePresentModesKHR(surface);
 
   return details;
+}
+
+void Renderer::createLogicalDevice() {
+  QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+
+  std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
+  std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsAndComputeFamily.value(),
+                                            indices.presentFamily.value()};
+
+  float queuePriority = 1.0f;
+  for (uint32_t queueFamily : uniqueQueueFamilies) {
+    vk::DeviceQueueCreateInfo queueCreateInfo{};
+    queueCreateInfo.queueFamilyIndex = queueFamily;
+    queueCreateInfo.queueCount = 1;
+    queueCreateInfo.pQueuePriorities = &queuePriority;
+    queueCreateInfos.push_back(queueCreateInfo);
+  }
+
+  vk::PhysicalDeviceFeatures deviceFeatures{};
+
+  vk::DeviceCreateInfo createInfo{};
+  createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+  createInfo.pQueueCreateInfos = queueCreateInfos.data();
+
+  createInfo.pEnabledFeatures = &deviceFeatures;
+
+  createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
+  createInfo.ppEnabledExtensionNames = deviceExtensions.data();
+
+  if (enableValidationLayers) {
+    createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+    createInfo.ppEnabledLayerNames = validationLayers.data();
+  } else {
+    createInfo.enabledLayerCount = 0;
+  }
+
+  
+
+  if (physicalDevice.createDevice(&createInfo, nullptr, &device) != vk::Result::eSuccess) {
+    throw VulkanInitializationError("failed to create logical device!");
+  }
+
+  graphicsQueue = device.getQueue(indices.graphicsAndComputeFamily.value(), 0);
+  computeQueue = device.getQueue(indices.graphicsAndComputeFamily.value(), 0);
+  presentQueue = device.getQueue(indices.presentFamily.value(), 0);
 }
