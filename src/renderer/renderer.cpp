@@ -69,7 +69,7 @@ bool Renderer::shouldClose() { return glfwWindowShouldClose(window); }
 void Renderer::draw() { glfwPollEvents(); }
 
 void Renderer::loadShader(std::string fileName) {
-  //TODO
+  // TODO
 }
 
 void Renderer::initVulkan() {
@@ -154,12 +154,13 @@ std::vector<const char *> Renderer::getRequiredExtensions() {
 
 vk::DebugUtilsMessengerCreateInfoEXT Renderer::createDebugMessengerCreateInfo() {
   vk::DebugUtilsMessengerCreateInfoEXT createInfo{};
-  createInfo.messageSeverity = vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose |
-                               vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
-                               vk::DebugUtilsMessageSeverityFlagBitsEXT::eError;
-  createInfo.messageType = vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
-                           vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
-                           vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance;
+
+  using enum vk::DebugUtilsMessageSeverityFlagBitsEXT;
+  createInfo.messageSeverity = eVerbose | eWarning | eError;
+
+  using enum vk::DebugUtilsMessageTypeFlagBitsEXT;
+  createInfo.messageType = eGeneral | eValidation | ePerformance;
+
   createInfo.pfnUserCallback = debugCallback;
   return createInfo;
 }
@@ -236,9 +237,11 @@ QueueFamilyIndices Renderer::findQueueFamilies(vk::PhysicalDevice device) {
 }
 
 bool Renderer::checkDeviceExtensionSupport(vk::PhysicalDevice device) {
-  std::vector<vk::ExtensionProperties> availableExtensions = device.enumerateDeviceExtensionProperties();
+  std::vector<vk::ExtensionProperties> availableExtensions =
+      device.enumerateDeviceExtensionProperties();
 
-  std::set<std::string, std::less<>> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
+  std::set<std::string, std::less<>> requiredExtensions(deviceExtensions.begin(),
+                                                        deviceExtensions.end());
 
   for (const auto &extension : availableExtensions) {
     requiredExtensions.erase(extension.extensionName.data());

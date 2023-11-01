@@ -54,7 +54,7 @@ debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 
 class VulkanInitializationError : public std::runtime_error {
 public:
-  explicit VulkanInitializationError(const std::string &arg) : runtime_error(arg) {}
+  using runtime_error::runtime_error;
 };
 
 class Renderer {
