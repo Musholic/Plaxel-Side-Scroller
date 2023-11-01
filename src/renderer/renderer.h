@@ -86,6 +86,11 @@ private:
   vk::Queue computeQueue;
   vk::Queue presentQueue;
 
+  vk::SwapchainKHR swapChain;
+  std::vector<vk::Image> swapChainImages;
+  vk::Format swapChainImageFormat;
+  vk::Extent2D swapChainExtent;
+
   void createWindow();
   static void framebufferResizeCallback(GLFWwindow *window, int width, int height);
   void initVulkan();
@@ -101,6 +106,12 @@ private:
   bool checkDeviceExtensionSupport(vk::PhysicalDevice device);
   SwapChainSupportDetails querySwapChainSupport(vk::PhysicalDevice device);
   void createLogicalDevice();
+  void createSwapChain();
+  vk::SurfaceFormatKHR
+  chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &availableFormats);
+  vk::PresentModeKHR
+  chooseSwapPresentMode(const std::vector<vk::PresentModeKHR> &availablePresentModes);
+  vk::Extent2D chooseSwapExtent(const vk::SurfaceCapabilitiesKHR &capabilities);
 };
 
 } // namespace plaxel
