@@ -75,6 +75,7 @@ void Renderer::initVulkan() {
   createRenderPass();
   createComputeDescriptorSetLayout();
   createGraphicsPipeline();
+  createComputePipeline();
 }
 
 void Renderer::createInstance() {
@@ -569,4 +570,27 @@ vk::raii::ShaderModule Renderer::createShaderModule(const std::vector<char> &cod
   createInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
 
   return {device, createInfo};
+}
+
+void Renderer::createComputePipeline() {
+  auto computeShaderCode = readFile("shaders/shader.comp.spv");
+
+  vk::raii::ShaderModule computeShaderModule = createShaderModule(computeShaderCode);
+
+  vk::PipelineShaderStageCreateInfo computeShaderStageInfo;
+  computeShaderStageInfo.stage = vk::ShaderStageFlagBits::eCompute;
+  computeShaderStageInfo.module = *computeShaderModule;
+  computeShaderStageInfo.pName = "main";
+
+  vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
+  pipelineLayoutInfo.setLayoutCount = 1;
+  pipelineLayoutInfo.pSetLayouts = &(*computeDescriptorSetLayout);
+
+  computePipelineLayout = vk::raii::PipelineLayout(device, pipelineLayoutInfo);
+
+  vk::ComputePipelineCreateInfo pipelineInfo;
+  pipelineInfo.layout = *computePipelineLayout;
+  pipelineInfo.stage = computeShaderStageInfo;
+
+  computePipeline = vk::raii::Pipeline(device, nullptr, pipelineInfo);
 }

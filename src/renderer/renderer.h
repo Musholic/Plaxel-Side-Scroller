@@ -144,9 +144,12 @@ private:
   vk::Extent2D swapChainExtent;
 
   vk::raii::RenderPass renderPass = nullptr;
-  vk::raii::DescriptorSetLayout computeDescriptorSetLayout = nullptr;
   vk::raii::PipelineLayout pipelineLayout = nullptr;
   vk::raii::Pipeline graphicsPipeline = nullptr;
+
+  vk::raii::DescriptorSetLayout computeDescriptorSetLayout = nullptr;
+  vk::raii::PipelineLayout computePipelineLayout = nullptr;
+  vk::raii::Pipeline computePipeline = nullptr;
 
   void createWindow();
   static void framebufferResizeCallback(GLFWwindow *window, int width, int height);
@@ -175,6 +178,7 @@ private:
   void createComputeDescriptorSetLayout();
   void createGraphicsPipeline();
   vk::raii::ShaderModule createShaderModule(const std::vector<char> &code);
+  void createComputePipeline();
 };
 
 } // namespace plaxel
