@@ -4,6 +4,9 @@
 #include <vulkan/vulkan_raii.hpp>
 
 #include <GLFW/glfw3.h>
+#include <fstream>
+#include <glm/vec2.hpp>
+#include <glm/vec4.hpp>
 #include <iostream>
 #include <optional>
 
@@ -57,6 +60,54 @@ public:
   using runtime_error::runtime_error;
 };
 
+struct Particle {
+  glm::vec2 position;
+  glm::vec2 velocity;
+  glm::vec4 color;
+
+  static vk::VertexInputBindingDescription getBindingDescription() {
+    vk::VertexInputBindingDescription bindingDescription;
+    bindingDescription.binding = 0;
+    bindingDescription.stride = sizeof(Particle);
+
+    return bindingDescription;
+  }
+
+  static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions() {
+    std::array<vk::VertexInputAttributeDescription, 2> attributeDescriptions;
+
+    attributeDescriptions[0].binding = 0;
+    attributeDescriptions[0].location = 0;
+    attributeDescriptions[0].format = vk::Format::eR32G32Sfloat;
+    attributeDescriptions[0].offset = offsetof(Particle, position);
+
+    attributeDescriptions[1].binding = 0;
+    attributeDescriptions[1].location = 1;
+    attributeDescriptions[1].format = vk::Format::eR32G32B32A32Sfloat;
+    attributeDescriptions[1].offset = offsetof(Particle, color);
+
+    return attributeDescriptions;
+  }
+};
+
+static std::vector<char> readFile(const std::string &filename) {
+  std::ifstream file(filename, std::ios::ate | std::ios::binary);
+
+  if (!file.is_open()) {
+    throw VulkanInitializationError("failed to open file!");
+  }
+
+  auto fileSize = (size_t)file.tellg();
+  std::vector<char> buffer(fileSize);
+
+  file.seekg(0);
+  file.read(buffer.data(), fileSize);
+
+  file.close();
+
+  return buffer;
+};
+
 class Renderer {
 public:
   Renderer();
@@ -94,10 +145,13 @@ private:
 
   vk::raii::RenderPass renderPass = nullptr;
   vk::raii::DescriptorSetLayout computeDescriptorSetLayout = nullptr;
+  vk::raii::PipelineLayout pipelineLayout = nullptr;
+  vk::raii::Pipeline graphicsPipeline = nullptr;
 
   void createWindow();
   static void framebufferResizeCallback(GLFWwindow *window, int width, int height);
   void initVulkan();
+
   void createInstance();
   bool checkValidationLayerSupport();
   std::vector<const char *> getRequiredExtensions();
@@ -119,6 +173,8 @@ private:
   void createImageViews();
   void createRenderPass();
   void createComputeDescriptorSetLayout();
+  void createGraphicsPipeline();
+  vk::raii::ShaderModule createShaderModule(const std::vector<char> &code);
 };
 
 } // namespace plaxel

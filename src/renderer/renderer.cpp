@@ -1,4 +1,5 @@
 #include "renderer.h"
+#include <fstream>
 #include <limits>
 #include <set>
 
@@ -73,6 +74,7 @@ void Renderer::initVulkan() {
   createImageViews();
   createRenderPass();
   createComputeDescriptorSetLayout();
+  createGraphicsPipeline();
 }
 
 void Renderer::createInstance() {
@@ -463,4 +465,108 @@ void Renderer::createComputeDescriptorSetLayout() {
   layoutInfo.pBindings = layoutBindings.data();
 
   computeDescriptorSetLayout = vk::raii::DescriptorSetLayout(device, layoutInfo);
+}
+
+void Renderer::createGraphicsPipeline() {
+  auto vertShaderCode = readFile("shaders/shader.vert.spv");
+  auto fragShaderCode = readFile("shaders/shader.frag.spv");
+
+  vk::raii::ShaderModule vertShaderModule = createShaderModule(vertShaderCode);
+  vk::raii::ShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+
+  vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
+  vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
+  vertShaderStageInfo.module = *vertShaderModule;
+  vertShaderStageInfo.pName = "main";
+
+  vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
+  fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
+  fragShaderStageInfo.module = *fragShaderModule;
+  fragShaderStageInfo.pName = "main";
+
+  std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = {vertShaderStageInfo,
+                                                                 fragShaderStageInfo};
+
+  vk::PipelineVertexInputStateCreateInfo vertexInputInfo;
+
+  auto bindingDescription = Particle::getBindingDescription();
+  auto attributeDescriptions = Particle::getAttributeDescriptions();
+
+  vertexInputInfo.vertexBindingDescriptionCount = 1;
+  vertexInputInfo.vertexAttributeDescriptionCount =
+      static_cast<uint32_t>(attributeDescriptions.size());
+  vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+  vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+
+  vk::PipelineInputAssemblyStateCreateInfo inputAssembly;
+  inputAssembly.primitiveRestartEnable = vk::False;
+
+  vk::PipelineViewportStateCreateInfo viewportState;
+  viewportState.viewportCount = 1;
+  viewportState.scissorCount = 1;
+
+  vk::PipelineRasterizationStateCreateInfo rasterizer;
+  rasterizer.depthClampEnable = vk::False;
+  rasterizer.rasterizerDiscardEnable = vk::False;
+  rasterizer.lineWidth = 1.0f;
+  rasterizer.cullMode = vk::CullModeFlagBits::eBack;
+  rasterizer.depthBiasEnable = vk::False;
+
+  vk::PipelineMultisampleStateCreateInfo multisampling;
+  multisampling.sampleShadingEnable = vk::False;
+
+  vk::PipelineColorBlendAttachmentState colorBlendAttachment;
+  using enum vk::ColorComponentFlagBits;
+  colorBlendAttachment.colorWriteMask = eR | eG | eB | eA;
+  colorBlendAttachment.blendEnable = vk::True;
+  colorBlendAttachment.srcColorBlendFactor = vk::BlendFactor::eSrcAlpha;
+  colorBlendAttachment.dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha;
+  colorBlendAttachment.srcAlphaBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha;
+
+  vk::PipelineColorBlendStateCreateInfo colorBlending;
+  colorBlending.logicOpEnable = vk::False;
+  colorBlending.logicOp = vk::LogicOp::eCopy;
+  colorBlending.attachmentCount = 1;
+  colorBlending.pAttachments = &colorBlendAttachment;
+  colorBlending.blendConstants[0] = 0.0f;
+  colorBlending.blendConstants[1] = 0.0f;
+  colorBlending.blendConstants[2] = 0.0f;
+  colorBlending.blendConstants[3] = 0.0f;
+
+  std::vector<vk::DynamicState> dynamicStates = {vk::DynamicState::eViewport,
+                                                 vk::DynamicState::eScissor};
+  vk::PipelineDynamicStateCreateInfo dynamicState;
+  dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+  dynamicState.pDynamicStates = dynamicStates.data();
+
+  vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
+  pipelineLayoutInfo.setLayoutCount = 0;
+  pipelineLayoutInfo.pSetLayouts = nullptr;
+
+  pipelineLayout = vk::raii::PipelineLayout(device, pipelineLayoutInfo);
+
+  vk::GraphicsPipelineCreateInfo pipelineInfo;
+  pipelineInfo.stageCount = 2;
+  pipelineInfo.pStages = shaderStages.data();
+  pipelineInfo.pVertexInputState = &vertexInputInfo;
+  pipelineInfo.pInputAssemblyState = &inputAssembly;
+  pipelineInfo.pViewportState = &viewportState;
+  pipelineInfo.pRasterizationState = &rasterizer;
+  pipelineInfo.pMultisampleState = &multisampling;
+  pipelineInfo.pColorBlendState = &colorBlending;
+  pipelineInfo.pDynamicState = &dynamicState;
+  pipelineInfo.layout = *pipelineLayout;
+  pipelineInfo.renderPass = *renderPass;
+  pipelineInfo.subpass = 0;
+  pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+
+  graphicsPipeline = vk::raii::Pipeline(device, nullptr, pipelineInfo);
+}
+
+vk::raii::ShaderModule Renderer::createShaderModule(const std::vector<char> &code) {
+  vk::ShaderModuleCreateInfo createInfo;
+  createInfo.codeSize = code.size();
+  createInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
+
+  return {device, createInfo};
 }
