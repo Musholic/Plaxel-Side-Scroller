@@ -56,7 +56,7 @@ void Renderer::createWindow() {
   glfwSetWindowUserPointer(window, this);
   glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
   if (!window) {
-    throw std::runtime_error("Could not create window");
+    throw VulkanInitializationError("Could not create window");
   }
 }
 
@@ -68,7 +68,9 @@ bool Renderer::shouldClose() { return glfwWindowShouldClose(window); }
 
 void Renderer::draw() { glfwPollEvents(); }
 
-void Renderer::loadShader(std::string fileName) {}
+void Renderer::loadShader(std::string fileName) {
+  //TODO
+}
 
 void Renderer::initVulkan() {
   createInstance();
@@ -79,7 +81,7 @@ void Renderer::initVulkan() {
 
 void Renderer::createInstance() {
   if (enableValidationLayers && !checkValidationLayerSupport()) {
-    throw std::runtime_error("validation layers requested, but not available!");
+    throw VulkanInitializationError("validation layers requested, but not available!");
   }
 
   vk::ApplicationInfo appInfo{};
@@ -109,7 +111,7 @@ void Renderer::createInstance() {
   }
 
   if (vk::createInstance(&createInfo, nullptr, &instance) != vk::Result::eSuccess) {
-    throw std::runtime_error("failed to create instance!");
+    throw VulkanInitializationError("failed to create instance!");
   }
 
   dispatchLoader = vk::DispatchLoaderDynamic(instance, vkGetInstanceProcAddr);
@@ -173,7 +175,7 @@ void Renderer::setupDebugMessenger() {
 void Renderer::createSurface() {
   VkSurfaceKHR natSurface = nullptr;
   if (glfwCreateWindowSurface(instance, window, nullptr, &natSurface) != VK_SUCCESS) {
-    throw std::runtime_error("failed to create window surface!");
+    throw VulkanInitializationError("failed to create window surface!");
   }
   surface = natSurface;
 }
@@ -189,7 +191,7 @@ void Renderer::pickPhysicalDevice() {
   }
 
   if (physicalDevice == VK_NULL_HANDLE) {
-    throw std::runtime_error("failed to find a suitable GPU!");
+    throw VulkanInitializationError("failed to find a suitable GPU!");
   }
 }
 
@@ -219,9 +221,7 @@ QueueFamilyIndices Renderer::findQueueFamilies(vk::PhysicalDevice device) {
       indices.graphicsAndComputeFamily = i;
     }
 
-    VkBool32 presentSupport = device.getSurfaceSupportKHR(i, surface);
-
-    if (presentSupport) {
+    if (device.getSurfaceSupportKHR(i, surface)) {
       indices.presentFamily = i;
     }
 
@@ -238,7 +238,7 @@ QueueFamilyIndices Renderer::findQueueFamilies(vk::PhysicalDevice device) {
 bool Renderer::checkDeviceExtensionSupport(vk::PhysicalDevice device) {
   std::vector<vk::ExtensionProperties> availableExtensions = device.enumerateDeviceExtensionProperties();
 
-  std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
+  std::set<std::string, std::less<>> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
 
   for (const auto &extension : availableExtensions) {
     requiredExtensions.erase(extension.extensionName.data());

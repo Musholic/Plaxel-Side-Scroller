@@ -13,7 +13,9 @@ struct QueueFamilyIndices {
   std::optional<uint32_t> graphicsAndComputeFamily;
   std::optional<uint32_t> presentFamily;
 
-  bool isComplete() { return graphicsAndComputeFamily.has_value() && presentFamily.has_value(); }
+  [[nodiscard]] bool isComplete() const {
+    return graphicsAndComputeFamily.has_value() && presentFamily.has_value();
+  }
 };
 
 struct SwapChainSupportDetails {
@@ -31,16 +33,17 @@ debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
               const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData) {
 
   switch (vk::DebugUtilsMessageSeverityFlagBitsEXT(messageType)) {
-  case vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose:
+    using enum vk::DebugUtilsMessageSeverityFlagBitsEXT;
+  case eVerbose:
     std::cerr << "(V) ";
     break;
-  case vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo:
+  case eInfo:
     std::cerr << "(INFO) ";
     break;
-  case vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning:
+  case eWarning:
     std::cerr << "(WARN) ";
     break;
-  case vk::DebugUtilsMessageSeverityFlagBitsEXT::eError:
+  case eError:
     std::cerr << "(ERR) ";
     break;
   }
@@ -48,6 +51,11 @@ debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 
   return VK_FALSE;
 }
+
+class VulkanInitializationError : public std::runtime_error {
+public:
+  explicit VulkanInitializationError(const std::string &arg) : runtime_error(arg) {}
+};
 
 class Renderer {
 public:
