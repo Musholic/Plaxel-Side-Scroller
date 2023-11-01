@@ -88,6 +88,7 @@ private:
 
   vk::raii::SwapchainKHR swapChain = nullptr;
   std::vector<vk::Image> swapChainImages;
+  std::vector<vk::raii::ImageView> swapChainImageViews;
   vk::Format swapChainImageFormat = vk::Format::eUndefined;
   vk::Extent2D swapChainExtent;
 
@@ -112,6 +113,7 @@ private:
   vk::PresentModeKHR
   chooseSwapPresentMode(const std::vector<vk::PresentModeKHR> &availablePresentModes);
   vk::Extent2D chooseSwapExtent(const vk::SurfaceCapabilitiesKHR &capabilities);
+  void createImageViews();
 };
 
 } // namespace plaxel

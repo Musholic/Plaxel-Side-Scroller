@@ -70,6 +70,7 @@ void Renderer::initVulkan() {
   pickPhysicalDevice();
   createLogicalDevice();
   createSwapChain();
+  createImageViews();
 }
 
 void Renderer::createInstance() {
@@ -381,5 +382,20 @@ vk::Extent2D Renderer::chooseSwapExtent(const vk::SurfaceCapabilitiesKHR &capabi
                                      capabilities.maxImageExtent.height);
 
     return actualExtent;
+  }
+}
+
+void Renderer::createImageViews() {
+  for (auto swapChainImage : swapChainImages) {
+    vk::ImageViewCreateInfo createInfo;
+    createInfo.image = swapChainImage;
+    createInfo.viewType = vk::ImageViewType::e2D;
+    createInfo.format = swapChainImageFormat;
+    createInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+    createInfo.subresourceRange.baseMipLevel = 0;
+    createInfo.subresourceRange.levelCount = 1;
+    createInfo.subresourceRange.baseArrayLayer = 0;
+    createInfo.subresourceRange.layerCount = 1;
+    swapChainImageViews.emplace_back(device, createInfo);
   }
 }
