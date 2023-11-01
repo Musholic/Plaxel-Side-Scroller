@@ -76,6 +76,8 @@ void Renderer::initVulkan() {
   createComputeDescriptorSetLayout();
   createGraphicsPipeline();
   createComputePipeline();
+  createFramebuffers();
+  createCommandPool();
 }
 
 void Renderer::createInstance() {
@@ -593,4 +595,30 @@ void Renderer::createComputePipeline() {
   pipelineInfo.stage = computeShaderStageInfo;
 
   computePipeline = vk::raii::Pipeline(device, nullptr, pipelineInfo);
+}
+
+void Renderer::createFramebuffers() {
+
+  for (const auto &swapChainImageView : swapChainImageViews) {
+    std::vector<vk::ImageView> attachments = {*swapChainImageView};
+
+    vk::FramebufferCreateInfo framebufferInfo;
+    framebufferInfo.renderPass = *renderPass;
+    framebufferInfo.attachmentCount = 1;
+    framebufferInfo.pAttachments = attachments.data();
+    framebufferInfo.width = swapChainExtent.width;
+    framebufferInfo.height = swapChainExtent.height;
+    framebufferInfo.layers = 1;
+    swapChainFramebuffers.emplace_back(device, framebufferInfo);
+  }
+}
+
+void Renderer::createCommandPool() {
+  QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
+
+  vk::CommandPoolCreateInfo poolInfo;
+  poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
+  poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsAndComputeFamily.value();
+
+  commandPool = vk::raii::CommandPool(device, poolInfo);
 }

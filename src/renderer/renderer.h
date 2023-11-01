@@ -140,6 +140,8 @@ private:
   vk::raii::SwapchainKHR swapChain = nullptr;
   std::vector<vk::Image> swapChainImages;
   std::vector<vk::raii::ImageView> swapChainImageViews;
+  std::vector<vk::raii::Framebuffer> swapChainFramebuffers;
+
   vk::Format swapChainImageFormat = vk::Format::eUndefined;
   vk::Extent2D swapChainExtent;
 
@@ -150,6 +152,8 @@ private:
   vk::raii::DescriptorSetLayout computeDescriptorSetLayout = nullptr;
   vk::raii::PipelineLayout computePipelineLayout = nullptr;
   vk::raii::Pipeline computePipeline = nullptr;
+
+  vk::raii::CommandPool commandPool = nullptr;
 
   void createWindow();
   static void framebufferResizeCallback(GLFWwindow *window, int width, int height);
@@ -179,6 +183,8 @@ private:
   void createGraphicsPipeline();
   vk::raii::ShaderModule createShaderModule(const std::vector<char> &code);
   void createComputePipeline();
+  void createFramebuffers();
+  void createCommandPool();
 };
 
 } // namespace plaxel
