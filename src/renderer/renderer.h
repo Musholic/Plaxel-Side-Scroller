@@ -1,7 +1,7 @@
 #ifndef PLAXEL_RENDERER_H
 #define PLAXEL_RENDERER_H
 
-#include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_raii.hpp>
 
 #include <GLFW/glfw3.h>
 #include <iostream>
@@ -60,8 +60,8 @@ public:
 class Renderer {
 public:
   Renderer();
-  ~Renderer();
   void showWindow();
+  void closeWindow();
   constexpr static std::string WINDOW_TITLE = "Plaxel";
   bool fullscreen = false;
 
@@ -75,20 +75,20 @@ private:
   GLFWwindow *window{};
   vk::Extent2D size{1280, 720};
   const bool enableValidationLayers;
-  vk::Instance instance;
-  vk::DispatchLoaderDynamic dispatchLoader;
-  vk::DebugUtilsMessengerEXT debugMessenger;
-  vk::SurfaceKHR surface;
-  vk::PhysicalDevice physicalDevice = VK_NULL_HANDLE;
-  vk::Device device;
+  vk::raii::Context context;
+  vk::raii::Instance instance = nullptr;
+  vk::raii::DebugUtilsMessengerEXT debugMessenger = nullptr;
+  vk::raii::SurfaceKHR surface = nullptr;
+  vk::raii::PhysicalDevice physicalDevice = nullptr;
+  vk::raii::Device device = nullptr;
 
-  vk::Queue graphicsQueue;
-  vk::Queue computeQueue;
-  vk::Queue presentQueue;
+  vk::raii::Queue graphicsQueue = nullptr;
+  vk::raii::Queue computeQueue = nullptr;
+  vk::raii::Queue presentQueue = nullptr;
 
-  vk::SwapchainKHR swapChain;
+  vk::raii::SwapchainKHR swapChain = nullptr;
   std::vector<vk::Image> swapChainImages;
-  vk::Format swapChainImageFormat;
+  vk::Format swapChainImageFormat = vk::Format::eUndefined;
   vk::Extent2D swapChainExtent;
 
   void createWindow();
@@ -101,10 +101,10 @@ private:
   void setupDebugMessenger();
   void createSurface();
   void pickPhysicalDevice();
-  bool isDeviceSuitable(vk::PhysicalDevice device);
-  QueueFamilyIndices findQueueFamilies(vk::PhysicalDevice device);
-  bool checkDeviceExtensionSupport(vk::PhysicalDevice device);
-  SwapChainSupportDetails querySwapChainSupport(vk::PhysicalDevice device);
+  bool isDeviceSuitable(vk::raii::PhysicalDevice device);
+  QueueFamilyIndices findQueueFamilies(vk::raii::PhysicalDevice device);
+  bool checkDeviceExtensionSupport(vk::raii::PhysicalDevice device);
+  SwapChainSupportDetails querySwapChainSupport(vk::raii::PhysicalDevice device);
   void createLogicalDevice();
   void createSwapChain();
   vk::SurfaceFormatKHR

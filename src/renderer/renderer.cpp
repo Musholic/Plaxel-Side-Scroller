@@ -1,6 +1,6 @@
 #include "renderer.h"
-#include <set>
 #include <limits>
+#include <set>
 
 using namespace plaxel;
 
@@ -14,29 +14,17 @@ Renderer::Renderer()
 {
 }
 
-Renderer::~Renderer() {
-  if (window) {
-    device.destroySwapchainKHR(swapChain);
-    device.destroy();
-
-    if (enableValidationLayers) {
-      instance.destroyDebugUtilsMessengerEXT(debugMessenger, nullptr, dispatchLoader);
-    }
-
-    instance.destroySurfaceKHR(surface);
-    instance.destroy();
-
-    glfwDestroyWindow(window);
-    glfwTerminate();
-  }
-}
-
 /**
  * Setup the bare minimum to open a new window
  */
 void Renderer::showWindow() {
   createWindow();
   initVulkan();
+}
+
+void Renderer::closeWindow() {
+  glfwDestroyWindow(window);
+  glfwTerminate();
 }
 
 void Renderer::createWindow() {
@@ -103,11 +91,14 @@ void Renderer::createInstance() {
   createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
   createInfo.ppEnabledExtensionNames = extensions.data();
 
+  // This variable is placed outside the if statement to ensure it is not destroyed before creating
+  // the instance
+  vk::DebugUtilsMessengerCreateInfoEXT debugCreateInfo = createDebugMessengerCreateInfo();
+
   if (enableValidationLayers) {
     createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
     createInfo.ppEnabledLayerNames = validationLayers.data();
 
-    vk::DebugUtilsMessengerCreateInfoEXT debugCreateInfo = createDebugMessengerCreateInfo();
     createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT *)&debugCreateInfo;
   } else {
     createInfo.enabledLayerCount = 0;
@@ -115,11 +106,7 @@ void Renderer::createInstance() {
     createInfo.pNext = nullptr;
   }
 
-  if (vk::createInstance(&createInfo, nullptr, &instance) != vk::Result::eSuccess) {
-    throw VulkanInitializationError("failed to create instance!");
-  }
-
-  dispatchLoader = vk::DispatchLoaderDynamic(instance, vkGetInstanceProcAddr);
+  instance = vk::raii::Instance(context, createInfo);
 }
 
 bool Renderer::checkValidationLayerSupport() {
@@ -158,7 +145,8 @@ std::vector<const char *> Renderer::getRequiredExtensions() {
 }
 
 vk::DebugUtilsMessengerCreateInfoEXT Renderer::createDebugMessengerCreateInfo() {
-  vk::DebugUtilsMessengerCreateInfoEXT createInfo{};
+  vk::DebugUtilsMessengerCreateInfoEXT createInfo;
+  createInfo.sType = vk::StructureType::eDebugUtilsMessengerCreateInfoEXT;
 
   using enum vk::DebugUtilsMessageSeverityFlagBitsEXT;
   createInfo.messageSeverity = eVerbose | eWarning | eError;
@@ -174,20 +162,20 @@ void Renderer::setupDebugMessenger() {
   if (!enableValidationLayers)
     return;
 
-  vk::DebugUtilsMessengerCreateInfoEXT createInfo = createDebugMessengerCreateInfo();
-  debugMessenger = instance.createDebugUtilsMessengerEXT(createInfo, nullptr, dispatchLoader);
+  vk::DebugUtilsMessengerCreateInfoEXT debugCreateInfo = createDebugMessengerCreateInfo();
+  vk::raii::DebugUtilsMessengerEXT(instance, debugCreateInfo);
 }
 
 void Renderer::createSurface() {
   VkSurfaceKHR natSurface = nullptr;
-  if (glfwCreateWindowSurface(instance, window, nullptr, &natSurface) != VK_SUCCESS) {
+  if (glfwCreateWindowSurface(*instance, window, nullptr, &natSurface) != VK_SUCCESS) {
     throw VulkanInitializationError("failed to create window surface!");
   }
-  surface = natSurface;
+  surface = vk::raii::SurfaceKHR(instance, natSurface);
 }
 
 void Renderer::pickPhysicalDevice() {
-  std::vector<vk::PhysicalDevice> devices = instance.enumeratePhysicalDevices();
+  vk::raii::PhysicalDevices devices(instance);
 
   for (const auto &device : devices) {
     if (isDeviceSuitable(device)) {
@@ -196,12 +184,12 @@ void Renderer::pickPhysicalDevice() {
     }
   }
 
-  if (physicalDevice == VK_NULL_HANDLE) {
+  if (*physicalDevice == nullptr) {
     throw VulkanInitializationError("failed to find a suitable GPU!");
   }
 }
 
-bool Renderer::isDeviceSuitable(vk::PhysicalDevice device) {
+bool Renderer::isDeviceSuitable(vk::raii::PhysicalDevice device) {
   QueueFamilyIndices indices = findQueueFamilies(device);
 
   bool extensionsSupported = checkDeviceExtensionSupport(device);
@@ -215,7 +203,7 @@ bool Renderer::isDeviceSuitable(vk::PhysicalDevice device) {
   return indices.isComplete() && extensionsSupported && swapChainAdequate;
 }
 
-QueueFamilyIndices Renderer::findQueueFamilies(vk::PhysicalDevice device) {
+QueueFamilyIndices Renderer::findQueueFamilies(vk::raii::PhysicalDevice device) {
   QueueFamilyIndices indices;
 
   std::vector<vk::QueueFamilyProperties> queueFamilies = device.getQueueFamilyProperties();
@@ -227,7 +215,7 @@ QueueFamilyIndices Renderer::findQueueFamilies(vk::PhysicalDevice device) {
       indices.graphicsAndComputeFamily = i;
     }
 
-    if (device.getSurfaceSupportKHR(i, surface)) {
+    if (device.getSurfaceSupportKHR(i, *surface)) {
       indices.presentFamily = i;
     }
 
@@ -241,7 +229,7 @@ QueueFamilyIndices Renderer::findQueueFamilies(vk::PhysicalDevice device) {
   return indices;
 }
 
-bool Renderer::checkDeviceExtensionSupport(vk::PhysicalDevice device) {
+bool Renderer::checkDeviceExtensionSupport(vk::raii::PhysicalDevice device) {
   std::vector<vk::ExtensionProperties> availableExtensions =
       device.enumerateDeviceExtensionProperties();
 
@@ -255,12 +243,12 @@ bool Renderer::checkDeviceExtensionSupport(vk::PhysicalDevice device) {
   return requiredExtensions.empty();
 }
 
-SwapChainSupportDetails Renderer::querySwapChainSupport(vk::PhysicalDevice device) {
+SwapChainSupportDetails Renderer::querySwapChainSupport(vk::raii::PhysicalDevice device) {
   SwapChainSupportDetails details;
 
-  details.capabilities = device.getSurfaceCapabilitiesKHR(surface);
-  details.formats = device.getSurfaceFormatsKHR(surface);
-  details.presentModes = device.getSurfacePresentModesKHR(surface);
+  details.capabilities = device.getSurfaceCapabilitiesKHR(*surface);
+  details.formats = device.getSurfaceFormatsKHR(*surface);
+  details.presentModes = device.getSurfacePresentModesKHR(*surface);
 
   return details;
 }
@@ -299,11 +287,7 @@ void Renderer::createLogicalDevice() {
     createInfo.enabledLayerCount = 0;
   }
 
-  
-
-  if (physicalDevice.createDevice(&createInfo, nullptr, &device) != vk::Result::eSuccess) {
-    throw VulkanInitializationError("failed to create logical device!");
-  }
+  device = vk::raii::Device(physicalDevice, createInfo);
 
   graphicsQueue = device.getQueue(indices.graphicsAndComputeFamily.value(), 0);
   computeQueue = device.getQueue(indices.graphicsAndComputeFamily.value(), 0);
@@ -324,7 +308,7 @@ void Renderer::createSwapChain() {
   }
 
   vk::SwapchainCreateInfoKHR createInfo{};
-  createInfo.surface = surface;
+  createInfo.surface = *surface;
 
   createInfo.minImageCount = imageCount;
   createInfo.imageFormat = surfaceFormat.format;
@@ -335,7 +319,7 @@ void Renderer::createSwapChain() {
 
   QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
   std::vector<uint32_t> queueFamilyIndices = {indices.graphicsAndComputeFamily.value(),
-                                   indices.presentFamily.value()};
+                                              indices.presentFamily.value()};
 
   if (indices.graphicsAndComputeFamily != indices.presentFamily) {
     createInfo.imageSharingMode = vk::SharingMode::eConcurrent;
@@ -350,19 +334,18 @@ void Renderer::createSwapChain() {
   createInfo.presentMode = presentMode;
   createInfo.clipped = VK_TRUE;
 
-  if (device.createSwapchainKHR(&createInfo, nullptr, &swapChain) != vk::Result::eSuccess) {
-    throw VulkanInitializationError("failed to create swap chain!");
-  }
+  swapChain = vk::raii::SwapchainKHR(device, createInfo);
 
-  swapChainImages = device.getSwapchainImagesKHR(swapChain);
+  swapChainImages = swapChain.getImages();
 
   swapChainImageFormat = surfaceFormat.format;
   swapChainExtent = extent;
 }
 
-vk::SurfaceFormatKHR Renderer::chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &availableFormats) {
+vk::SurfaceFormatKHR
+Renderer::chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &availableFormats) {
   for (const auto &availableFormat : availableFormats) {
-    if (availableFormat.format == vk::Format::eB8G8R8A8Srgb  &&
+    if (availableFormat.format == vk::Format::eB8G8R8A8Srgb &&
         availableFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
       return availableFormat;
     }
@@ -371,7 +354,8 @@ vk::SurfaceFormatKHR Renderer::chooseSwapSurfaceFormat(const std::vector<vk::Sur
   return availableFormats[0];
 }
 
-vk::PresentModeKHR Renderer::chooseSwapPresentMode(const std::vector<vk::PresentModeKHR> &availablePresentModes) {
+vk::PresentModeKHR
+Renderer::chooseSwapPresentMode(const std::vector<vk::PresentModeKHR> &availablePresentModes) {
   for (const auto &availablePresentMode : availablePresentModes) {
     if (availablePresentMode == vk::PresentModeKHR::eMailbox) {
       return availablePresentMode;

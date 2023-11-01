@@ -15,4 +15,6 @@ void Plaxel::start() {
   while(!renderer.shouldClose()) {
     renderer.draw();
   }
+
+  renderer.closeWindow();
 }
