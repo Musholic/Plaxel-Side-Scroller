@@ -71,6 +71,7 @@ void Renderer::initVulkan() {
   createLogicalDevice();
   createSwapChain();
   createImageViews();
+  createRenderPass();
 }
 
 void Renderer::createInstance() {
@@ -398,4 +399,39 @@ void Renderer::createImageViews() {
     createInfo.subresourceRange.layerCount = 1;
     swapChainImageViews.emplace_back(device, createInfo);
   }
+}
+void Renderer::createRenderPass() {
+  vk::AttachmentDescription colorAttachment;
+  colorAttachment.format = swapChainImageFormat;
+  colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;
+  colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;
+  colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+  colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+  colorAttachment.finalLayout = vk::ImageLayout::ePresentSrcKHR;
+
+  vk::AttachmentReference colorAttachmentRef;
+  colorAttachmentRef.attachment = 0;
+  colorAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
+
+  vk::SubpassDescription subpass;
+  subpass.colorAttachmentCount = 1;
+  subpass.pColorAttachments = &colorAttachmentRef;
+
+  vk::SubpassDependency dependency;
+  dependency.srcSubpass = vk::SubpassExternal;
+  dependency.dstSubpass = 0;
+  dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+  dependency.srcAccessMask = vk::AccessFlagBits::eNone;
+  dependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+  dependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+
+  vk::RenderPassCreateInfo renderPassInfo;
+  renderPassInfo.attachmentCount = 1;
+  renderPassInfo.pAttachments = &colorAttachment;
+  renderPassInfo.subpassCount = 1;
+  renderPassInfo.pSubpasses = &subpass;
+  renderPassInfo.dependencyCount = 1;
+  renderPassInfo.pDependencies = &dependency;
+
+  renderPass = vk::raii::RenderPass(device, renderPassInfo);
 }

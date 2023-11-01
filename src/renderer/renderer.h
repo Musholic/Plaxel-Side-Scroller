@@ -92,6 +92,8 @@ private:
   vk::Format swapChainImageFormat = vk::Format::eUndefined;
   vk::Extent2D swapChainExtent;
 
+  vk::raii::RenderPass renderPass = nullptr;
+
   void createWindow();
   static void framebufferResizeCallback(GLFWwindow *window, int width, int height);
   void initVulkan();
@@ -114,6 +116,7 @@ private:
   chooseSwapPresentMode(const std::vector<vk::PresentModeKHR> &availablePresentModes);
   vk::Extent2D chooseSwapExtent(const vk::SurfaceCapabilitiesKHR &capabilities);
   void createImageViews();
+  void createRenderPass();
 };
 
 } // namespace plaxel
