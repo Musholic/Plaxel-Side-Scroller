@@ -93,6 +93,7 @@ private:
   vk::Extent2D swapChainExtent;
 
   vk::raii::RenderPass renderPass = nullptr;
+  vk::raii::DescriptorSetLayout computeDescriptorSetLayout = nullptr;
 
   void createWindow();
   static void framebufferResizeCallback(GLFWwindow *window, int width, int height);
@@ -117,6 +118,7 @@ private:
   vk::Extent2D chooseSwapExtent(const vk::SurfaceCapabilitiesKHR &capabilities);
   void createImageViews();
   void createRenderPass();
+  void createComputeDescriptorSetLayout();
 };
 
 } // namespace plaxel

@@ -72,6 +72,7 @@ void Renderer::initVulkan() {
   createSwapChain();
   createImageViews();
   createRenderPass();
+  createComputeDescriptorSetLayout();
 }
 
 void Renderer::createInstance() {
@@ -400,6 +401,7 @@ void Renderer::createImageViews() {
     swapChainImageViews.emplace_back(device, createInfo);
   }
 }
+
 void Renderer::createRenderPass() {
   vk::AttachmentDescription colorAttachment;
   colorAttachment.format = swapChainImageFormat;
@@ -434,4 +436,31 @@ void Renderer::createRenderPass() {
   renderPassInfo.pDependencies = &dependency;
 
   renderPass = vk::raii::RenderPass(device, renderPassInfo);
+}
+
+void Renderer::createComputeDescriptorSetLayout() {
+  std::array<vk::DescriptorSetLayoutBinding, 3> layoutBindings;
+  layoutBindings[0].binding = 0;
+  layoutBindings[0].descriptorCount = 1;
+  layoutBindings[0].descriptorType = vk::DescriptorType::eUniformBuffer;
+  layoutBindings[0].pImmutableSamplers = nullptr;
+  layoutBindings[0].stageFlags = vk::ShaderStageFlagBits::eCompute;
+
+  layoutBindings[1].binding = 1;
+  layoutBindings[1].descriptorCount = 1;
+  layoutBindings[1].descriptorType = vk::DescriptorType::eStorageBuffer;
+  layoutBindings[1].pImmutableSamplers = nullptr;
+  layoutBindings[1].stageFlags = vk::ShaderStageFlagBits::eCompute;
+
+  layoutBindings[2].binding = 2;
+  layoutBindings[2].descriptorCount = 1;
+  layoutBindings[2].descriptorType = vk::DescriptorType::eStorageBuffer;
+  layoutBindings[2].pImmutableSamplers = nullptr;
+  layoutBindings[2].stageFlags = vk::ShaderStageFlagBits::eCompute;
+
+  vk::DescriptorSetLayoutCreateInfo layoutInfo{};
+  layoutInfo.bindingCount = 3;
+  layoutInfo.pBindings = layoutBindings.data();
+
+  computeDescriptorSetLayout = vk::raii::DescriptorSetLayout(device, layoutInfo);
 }
