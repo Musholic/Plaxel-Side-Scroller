@@ -171,6 +171,15 @@ private:
   vk::raii::DescriptorPool descriptorPool = nullptr;
   vk::raii::DescriptorSets computeDescriptorSets = nullptr;
 
+  vk::raii::CommandBuffers commandBuffers = nullptr;
+  vk::raii::CommandBuffers computeCommandBuffers = nullptr;
+
+  std::array<vk::raii::Semaphore, MAX_FRAMES_IN_FLIGHT> imageAvailableSemaphores{nullptr, nullptr};
+  std::array<vk::raii::Semaphore, MAX_FRAMES_IN_FLIGHT> renderFinishedSemaphores{nullptr, nullptr};
+  std::array<vk::raii::Semaphore, MAX_FRAMES_IN_FLIGHT> computeFinishedSemaphores{nullptr, nullptr};
+  std::array<vk::raii::Fence, MAX_FRAMES_IN_FLIGHT> inFlightFences{nullptr, nullptr};
+  std::array<vk::raii::Fence, MAX_FRAMES_IN_FLIGHT> computeInFlightFences{nullptr, nullptr};
+
   void createWindow();
   static void framebufferResizeCallback(GLFWwindow *window, int width, int height);
   void initVulkan();
@@ -210,6 +219,9 @@ private:
   void createUniformBuffers();
   void createDescriptorPool();
   void createComputeDescriptorSets();
+  void createCommandBuffers();
+  void createComputeCommandBuffers();
+  void createSyncObjects();
 };
 
 } // namespace plaxel

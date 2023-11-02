@@ -86,6 +86,9 @@ void Renderer::initVulkan() {
   createUniformBuffers();
   createDescriptorPool();
   createComputeDescriptorSets();
+  createCommandBuffers();
+  createComputeCommandBuffers();
+  createSyncObjects();
 }
 
 void Renderer::createInstance() {
@@ -795,5 +798,37 @@ void Renderer::createComputeDescriptorSets() {
     descriptorWrites[1].pBufferInfo = &storageBufferInfoCurrentFrame;
 
     device.updateDescriptorSets(descriptorWrites, nullptr);
+  }
+}
+
+void Renderer::createCommandBuffers() {
+  vk::CommandBufferAllocateInfo allocInfo;
+  allocInfo.commandPool = *commandPool;
+  allocInfo.commandBufferCount = MAX_FRAMES_IN_FLIGHT;
+
+  commandBuffers = vk::raii::CommandBuffers(device, allocInfo);
+}
+
+void Renderer::createComputeCommandBuffers() {
+  vk::CommandBufferAllocateInfo allocInfo;
+  allocInfo.commandPool = *commandPool;
+  allocInfo.commandBufferCount = MAX_FRAMES_IN_FLIGHT;
+
+  computeCommandBuffers = vk::raii::CommandBuffers(device, allocInfo);
+}
+
+void Renderer::createSyncObjects() {
+  vk::SemaphoreCreateInfo semaphoreInfo;
+
+  vk::FenceCreateInfo fenceInfo;
+  fenceInfo.flags = vk::FenceCreateFlagBits::eSignaled;
+
+  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    imageAvailableSemaphores[i] = vk::raii::Semaphore(device, semaphoreInfo);
+    renderFinishedSemaphores[i] = vk::raii::Semaphore(device, semaphoreInfo);
+    inFlightFences[i] = vk::raii::Fence(device, fenceInfo);
+
+    computeFinishedSemaphores[i] = vk::raii::Semaphore(device, semaphoreInfo);
+    computeInFlightFences[i] = vk::raii::Fence(device, fenceInfo);
   }
 }
