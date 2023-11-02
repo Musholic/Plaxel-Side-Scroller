@@ -30,6 +30,7 @@ struct SwapChainSupportDetails {
 const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
 const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 const uint32_t PARTICLE_COUNT = 8192;
+const int MAX_FRAMES_IN_FLIGHT = 2;
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL
 debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -59,6 +60,10 @@ debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 class VulkanInitializationError : public std::runtime_error {
 public:
   using runtime_error::runtime_error;
+};
+
+struct UniformBufferObject {
+  float deltaTime = 1.0f;
 };
 
 struct Particle {
@@ -159,6 +164,13 @@ private:
   vk::raii::Buffer shaderStorageBuffer = nullptr;
   vk::raii::DeviceMemory shaderStorageBufferMemory = nullptr;
 
+  std::array<vk::raii::Buffer, MAX_FRAMES_IN_FLIGHT> uniformBuffers{nullptr, nullptr};
+  std::array<vk::raii::DeviceMemory, MAX_FRAMES_IN_FLIGHT> uniformBuffersMemory{nullptr, nullptr};
+  std::array<void *, MAX_FRAMES_IN_FLIGHT> uniformBuffersMapped;
+
+  vk::raii::DescriptorPool descriptorPool = nullptr;
+  vk::raii::DescriptorSets computeDescriptorSets = nullptr;
+
   void createWindow();
   static void framebufferResizeCallback(GLFWwindow *window, int width, int height);
   void initVulkan();
@@ -195,6 +207,9 @@ private:
                     vk::raii::DeviceMemory &bufferMemory);
   uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
   void copyBuffer(vk::raii::Buffer &srcBuffer, vk::raii::Buffer &dstBuffer, vk::DeviceSize size);
+  void createUniformBuffers();
+  void createDescriptorPool();
+  void createComputeDescriptorSets();
 };
 
 } // namespace plaxel

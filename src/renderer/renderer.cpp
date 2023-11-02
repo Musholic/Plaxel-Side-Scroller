@@ -83,6 +83,9 @@ void Renderer::initVulkan() {
   createFramebuffers();
   createCommandPool();
   createShaderStorageBuffers();
+  createUniformBuffers();
+  createDescriptorPool();
+  createComputeDescriptorSets();
 }
 
 void Renderer::createInstance() {
@@ -725,4 +728,72 @@ void Renderer::copyBuffer(vk::raii::Buffer &srcBuffer, vk::raii::Buffer &dstBuff
 
   graphicsQueue.submit(submitInfo);
   graphicsQueue.waitIdle();
+}
+
+void Renderer::createUniformBuffers() {
+  vk::DeviceSize bufferSize = sizeof(UniformBufferObject);
+
+  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    createBuffer(bufferSize, vk::BufferUsageFlagBits::eUniformBuffer,
+                 vk::MemoryPropertyFlagBits::eHostVisible |
+                     vk::MemoryPropertyFlagBits::eHostCoherent,
+                 uniformBuffers[i], uniformBuffersMemory[i]);
+    uniformBuffersMapped[i] = uniformBuffersMemory[i].mapMemory(0, bufferSize);
+  }
+}
+
+void Renderer::createDescriptorPool() {
+  std::array<vk::DescriptorPoolSize, 2> poolSizes;
+  poolSizes[0].type = vk::DescriptorType::eUniformBuffer;
+  poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+  poolSizes[1].type = vk::DescriptorType::eStorageBuffer;
+  poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 2;
+
+  vk::DescriptorPoolCreateInfo poolInfo;
+  poolInfo.poolSizeCount = 2;
+  poolInfo.pPoolSizes = poolSizes.data();
+  poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+  poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
+
+  descriptorPool = vk::raii::DescriptorPool(device, poolInfo);
+}
+
+void Renderer::createComputeDescriptorSets() {
+  std::vector<vk::DescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, *computeDescriptorSetLayout);
+  vk::DescriptorSetAllocateInfo allocInfo;
+  allocInfo.descriptorPool = *descriptorPool;
+  allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+  allocInfo.pSetLayouts = layouts.data();
+
+  computeDescriptorSets = vk::raii::DescriptorSets(device, allocInfo);
+
+  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    vk::DescriptorBufferInfo uniformBufferInfo;
+    uniformBufferInfo.buffer = *uniformBuffers[i];
+    uniformBufferInfo.offset = 0;
+    uniformBufferInfo.range = sizeof(UniformBufferObject);
+
+    std::array<vk::WriteDescriptorSet, 2> descriptorWrites;
+    descriptorWrites[0].dstSet = *computeDescriptorSets[i];
+    descriptorWrites[0].dstBinding = 0;
+    descriptorWrites[0].dstArrayElement = 0;
+    descriptorWrites[0].descriptorType = vk::DescriptorType::eUniformBuffer;
+    descriptorWrites[0].descriptorCount = 1;
+    descriptorWrites[0].pBufferInfo = &uniformBufferInfo;
+
+    vk::DescriptorBufferInfo storageBufferInfoCurrentFrame;
+    storageBufferInfoCurrentFrame.buffer = *shaderStorageBuffer;
+    storageBufferInfoCurrentFrame.offset = 0;
+    storageBufferInfoCurrentFrame.range = sizeof(Particle) * PARTICLE_COUNT;
+
+    descriptorWrites[1].dstSet = *computeDescriptorSets[i];
+    descriptorWrites[1].dstBinding = 1;
+    descriptorWrites[1].dstArrayElement = 0;
+    descriptorWrites[1].descriptorType = vk::DescriptorType::eStorageBuffer;
+    descriptorWrites[1].descriptorCount = 1;
+    descriptorWrites[1].pBufferInfo = &storageBufferInfoCurrentFrame;
+
+    device.updateDescriptorSets(descriptorWrites, nullptr);
+  }
 }
