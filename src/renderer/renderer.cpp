@@ -23,9 +23,13 @@ Renderer::Renderer()
 void Renderer::showWindow() {
   createWindow();
   initVulkan();
+
+  lastTime = glfwGetTime();
 }
 
 void Renderer::closeWindow() {
+  device.waitIdle();
+
   glfwDestroyWindow(window);
   glfwTerminate();
 }
@@ -57,12 +61,11 @@ void Renderer::createWindow() {
 }
 
 void Renderer::framebufferResizeCallback(GLFWwindow *window, int width, int height) {
-  // TODO
+  auto pRenderer = reinterpret_cast<Renderer *>(glfwGetWindowUserPointer(window));
+  pRenderer->framebufferResized = true;
 }
 
 bool Renderer::shouldClose() { return glfwWindowShouldClose(window); }
-
-void Renderer::draw() { glfwPollEvents(); }
 
 void Renderer::loadShader(std::string fileName) {
   // TODO
@@ -197,7 +200,7 @@ void Renderer::pickPhysicalDevice() {
   vk::raii::PhysicalDevices devices(instance);
 
   for (const auto &device : devices) {
-    if (isDeviceSuitable(device)) {
+    if (isDeviceSuitable(*device)) {
       physicalDevice = device;
       break;
     }
@@ -208,7 +211,7 @@ void Renderer::pickPhysicalDevice() {
   }
 }
 
-bool Renderer::isDeviceSuitable(vk::raii::PhysicalDevice device) {
+bool Renderer::isDeviceSuitable(vk::PhysicalDevice device) {
   QueueFamilyIndices indices = findQueueFamilies(device);
 
   bool extensionsSupported = checkDeviceExtensionSupport(device);
@@ -222,7 +225,7 @@ bool Renderer::isDeviceSuitable(vk::raii::PhysicalDevice device) {
   return indices.isComplete() && extensionsSupported && swapChainAdequate;
 }
 
-QueueFamilyIndices Renderer::findQueueFamilies(vk::raii::PhysicalDevice device) {
+QueueFamilyIndices Renderer::findQueueFamilies(vk::PhysicalDevice device) {
   QueueFamilyIndices indices;
 
   std::vector<vk::QueueFamilyProperties> queueFamilies = device.getQueueFamilyProperties();
@@ -248,7 +251,7 @@ QueueFamilyIndices Renderer::findQueueFamilies(vk::raii::PhysicalDevice device) 
   return indices;
 }
 
-bool Renderer::checkDeviceExtensionSupport(vk::raii::PhysicalDevice device) {
+bool Renderer::checkDeviceExtensionSupport(vk::PhysicalDevice device) {
   std::vector<vk::ExtensionProperties> availableExtensions =
       device.enumerateDeviceExtensionProperties();
 
@@ -262,7 +265,7 @@ bool Renderer::checkDeviceExtensionSupport(vk::raii::PhysicalDevice device) {
   return requiredExtensions.empty();
 }
 
-SwapChainSupportDetails Renderer::querySwapChainSupport(vk::raii::PhysicalDevice device) {
+SwapChainSupportDetails Renderer::querySwapChainSupport(vk::PhysicalDevice device) {
   SwapChainSupportDetails details;
 
   details.capabilities = device.getSurfaceCapabilitiesKHR(*surface);
@@ -273,7 +276,7 @@ SwapChainSupportDetails Renderer::querySwapChainSupport(vk::raii::PhysicalDevice
 }
 
 void Renderer::createLogicalDevice() {
-  QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+  QueueFamilyIndices indices = findQueueFamilies(*physicalDevice);
 
   std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
   std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsAndComputeFamily.value(),
@@ -314,7 +317,7 @@ void Renderer::createLogicalDevice() {
 }
 
 void Renderer::createSwapChain() {
-  SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDevice);
+  SwapChainSupportDetails swapChainSupport = querySwapChainSupport(*physicalDevice);
 
   vk::SurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
   vk::PresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
@@ -336,7 +339,7 @@ void Renderer::createSwapChain() {
   createInfo.imageArrayLayers = 1;
   createInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment;
 
-  QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+  QueueFamilyIndices indices = findQueueFamilies(*physicalDevice);
   std::vector<uint32_t> queueFamilyIndices = {indices.graphicsAndComputeFamily.value(),
                                               indices.presentFamily.value()};
 
@@ -625,7 +628,7 @@ void Renderer::createFramebuffers() {
 }
 
 void Renderer::createCommandPool() {
-  QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
+  QueueFamilyIndices queueFamilyIndices = findQueueFamilies(*physicalDevice);
 
   vk::CommandPoolCreateInfo poolInfo;
   poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
@@ -831,4 +834,177 @@ void Renderer::createSyncObjects() {
     computeFinishedSemaphores[i] = vk::raii::Semaphore(device, semaphoreInfo);
     computeInFlightFences[i] = vk::raii::Fence(device, fenceInfo);
   }
+}
+
+void Renderer::draw() {
+  glfwPollEvents();
+  drawFrame();
+  // We want to animate the particle system using the last frames time to get smooth, frame-rate
+  // independent animation
+  double currentTime = glfwGetTime();
+  lastFrameTime = (currentTime - lastTime) * 1000.0;
+  lastTime = currentTime;
+}
+
+void Renderer::drawFrame() {
+  vk::SubmitInfo submitInfo;
+
+  // Compute submission
+  waitForFence(*computeInFlightFences[currentFrame]);
+
+  updateUniformBuffer(currentFrame);
+
+  device.resetFences(*computeInFlightFences[currentFrame]);
+
+  computeCommandBuffers[currentFrame].reset();
+  recordComputeCommandBuffer(*computeCommandBuffers[currentFrame]);
+
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &*computeCommandBuffers[currentFrame];
+  submitInfo.signalSemaphoreCount = 1;
+  submitInfo.pSignalSemaphores = &*computeFinishedSemaphores[currentFrame];
+
+  computeQueue.submit(submitInfo, *computeInFlightFences[currentFrame]);
+
+  // Graphics submission
+  waitForFence(*inFlightFences[currentFrame]);
+
+  uint32_t imageIndex;
+  vk::Result result;
+  std::tie(result, imageIndex) =
+      swapChain.acquireNextImage(FENCE_TIMEOUT, *imageAvailableSemaphores[currentFrame]);
+  if (result == vk::Result::eErrorOutOfDateKHR) {
+    recreateSwapChain();
+    return;
+  } else if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR) {
+    throw VulkanDrawingError("failed to acquire swap chain image!");
+  }
+
+  device.resetFences(*inFlightFences[currentFrame]);
+
+  commandBuffers[currentFrame].reset();
+  recordCommandBuffer(*commandBuffers[currentFrame], imageIndex);
+
+  std::vector<vk::Semaphore> waitSemaphores = {*computeFinishedSemaphores[currentFrame],
+                                               *imageAvailableSemaphores[currentFrame]};
+  std::vector<vk::PipelineStageFlags> waitStages = {
+      vk::PipelineStageFlagBits::eVertexInput, vk::PipelineStageFlagBits::eColorAttachmentOutput};
+  submitInfo = vk::SubmitInfo{};
+
+  submitInfo.waitSemaphoreCount = 2;
+  submitInfo.pWaitSemaphores = waitSemaphores.data();
+  submitInfo.pWaitDstStageMask = waitStages.data();
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &*commandBuffers[currentFrame];
+  submitInfo.signalSemaphoreCount = 1;
+  submitInfo.pSignalSemaphores = &*renderFinishedSemaphores[currentFrame];
+
+  graphicsQueue.submit(submitInfo, *inFlightFences[currentFrame]);
+
+  vk::PresentInfoKHR presentInfo;
+
+  presentInfo.waitSemaphoreCount = 1;
+  presentInfo.pWaitSemaphores = &*renderFinishedSemaphores[currentFrame];
+
+  std::vector<vk::SwapchainKHR> swapChains = {*swapChain};
+  presentInfo.swapchainCount = 1;
+  presentInfo.pSwapchains = swapChains.data();
+
+  presentInfo.pImageIndices = &imageIndex;
+
+  result = presentQueue.presentKHR(presentInfo);
+
+  if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR ||
+      framebufferResized) {
+    framebufferResized = false;
+    recreateSwapChain();
+  } else if (result != vk::Result::eSuccess) {
+    throw VulkanDrawingError("failed to present swap chain image!");
+  }
+
+  currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+}
+void Renderer::waitForFence(vk::Fence fence) {
+  while (vk::Result::eTimeout == device.waitForFences({fence}, vk::True, FENCE_TIMEOUT))
+    ;
+}
+
+void Renderer::updateUniformBuffer(uint32_t currentImage) {
+  UniformBufferObject ubo;
+  ubo.deltaTime = lastFrameTime * 2.0f;
+
+  memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
+}
+
+void Renderer::recordComputeCommandBuffer(vk::CommandBuffer commandBuffer) {
+  vk::CommandBufferBeginInfo beginInfo;
+
+  commandBuffer.begin(beginInfo);
+
+  commandBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, *computePipeline);
+
+  commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, *computePipelineLayout, 0,
+                                   *computeDescriptorSets[currentFrame], nullptr);
+  commandBuffer.dispatch(PARTICLE_COUNT / 256, 1, 1);
+
+  commandBuffer.end();
+}
+
+void Renderer::recreateSwapChain() {
+  int width = 0, height = 0;
+  glfwGetFramebufferSize(window, &width, &height);
+  while (width == 0 || height == 0) {
+    glfwGetFramebufferSize(window, &width, &height);
+    glfwWaitEvents();
+  }
+
+  device.waitIdle();
+
+  createSwapChain();
+  swapChainImageViews.clear();
+  createImageViews();
+  swapChainFramebuffers.clear();
+  createFramebuffers();
+}
+
+void Renderer::recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t imageIndex) {
+  vk::CommandBufferBeginInfo beginInfo;
+
+  commandBuffer.begin(beginInfo);
+
+  vk::RenderPassBeginInfo renderPassInfo;
+  renderPassInfo.renderPass = *renderPass;
+  renderPassInfo.framebuffer = *swapChainFramebuffers[imageIndex];
+  renderPassInfo.renderArea.offset = vk::Offset2D{0, 0};
+  renderPassInfo.renderArea.extent = swapChainExtent;
+
+  vk::ClearValue clearColor = {vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}};
+  renderPassInfo.clearValueCount = 1;
+  renderPassInfo.pClearValues = &clearColor;
+
+  commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+
+  commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *graphicsPipeline);
+
+  vk::Viewport viewport;
+  viewport.x = 0.0f;
+  viewport.y = 0.0f;
+  viewport.width = (float)swapChainExtent.width;
+  viewport.height = (float)swapChainExtent.height;
+  viewport.minDepth = 0.0f;
+  viewport.maxDepth = 1.0f;
+  commandBuffer.setViewport(0, viewport);
+
+  vk::Rect2D scissor;
+  scissor.offset = vk::Offset2D{0, 0};
+  scissor.extent = swapChainExtent;
+  commandBuffer.setScissor(0, scissor);
+
+  std::vector<vk::DeviceSize> offsets = {0};
+  commandBuffer.bindVertexBuffers(0, *shaderStorageBuffer, offsets);
+
+  commandBuffer.draw(PARTICLE_COUNT, 1, 0, 0);
+
+  commandBuffer.endRenderPass();
+  commandBuffer.end();
 }

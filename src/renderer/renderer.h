@@ -31,6 +31,7 @@ const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation
 const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 const uint32_t PARTICLE_COUNT = 8192;
 const int MAX_FRAMES_IN_FLIGHT = 2;
+const uint64_t FENCE_TIMEOUT = 100000000;
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL
 debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -58,6 +59,11 @@ debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 }
 
 class VulkanInitializationError : public std::runtime_error {
+public:
+  using runtime_error::runtime_error;
+};
+
+class VulkanDrawingError : public std::runtime_error {
 public:
   using runtime_error::runtime_error;
 };
@@ -180,6 +186,13 @@ private:
   std::array<vk::raii::Fence, MAX_FRAMES_IN_FLIGHT> inFlightFences{nullptr, nullptr};
   std::array<vk::raii::Fence, MAX_FRAMES_IN_FLIGHT> computeInFlightFences{nullptr, nullptr};
 
+  uint32_t currentFrame = 0;
+  float lastFrameTime = 0.0f;
+
+  bool framebufferResized = false;
+
+  double lastTime = 0.0f;
+
   void createWindow();
   static void framebufferResizeCallback(GLFWwindow *window, int width, int height);
   void initVulkan();
@@ -191,10 +204,10 @@ private:
   void setupDebugMessenger();
   void createSurface();
   void pickPhysicalDevice();
-  bool isDeviceSuitable(vk::raii::PhysicalDevice device);
-  QueueFamilyIndices findQueueFamilies(vk::raii::PhysicalDevice device);
-  bool checkDeviceExtensionSupport(vk::raii::PhysicalDevice device);
-  SwapChainSupportDetails querySwapChainSupport(vk::raii::PhysicalDevice device);
+  bool isDeviceSuitable(vk::PhysicalDevice device);
+  QueueFamilyIndices findQueueFamilies(vk::PhysicalDevice device);
+  bool checkDeviceExtensionSupport(vk::PhysicalDevice device);
+  SwapChainSupportDetails querySwapChainSupport(vk::PhysicalDevice device);
   void createLogicalDevice();
   void createSwapChain();
   vk::SurfaceFormatKHR
@@ -222,6 +235,13 @@ private:
   void createCommandBuffers();
   void createComputeCommandBuffers();
   void createSyncObjects();
+  void updateUniformBuffer(uint32_t currentImage);
+  void recordComputeCommandBuffer(vk::CommandBuffer commandBuffer);
+  void waitForFence(vk::Fence fence);
+  void recreateSwapChain();
+  void recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t imageIndex);
+
+  void drawFrame();
 };
 
 } // namespace plaxel
