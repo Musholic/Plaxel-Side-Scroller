@@ -844,6 +844,14 @@ void Renderer::draw() {
   double currentTime = glfwGetTime();
   lastFrameTime = (currentTime - lastTime) * 1000.0;
   lastTime = currentTime;
+
+  fpsCount++;
+  if (currentTime - lastFpsCountTime >= 1.0) {
+    std::cout << "FPS: " << fpsCount << std::endl;
+
+    lastFpsCountTime = currentTime;
+    fpsCount = 0;
+  }
 }
 
 void Renderer::drawFrame() {

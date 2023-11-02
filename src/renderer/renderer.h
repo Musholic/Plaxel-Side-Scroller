@@ -192,6 +192,8 @@ private:
   bool framebufferResized = false;
 
   double lastTime = 0.0f;
+  double lastFpsCountTime = 0.0f;
+  int fpsCount = 0;
 
   void createWindow();
   static void framebufferResizeCallback(GLFWwindow *window, int width, int height);
