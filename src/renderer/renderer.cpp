@@ -1,6 +1,8 @@
 #include "renderer.h"
 #include <fstream>
+#include <glm/geometric.hpp>
 #include <limits>
+#include <random>
 #include <set>
 
 using namespace plaxel;
@@ -34,15 +36,17 @@ void Renderer::createWindow() {
 
   auto monitor = glfwGetPrimaryMonitor();
   auto mode = glfwGetVideoMode(monitor);
-  size.width = mode->width;
-  size.height = mode->height;
+  windowSize.width = mode->width;
+  windowSize.height = mode->height;
 
   if (fullscreen) {
-    window = glfwCreateWindow(size.width, size.height, WINDOW_TITLE.c_str(), monitor, nullptr);
+    window = glfwCreateWindow(windowSize.width, windowSize.height, WINDOW_TITLE.c_str(), monitor,
+                              nullptr);
   } else {
-    size.width /= 2;
-    size.height /= 2;
-    window = glfwCreateWindow(size.width, size.height, WINDOW_TITLE.c_str(), nullptr, nullptr);
+    windowSize.width /= 2;
+    windowSize.height /= 2;
+    window = glfwCreateWindow(windowSize.width, windowSize.height, WINDOW_TITLE.c_str(), nullptr,
+                              nullptr);
   }
 
   glfwSetWindowUserPointer(window, this);
@@ -78,6 +82,7 @@ void Renderer::initVulkan() {
   createComputePipeline();
   createFramebuffers();
   createCommandPool();
+  createShaderStorageBuffers();
 }
 
 void Renderer::createInstance() {
@@ -621,4 +626,103 @@ void Renderer::createCommandPool() {
   poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsAndComputeFamily.value();
 
   commandPool = vk::raii::CommandPool(device, poolInfo);
+}
+
+void Renderer::createShaderStorageBuffers() {
+  // Initialize particles
+  std::default_random_engine rndEngine((unsigned)time(nullptr));
+  std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
+
+  // Initial particle positions on a circle
+  std::vector<Particle> particles(PARTICLE_COUNT);
+  for (auto &particle : particles) {
+    float r = 0.25f * sqrt(rndDist(rndEngine));
+    float theta = rndDist(rndEngine) * 2.0f * 3.14159265358979323846f;
+    float x = r * cos(theta) * windowSize.height / windowSize.width;
+    float y = r * sin(theta);
+    particle.position = glm::vec2(x, y);
+    particle.velocity = glm::normalize(glm::vec2(x, y)) * 0.00025f;
+    particle.color = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), 1.0f);
+  }
+
+  vk::DeviceSize bufferSize = sizeof(Particle) * PARTICLE_COUNT;
+
+  // Create a staging buffer used to upload data to the gpu
+  vk::raii::Buffer stagingBuffer = nullptr;
+  vk::raii::DeviceMemory stagingBufferMemory = nullptr;
+  createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc,
+               vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+               stagingBuffer, stagingBufferMemory);
+
+  void *data = stagingBufferMemory.mapMemory(0, bufferSize);
+  memcpy(data, particles.data(), bufferSize);
+  stagingBufferMemory.unmapMemory();
+
+  createBuffer(bufferSize,
+               vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eVertexBuffer |
+                   vk::BufferUsageFlagBits::eTransferDst,
+               vk::MemoryPropertyFlagBits::eDeviceLocal, shaderStorageBuffer,
+               shaderStorageBufferMemory);
+  copyBuffer(stagingBuffer, shaderStorageBuffer, bufferSize);
+}
+
+void Renderer::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage,
+                            vk::MemoryPropertyFlags properties, vk::raii::Buffer &buffer,
+                            vk::raii::DeviceMemory &bufferMemory) {
+  vk::BufferCreateInfo bufferInfo;
+  bufferInfo.size = size;
+  bufferInfo.usage = usage;
+  bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+
+  buffer = vk::raii::Buffer(device, bufferInfo);
+
+  vk::MemoryRequirements memRequirements = buffer.getMemoryRequirements();
+
+  vk::MemoryAllocateInfo allocInfo;
+  allocInfo.allocationSize = memRequirements.size;
+  allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+
+  bufferMemory = vk::raii::DeviceMemory(device, allocInfo);
+  buffer.bindMemory(*bufferMemory, 0);
+}
+
+uint32_t Renderer::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) {
+  vk::PhysicalDeviceMemoryProperties memProperties = physicalDevice.getMemoryProperties();
+
+  for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+    if ((typeFilter & (1 << i)) &&
+        (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+      return i;
+    }
+  }
+
+  throw VulkanInitializationError("failed to find suitable memory type!");
+}
+
+void Renderer::copyBuffer(vk::raii::Buffer &srcBuffer, vk::raii::Buffer &dstBuffer,
+                          vk::DeviceSize size) {
+  vk::CommandBufferAllocateInfo allocInfo;
+  allocInfo.commandPool = *commandPool;
+  allocInfo.commandBufferCount = 1;
+
+  vk::raii::CommandBuffers commandBuffers(device, allocInfo);
+  vk::raii::CommandBuffer commandBuffer(std::move(commandBuffers[0]));
+
+  vk::CommandBufferBeginInfo beginInfo;
+  beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+
+  commandBuffer.begin(beginInfo);
+
+  vk::BufferCopy copyRegion;
+  copyRegion.size = size;
+  commandBuffer.copyBuffer(*srcBuffer, *dstBuffer, copyRegion);
+
+  commandBuffer.end();
+
+  vk::SubmitInfo submitInfo;
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &*commandBuffer;
+
+  graphicsQueue.submit(submitInfo);
+  graphicsQueue.waitIdle();
 }

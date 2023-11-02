@@ -29,6 +29,7 @@ struct SwapChainSupportDetails {
 
 const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
 const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+const uint32_t PARTICLE_COUNT = 8192;
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL
 debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -124,7 +125,7 @@ public:
 
 private:
   GLFWwindow *window{};
-  vk::Extent2D size{1280, 720};
+  vk::Extent2D windowSize{1280, 720};
   const bool enableValidationLayers;
   vk::raii::Context context;
   vk::raii::Instance instance = nullptr;
@@ -154,6 +155,9 @@ private:
   vk::raii::Pipeline computePipeline = nullptr;
 
   vk::raii::CommandPool commandPool = nullptr;
+
+  vk::raii::Buffer shaderStorageBuffer = nullptr;
+  vk::raii::DeviceMemory shaderStorageBufferMemory = nullptr;
 
   void createWindow();
   static void framebufferResizeCallback(GLFWwindow *window, int width, int height);
@@ -185,6 +189,12 @@ private:
   void createComputePipeline();
   void createFramebuffers();
   void createCommandPool();
+  void createShaderStorageBuffers();
+  void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage,
+                    vk::MemoryPropertyFlags properties, vk::raii::Buffer &buffer,
+                    vk::raii::DeviceMemory &bufferMemory);
+  uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
+  void copyBuffer(vk::raii::Buffer &srcBuffer, vk::raii::Buffer &dstBuffer, vk::DeviceSize size);
 };
 
 } // namespace plaxel
