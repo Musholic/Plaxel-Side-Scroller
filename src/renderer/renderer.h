@@ -35,27 +35,49 @@ const uint64_t FENCE_TIMEOUT = 100000000;
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL
 debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-              VkDebugUtilsMessageTypeFlagsEXT messageType,
-              const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData) {
+              VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+              VkDebugUtilsMessengerCallbackDataEXT const *pCallbackData, void * /*pUserData*/) {
+  std::ostringstream message;
 
-  switch (vk::DebugUtilsMessageSeverityFlagBitsEXT(messageType)) {
-    using enum vk::DebugUtilsMessageSeverityFlagBitsEXT;
-  case eVerbose:
-    std::cerr << "(V) ";
-    break;
-  case eInfo:
-    std::cerr << "(INFO) ";
-    break;
-  case eWarning:
-    std::cerr << "(WARN) ";
-    break;
-  case eError:
-    std::cerr << "(ERR) ";
-    break;
+  message << vk::to_string(static_cast<vk::DebugUtilsMessageSeverityFlagBitsEXT>(messageSeverity))
+          << ": " << vk::to_string(static_cast<vk::DebugUtilsMessageTypeFlagsEXT>(messageTypes))
+          << ":\n";
+  message << std::string("\t") << "messageIDName   = <" << pCallbackData->pMessageIdName << ">\n";
+  message << std::string("\t") << "messageIdNumber = " << pCallbackData->messageIdNumber << "\n";
+  message << std::string("\t") << "message         = <" << pCallbackData->pMessage << ">\n";
+  if (0 < pCallbackData->queueLabelCount) {
+    message << std::string("\t") << "Queue Labels:\n";
+    for (uint32_t i = 0; i < pCallbackData->queueLabelCount; i++) {
+      message << std::string("\t\t") << "labelName = <" << pCallbackData->pQueueLabels[i].pLabelName
+              << ">\n";
+    }
   }
-  std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+  if (0 < pCallbackData->cmdBufLabelCount) {
+    message << std::string("\t") << "CommandBuffer Labels:\n";
+    for (uint32_t i = 0; i < pCallbackData->cmdBufLabelCount; i++) {
+      message << std::string("\t\t") << "labelName = <"
+              << pCallbackData->pCmdBufLabels[i].pLabelName << ">\n";
+    }
+  }
+  if (0 < pCallbackData->objectCount) {
+    message << std::string("\t") << "Objects:\n";
+    for (uint32_t i = 0; i < pCallbackData->objectCount; i++) {
+      message << std::string("\t\t") << "Object " << i << "\n";
+      message << std::string("\t\t\t") << "objectType   = "
+              << vk::to_string(static_cast<vk::ObjectType>(pCallbackData->pObjects[i].objectType))
+              << "\n";
+      message << std::string("\t\t\t")
+              << "objectHandle = " << pCallbackData->pObjects[i].objectHandle << "\n";
+      if (pCallbackData->pObjects[i].pObjectName) {
+        message << std::string("\t\t\t") << "objectName   = <"
+                << pCallbackData->pObjects[i].pObjectName << ">\n";
+      }
+    }
+  }
 
-  return VK_FALSE;
+  std::cout << message.str() << std::endl;
+
+  return false;
 }
 
 class VulkanInitializationError : public std::runtime_error {
@@ -230,7 +252,7 @@ private:
                     vk::MemoryPropertyFlags properties, vk::raii::Buffer &buffer,
                     vk::raii::DeviceMemory &bufferMemory);
   uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
-  void copyBuffer(vk::raii::Buffer &srcBuffer, vk::raii::Buffer &dstBuffer, vk::DeviceSize size);
+  void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
   void createUniformBuffers();
   void createDescriptorPool();
   void createComputeDescriptorSets();

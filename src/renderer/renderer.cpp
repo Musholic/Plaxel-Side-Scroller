@@ -61,7 +61,7 @@ void Renderer::createWindow() {
 }
 
 void Renderer::framebufferResizeCallback(GLFWwindow *window, int width, int height) {
-  auto pRenderer = reinterpret_cast<Renderer *>(glfwGetWindowUserPointer(window));
+  auto pRenderer = std::bit_cast<Renderer *>(glfwGetWindowUserPointer(window));
   pRenderer->framebufferResized = true;
 }
 
@@ -583,7 +583,7 @@ void Renderer::createGraphicsPipeline() {
 vk::raii::ShaderModule Renderer::createShaderModule(const std::vector<char> &code) {
   vk::ShaderModuleCreateInfo createInfo;
   createInfo.codeSize = code.size();
-  createInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
+  createInfo.pCode = std::bit_cast<const uint32_t *>(code.data());
 
   return {device, createInfo};
 }
@@ -646,7 +646,7 @@ void Renderer::createShaderStorageBuffers() {
   std::vector<Particle> particles(PARTICLE_COUNT);
   for (auto &particle : particles) {
     float r = 0.25f * sqrt(rndDist(rndEngine));
-    float theta = rndDist(rndEngine) * 2.0f * 3.14159265358979323846f;
+    float theta = rndDist(rndEngine) * 2.0f * std::numbers::pi_v<float>;
     float x = r * cos(theta) * windowSize.height / windowSize.width;
     float y = r * sin(theta);
     particle.position = glm::vec2(x, y);
@@ -672,7 +672,7 @@ void Renderer::createShaderStorageBuffers() {
                    vk::BufferUsageFlagBits::eTransferDst,
                vk::MemoryPropertyFlagBits::eDeviceLocal, shaderStorageBuffer,
                shaderStorageBufferMemory);
-  copyBuffer(stagingBuffer, shaderStorageBuffer, bufferSize);
+  copyBuffer(*stagingBuffer, *shaderStorageBuffer, bufferSize);
 }
 
 void Renderer::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage,
@@ -708,8 +708,7 @@ uint32_t Renderer::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags p
   throw VulkanInitializationError("failed to find suitable memory type!");
 }
 
-void Renderer::copyBuffer(vk::raii::Buffer &srcBuffer, vk::raii::Buffer &dstBuffer,
-                          vk::DeviceSize size) {
+void Renderer::copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size) {
   vk::CommandBufferAllocateInfo allocInfo;
   allocInfo.commandPool = *commandPool;
   allocInfo.commandBufferCount = 1;
@@ -724,7 +723,7 @@ void Renderer::copyBuffer(vk::raii::Buffer &srcBuffer, vk::raii::Buffer &dstBuff
 
   vk::BufferCopy copyRegion;
   copyRegion.size = size;
-  commandBuffer.copyBuffer(*srcBuffer, *dstBuffer, copyRegion);
+  commandBuffer.copyBuffer(srcBuffer, dstBuffer, copyRegion);
 
   commandBuffer.end();
 
