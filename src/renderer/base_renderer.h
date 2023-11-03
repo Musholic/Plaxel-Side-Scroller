@@ -1,5 +1,5 @@
-#ifndef PLAXEL_RENDERER_H
-#define PLAXEL_RENDERER_H
+#ifndef PLAXEL_BASE_RENDERER_H
+#define PLAXEL_BASE_RENDERER_H
 
 #include <vulkan/vulkan_raii.hpp>
 
@@ -142,10 +142,9 @@ static std::vector<char> readFile(const std::string &filename) {
   return buffer;
 };
 
-class Renderer {
+class BaseRenderer {
 public:
-  Renderer();
-  void showWindow();
+  BaseRenderer();
   void closeWindow();
   constexpr static std::string WINDOW_TITLE = "Plaxel";
   bool fullscreen = false;
@@ -155,6 +154,8 @@ public:
   void draw();
 
   void loadShader(std::string fileName);
+
+  void showWindow();
 
 private:
   GLFWwindow *window{};
@@ -194,7 +195,7 @@ private:
 
   std::array<vk::raii::Buffer, MAX_FRAMES_IN_FLIGHT> uniformBuffers{nullptr, nullptr};
   std::array<vk::raii::DeviceMemory, MAX_FRAMES_IN_FLIGHT> uniformBuffersMemory{nullptr, nullptr};
-  std::array<void *, MAX_FRAMES_IN_FLIGHT> uniformBuffersMapped;
+  std::array<void *, MAX_FRAMES_IN_FLIGHT> uniformBuffersMapped{};
 
   vk::raii::DescriptorPool descriptorPool = nullptr;
   vk::raii::DescriptorSets computeDescriptorSets = nullptr;
@@ -270,4 +271,4 @@ private:
 
 } // namespace plaxel
 
-#endif // PLAXEL_RENDERER_H
+#endif // PLAXEL_BASE_RENDERER_H

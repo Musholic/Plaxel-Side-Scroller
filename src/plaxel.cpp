@@ -1,9 +1,9 @@
 #include "plaxel.h"
-#include "renderer/renderer.h"
+#include "renderer/base_renderer.h"
 using namespace plaxel;
 
 void Plaxel::start() {
-  Renderer renderer;
+  BaseRenderer renderer;
   renderer.showWindow();
 
   // Create compute shader
@@ -12,7 +12,7 @@ void Plaxel::start() {
   // Fill initial values
   // Attach shader and fragments with appropriate bindings
 
-  while(!renderer.shouldClose()) {
+  while (!renderer.shouldClose()) {
     renderer.draw();
   }
 

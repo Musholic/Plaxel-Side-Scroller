@@ -1,4 +1,4 @@
-#include "renderer.h"
+#include "base_renderer.h"
 #include <fstream>
 #include <glm/geometric.hpp>
 #include <limits>
@@ -7,7 +7,7 @@
 
 using namespace plaxel;
 
-Renderer::Renderer()
+BaseRenderer::BaseRenderer()
     :
 #ifdef NDEBUG
       enableValidationLayers(false)
@@ -20,21 +20,21 @@ Renderer::Renderer()
 /**
  * Setup the bare minimum to open a new window
  */
-void Renderer::showWindow() {
+void BaseRenderer::showWindow() {
   createWindow();
   initVulkan();
 
   lastTime = glfwGetTime();
 }
 
-void Renderer::closeWindow() {
+void BaseRenderer::closeWindow() {
   device.waitIdle();
 
   glfwDestroyWindow(window);
   glfwTerminate();
 }
 
-void Renderer::createWindow() {
+void BaseRenderer::createWindow() {
   glfwInit();
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
@@ -60,18 +60,18 @@ void Renderer::createWindow() {
   }
 }
 
-void Renderer::framebufferResizeCallback(GLFWwindow *window, int width, int height) {
-  auto pRenderer = std::bit_cast<Renderer *>(glfwGetWindowUserPointer(window));
+void BaseRenderer::framebufferResizeCallback(GLFWwindow *window, int width, int height) {
+  auto pRenderer = std::bit_cast<BaseRenderer *>(glfwGetWindowUserPointer(window));
   pRenderer->framebufferResized = true;
 }
 
-bool Renderer::shouldClose() { return glfwWindowShouldClose(window); }
+bool BaseRenderer::shouldClose() { return glfwWindowShouldClose(window); }
 
-void Renderer::loadShader(std::string fileName) {
+void BaseRenderer::loadShader(std::string fileName) {
   // TODO
 }
 
-void Renderer::initVulkan() {
+void BaseRenderer::initVulkan() {
   createInstance();
   setupDebugMessenger();
   createSurface();
@@ -94,7 +94,7 @@ void Renderer::initVulkan() {
   createSyncObjects();
 }
 
-void Renderer::createInstance() {
+void BaseRenderer::createInstance() {
   if (enableValidationLayers && !checkValidationLayerSupport()) {
     throw VulkanInitializationError("validation layers requested, but not available!");
   }
@@ -131,7 +131,7 @@ void Renderer::createInstance() {
   instance = vk::raii::Instance(context, createInfo);
 }
 
-bool Renderer::checkValidationLayerSupport() {
+bool BaseRenderer::checkValidationLayerSupport() {
   auto availableLayers = vk::enumerateInstanceLayerProperties();
 
   for (const char *layerName : validationLayers) {
@@ -152,7 +152,7 @@ bool Renderer::checkValidationLayerSupport() {
   return true;
 }
 
-std::vector<const char *> Renderer::getRequiredExtensions() {
+std::vector<const char *> BaseRenderer::getRequiredExtensions() {
   uint32_t glfwExtensionCount = 0;
   const char **glfwExtensions;
   glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
@@ -166,7 +166,7 @@ std::vector<const char *> Renderer::getRequiredExtensions() {
   return extensions;
 }
 
-vk::DebugUtilsMessengerCreateInfoEXT Renderer::createDebugMessengerCreateInfo() {
+vk::DebugUtilsMessengerCreateInfoEXT BaseRenderer::createDebugMessengerCreateInfo() {
   vk::DebugUtilsMessengerCreateInfoEXT createInfo;
   createInfo.sType = vk::StructureType::eDebugUtilsMessengerCreateInfoEXT;
 
@@ -180,7 +180,7 @@ vk::DebugUtilsMessengerCreateInfoEXT Renderer::createDebugMessengerCreateInfo() 
   return createInfo;
 }
 
-void Renderer::setupDebugMessenger() {
+void BaseRenderer::setupDebugMessenger() {
   if (!enableValidationLayers)
     return;
 
@@ -188,7 +188,7 @@ void Renderer::setupDebugMessenger() {
   vk::raii::DebugUtilsMessengerEXT(instance, debugCreateInfo);
 }
 
-void Renderer::createSurface() {
+void BaseRenderer::createSurface() {
   VkSurfaceKHR natSurface = nullptr;
   if (glfwCreateWindowSurface(*instance, window, nullptr, &natSurface) != VK_SUCCESS) {
     throw VulkanInitializationError("failed to create window surface!");
@@ -196,7 +196,7 @@ void Renderer::createSurface() {
   surface = vk::raii::SurfaceKHR(instance, natSurface);
 }
 
-void Renderer::pickPhysicalDevice() {
+void BaseRenderer::pickPhysicalDevice() {
   vk::raii::PhysicalDevices devices(instance);
 
   for (const auto &device : devices) {
@@ -211,7 +211,7 @@ void Renderer::pickPhysicalDevice() {
   }
 }
 
-bool Renderer::isDeviceSuitable(vk::PhysicalDevice device) {
+bool BaseRenderer::isDeviceSuitable(vk::PhysicalDevice device) {
   QueueFamilyIndices indices = findQueueFamilies(device);
 
   bool extensionsSupported = checkDeviceExtensionSupport(device);
@@ -225,7 +225,7 @@ bool Renderer::isDeviceSuitable(vk::PhysicalDevice device) {
   return indices.isComplete() && extensionsSupported && swapChainAdequate;
 }
 
-QueueFamilyIndices Renderer::findQueueFamilies(vk::PhysicalDevice device) {
+QueueFamilyIndices BaseRenderer::findQueueFamilies(vk::PhysicalDevice device) {
   QueueFamilyIndices indices;
 
   std::vector<vk::QueueFamilyProperties> queueFamilies = device.getQueueFamilyProperties();
@@ -251,7 +251,7 @@ QueueFamilyIndices Renderer::findQueueFamilies(vk::PhysicalDevice device) {
   return indices;
 }
 
-bool Renderer::checkDeviceExtensionSupport(vk::PhysicalDevice device) {
+bool BaseRenderer::checkDeviceExtensionSupport(vk::PhysicalDevice device) {
   std::vector<vk::ExtensionProperties> availableExtensions =
       device.enumerateDeviceExtensionProperties();
 
@@ -265,7 +265,7 @@ bool Renderer::checkDeviceExtensionSupport(vk::PhysicalDevice device) {
   return requiredExtensions.empty();
 }
 
-SwapChainSupportDetails Renderer::querySwapChainSupport(vk::PhysicalDevice device) {
+SwapChainSupportDetails BaseRenderer::querySwapChainSupport(vk::PhysicalDevice device) {
   SwapChainSupportDetails details;
 
   details.capabilities = device.getSurfaceCapabilitiesKHR(*surface);
@@ -275,7 +275,7 @@ SwapChainSupportDetails Renderer::querySwapChainSupport(vk::PhysicalDevice devic
   return details;
 }
 
-void Renderer::createLogicalDevice() {
+void BaseRenderer::createLogicalDevice() {
   QueueFamilyIndices indices = findQueueFamilies(*physicalDevice);
 
   std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
@@ -316,7 +316,7 @@ void Renderer::createLogicalDevice() {
   presentQueue = device.getQueue(indices.presentFamily.value(), 0);
 }
 
-void Renderer::createSwapChain() {
+void BaseRenderer::createSwapChain() {
   SwapChainSupportDetails swapChainSupport = querySwapChainSupport(*physicalDevice);
 
   vk::SurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
@@ -365,7 +365,7 @@ void Renderer::createSwapChain() {
 }
 
 vk::SurfaceFormatKHR
-Renderer::chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &availableFormats) {
+BaseRenderer::chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &availableFormats) {
   for (const auto &availableFormat : availableFormats) {
     if (availableFormat.format == vk::Format::eB8G8R8A8Srgb &&
         availableFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
@@ -377,7 +377,7 @@ Renderer::chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &avail
 }
 
 vk::PresentModeKHR
-Renderer::chooseSwapPresentMode(const std::vector<vk::PresentModeKHR> &availablePresentModes) {
+BaseRenderer::chooseSwapPresentMode(const std::vector<vk::PresentModeKHR> &availablePresentModes) {
   for (const auto &availablePresentMode : availablePresentModes) {
     if (availablePresentMode == vk::PresentModeKHR::eMailbox) {
       return availablePresentMode;
@@ -387,7 +387,7 @@ Renderer::chooseSwapPresentMode(const std::vector<vk::PresentModeKHR> &available
   return vk::PresentModeKHR::eFifo;
 }
 
-vk::Extent2D Renderer::chooseSwapExtent(const vk::SurfaceCapabilitiesKHR &capabilities) {
+vk::Extent2D BaseRenderer::chooseSwapExtent(const vk::SurfaceCapabilitiesKHR &capabilities) {
   if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
     return capabilities.currentExtent;
   } else {
@@ -406,7 +406,7 @@ vk::Extent2D Renderer::chooseSwapExtent(const vk::SurfaceCapabilitiesKHR &capabi
   }
 }
 
-void Renderer::createImageViews() {
+void BaseRenderer::createImageViews() {
   for (auto swapChainImage : swapChainImages) {
     vk::ImageViewCreateInfo createInfo;
     createInfo.image = swapChainImage;
@@ -421,7 +421,7 @@ void Renderer::createImageViews() {
   }
 }
 
-void Renderer::createRenderPass() {
+void BaseRenderer::createRenderPass() {
   vk::AttachmentDescription colorAttachment;
   colorAttachment.format = swapChainImageFormat;
   colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;
@@ -457,7 +457,7 @@ void Renderer::createRenderPass() {
   renderPass = vk::raii::RenderPass(device, renderPassInfo);
 }
 
-void Renderer::createComputeDescriptorSetLayout() {
+void BaseRenderer::createComputeDescriptorSetLayout() {
   std::array<vk::DescriptorSetLayoutBinding, 3> layoutBindings;
   layoutBindings[0].binding = 0;
   layoutBindings[0].descriptorCount = 1;
@@ -484,7 +484,7 @@ void Renderer::createComputeDescriptorSetLayout() {
   computeDescriptorSetLayout = vk::raii::DescriptorSetLayout(device, layoutInfo);
 }
 
-void Renderer::createGraphicsPipeline() {
+void BaseRenderer::createGraphicsPipeline() {
   auto vertShaderCode = readFile("shaders/shader.vert.spv");
   auto fragShaderCode = readFile("shaders/shader.frag.spv");
 
@@ -580,7 +580,7 @@ void Renderer::createGraphicsPipeline() {
   graphicsPipeline = vk::raii::Pipeline(device, nullptr, pipelineInfo);
 }
 
-vk::raii::ShaderModule Renderer::createShaderModule(const std::vector<char> &code) {
+vk::raii::ShaderModule BaseRenderer::createShaderModule(const std::vector<char> &code) {
   vk::ShaderModuleCreateInfo createInfo;
   createInfo.codeSize = code.size();
   createInfo.pCode = std::bit_cast<const uint32_t *>(code.data());
@@ -588,7 +588,7 @@ vk::raii::ShaderModule Renderer::createShaderModule(const std::vector<char> &cod
   return {device, createInfo};
 }
 
-void Renderer::createComputePipeline() {
+void BaseRenderer::createComputePipeline() {
   auto computeShaderCode = readFile("shaders/shader.comp.spv");
 
   vk::raii::ShaderModule computeShaderModule = createShaderModule(computeShaderCode);
@@ -611,7 +611,7 @@ void Renderer::createComputePipeline() {
   computePipeline = vk::raii::Pipeline(device, nullptr, pipelineInfo);
 }
 
-void Renderer::createFramebuffers() {
+void BaseRenderer::createFramebuffers() {
 
   for (const auto &swapChainImageView : swapChainImageViews) {
     std::vector<vk::ImageView> attachments = {*swapChainImageView};
@@ -627,7 +627,7 @@ void Renderer::createFramebuffers() {
   }
 }
 
-void Renderer::createCommandPool() {
+void BaseRenderer::createCommandPool() {
   QueueFamilyIndices queueFamilyIndices = findQueueFamilies(*physicalDevice);
 
   vk::CommandPoolCreateInfo poolInfo;
@@ -637,7 +637,7 @@ void Renderer::createCommandPool() {
   commandPool = vk::raii::CommandPool(device, poolInfo);
 }
 
-void Renderer::createShaderStorageBuffers() {
+void BaseRenderer::createShaderStorageBuffers() {
   // Initialize particles
   std::default_random_engine rndEngine((unsigned)time(nullptr));
   std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
@@ -675,8 +675,8 @@ void Renderer::createShaderStorageBuffers() {
   copyBuffer(*stagingBuffer, *shaderStorageBuffer, bufferSize);
 }
 
-void Renderer::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage,
-                            vk::MemoryPropertyFlags properties, vk::raii::Buffer &buffer,
+void BaseRenderer::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage,
+                                vk::MemoryPropertyFlags properties, vk::raii::Buffer &buffer,
                             vk::raii::DeviceMemory &bufferMemory) {
   vk::BufferCreateInfo bufferInfo;
   bufferInfo.size = size;
@@ -695,7 +695,7 @@ void Renderer::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage,
   buffer.bindMemory(*bufferMemory, 0);
 }
 
-uint32_t Renderer::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) {
+uint32_t BaseRenderer::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) {
   vk::PhysicalDeviceMemoryProperties memProperties = physicalDevice.getMemoryProperties();
 
   for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
@@ -708,7 +708,7 @@ uint32_t Renderer::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags p
   throw VulkanInitializationError("failed to find suitable memory type!");
 }
 
-void Renderer::copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size) {
+void BaseRenderer::copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size) {
   vk::CommandBufferAllocateInfo allocInfo;
   allocInfo.commandPool = *commandPool;
   allocInfo.commandBufferCount = 1;
@@ -735,7 +735,7 @@ void Renderer::copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::Device
   graphicsQueue.waitIdle();
 }
 
-void Renderer::createUniformBuffers() {
+void BaseRenderer::createUniformBuffers() {
   vk::DeviceSize bufferSize = sizeof(UniformBufferObject);
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -747,7 +747,7 @@ void Renderer::createUniformBuffers() {
   }
 }
 
-void Renderer::createDescriptorPool() {
+void BaseRenderer::createDescriptorPool() {
   std::array<vk::DescriptorPoolSize, 2> poolSizes;
   poolSizes[0].type = vk::DescriptorType::eUniformBuffer;
   poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
@@ -764,7 +764,7 @@ void Renderer::createDescriptorPool() {
   descriptorPool = vk::raii::DescriptorPool(device, poolInfo);
 }
 
-void Renderer::createComputeDescriptorSets() {
+void BaseRenderer::createComputeDescriptorSets() {
   std::vector<vk::DescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, *computeDescriptorSetLayout);
   vk::DescriptorSetAllocateInfo allocInfo;
   allocInfo.descriptorPool = *descriptorPool;
@@ -803,7 +803,7 @@ void Renderer::createComputeDescriptorSets() {
   }
 }
 
-void Renderer::createCommandBuffers() {
+void BaseRenderer::createCommandBuffers() {
   vk::CommandBufferAllocateInfo allocInfo;
   allocInfo.commandPool = *commandPool;
   allocInfo.commandBufferCount = MAX_FRAMES_IN_FLIGHT;
@@ -811,7 +811,7 @@ void Renderer::createCommandBuffers() {
   commandBuffers = vk::raii::CommandBuffers(device, allocInfo);
 }
 
-void Renderer::createComputeCommandBuffers() {
+void BaseRenderer::createComputeCommandBuffers() {
   vk::CommandBufferAllocateInfo allocInfo;
   allocInfo.commandPool = *commandPool;
   allocInfo.commandBufferCount = MAX_FRAMES_IN_FLIGHT;
@@ -819,7 +819,7 @@ void Renderer::createComputeCommandBuffers() {
   computeCommandBuffers = vk::raii::CommandBuffers(device, allocInfo);
 }
 
-void Renderer::createSyncObjects() {
+void BaseRenderer::createSyncObjects() {
   vk::SemaphoreCreateInfo semaphoreInfo;
 
   vk::FenceCreateInfo fenceInfo;
@@ -835,7 +835,7 @@ void Renderer::createSyncObjects() {
   }
 }
 
-void Renderer::draw() {
+void BaseRenderer::draw() {
   glfwPollEvents();
   drawFrame();
   // We want to animate the particle system using the last frames time to get smooth, frame-rate
@@ -853,7 +853,7 @@ void Renderer::draw() {
   }
 }
 
-void Renderer::drawFrame() {
+void BaseRenderer::drawFrame() {
   vk::SubmitInfo submitInfo;
 
   // Compute submission
@@ -931,19 +931,19 @@ void Renderer::drawFrame() {
 
   currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
-void Renderer::waitForFence(vk::Fence fence) {
+void BaseRenderer::waitForFence(vk::Fence fence) {
   while (vk::Result::eTimeout == device.waitForFences({fence}, vk::True, FENCE_TIMEOUT))
     ;
 }
 
-void Renderer::updateUniformBuffer(uint32_t currentImage) {
+void BaseRenderer::updateUniformBuffer(uint32_t currentImage) {
   UniformBufferObject ubo;
   ubo.deltaTime = lastFrameTime * 2.0f;
 
   memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
 }
 
-void Renderer::recordComputeCommandBuffer(vk::CommandBuffer commandBuffer) {
+void BaseRenderer::recordComputeCommandBuffer(vk::CommandBuffer commandBuffer) {
   vk::CommandBufferBeginInfo beginInfo;
 
   commandBuffer.begin(beginInfo);
@@ -957,7 +957,7 @@ void Renderer::recordComputeCommandBuffer(vk::CommandBuffer commandBuffer) {
   commandBuffer.end();
 }
 
-void Renderer::recreateSwapChain() {
+void BaseRenderer::recreateSwapChain() {
   int width = 0, height = 0;
   glfwGetFramebufferSize(window, &width, &height);
   while (width == 0 || height == 0) {
@@ -974,7 +974,7 @@ void Renderer::recreateSwapChain() {
   createFramebuffers();
 }
 
-void Renderer::recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t imageIndex) {
+void BaseRenderer::recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t imageIndex) {
   vk::CommandBufferBeginInfo beginInfo;
 
   commandBuffer.begin(beginInfo);
