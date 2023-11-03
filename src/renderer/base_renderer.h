@@ -90,40 +90,6 @@ public:
   using runtime_error::runtime_error;
 };
 
-struct UniformBufferObject {
-  float deltaTime = 1.0f;
-};
-
-struct Particle {
-  glm::vec2 position;
-  glm::vec2 velocity;
-  glm::vec4 color;
-
-  static vk::VertexInputBindingDescription getBindingDescription() {
-    vk::VertexInputBindingDescription bindingDescription;
-    bindingDescription.binding = 0;
-    bindingDescription.stride = sizeof(Particle);
-
-    return bindingDescription;
-  }
-
-  static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions() {
-    std::array<vk::VertexInputAttributeDescription, 2> attributeDescriptions;
-
-    attributeDescriptions[0].binding = 0;
-    attributeDescriptions[0].location = 0;
-    attributeDescriptions[0].format = vk::Format::eR32G32Sfloat;
-    attributeDescriptions[0].offset = offsetof(Particle, position);
-
-    attributeDescriptions[1].binding = 0;
-    attributeDescriptions[1].location = 1;
-    attributeDescriptions[1].format = vk::Format::eR32G32B32A32Sfloat;
-    attributeDescriptions[1].offset = offsetof(Particle, color);
-
-    return attributeDescriptions;
-  }
-};
-
 static std::vector<char> readFile(const std::string &filename) {
   std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
@@ -145,6 +111,8 @@ static std::vector<char> readFile(const std::string &filename) {
 class BaseRenderer {
 public:
   BaseRenderer();
+  virtual ~BaseRenderer() = default;
+
   void closeWindow();
   constexpr static std::string WINDOW_TITLE = "Plaxel";
   bool fullscreen = false;
@@ -158,15 +126,38 @@ public:
   void showWindow();
 
 private:
-  GLFWwindow *window{};
-  vk::Extent2D windowSize{1280, 720};
-  const bool enableValidationLayers;
+  // These objects needs to be destructed last
   vk::raii::Context context;
   vk::raii::Instance instance = nullptr;
+
+protected:
+  virtual void initVulkan();
+
+  vk::Extent2D windowSize{1280, 720};
+
+  void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage,
+                    vk::MemoryPropertyFlags properties, vk::raii::Buffer &buffer,
+                    vk::raii::DeviceMemory &bufferMemory);
+
+  void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
+
+  float lastFrameTime = 0.0f;
+  uint32_t currentFrame = 0;
+
+  vk::raii::Device device = nullptr;
+
+  vk::raii::DescriptorSetLayout computeDescriptorSetLayout = nullptr;
+  vk::raii::PipelineLayout computePipelineLayout = nullptr;
+  vk::raii::Pipeline computePipeline = nullptr;
+
+  vk::raii::DescriptorPool descriptorPool = nullptr;
+
+private:
+  GLFWwindow *window{};
+  const bool enableValidationLayers;
   vk::raii::DebugUtilsMessengerEXT debugMessenger = nullptr;
   vk::raii::SurfaceKHR surface = nullptr;
   vk::raii::PhysicalDevice physicalDevice = nullptr;
-  vk::raii::Device device = nullptr;
 
   vk::raii::Queue graphicsQueue = nullptr;
   vk::raii::Queue computeQueue = nullptr;
@@ -184,21 +175,7 @@ private:
   vk::raii::PipelineLayout pipelineLayout = nullptr;
   vk::raii::Pipeline graphicsPipeline = nullptr;
 
-  vk::raii::DescriptorSetLayout computeDescriptorSetLayout = nullptr;
-  vk::raii::PipelineLayout computePipelineLayout = nullptr;
-  vk::raii::Pipeline computePipeline = nullptr;
-
   vk::raii::CommandPool commandPool = nullptr;
-
-  vk::raii::Buffer shaderStorageBuffer = nullptr;
-  vk::raii::DeviceMemory shaderStorageBufferMemory = nullptr;
-
-  std::array<vk::raii::Buffer, MAX_FRAMES_IN_FLIGHT> uniformBuffers{nullptr, nullptr};
-  std::array<vk::raii::DeviceMemory, MAX_FRAMES_IN_FLIGHT> uniformBuffersMemory{nullptr, nullptr};
-  std::array<void *, MAX_FRAMES_IN_FLIGHT> uniformBuffersMapped{};
-
-  vk::raii::DescriptorPool descriptorPool = nullptr;
-  vk::raii::DescriptorSets computeDescriptorSets = nullptr;
 
   vk::raii::CommandBuffers commandBuffers = nullptr;
   vk::raii::CommandBuffers computeCommandBuffers = nullptr;
@@ -209,9 +186,6 @@ private:
   std::array<vk::raii::Fence, MAX_FRAMES_IN_FLIGHT> inFlightFences{nullptr, nullptr};
   std::array<vk::raii::Fence, MAX_FRAMES_IN_FLIGHT> computeInFlightFences{nullptr, nullptr};
 
-  uint32_t currentFrame = 0;
-  float lastFrameTime = 0.0f;
-
   bool framebufferResized = false;
 
   double lastTime = 0.0f;
@@ -220,7 +194,6 @@ private:
 
   void createWindow();
   static void framebufferResizeCallback(GLFWwindow *window, int width, int height);
-  void initVulkan();
 
   void createInstance();
   bool checkValidationLayerSupport();
@@ -248,25 +221,22 @@ private:
   void createComputePipeline();
   void createFramebuffers();
   void createCommandPool();
-  void createShaderStorageBuffers();
-  void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage,
-                    vk::MemoryPropertyFlags properties, vk::raii::Buffer &buffer,
-                    vk::raii::DeviceMemory &bufferMemory);
   uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
-  void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
-  void createUniformBuffers();
   void createDescriptorPool();
-  void createComputeDescriptorSets();
   void createCommandBuffers();
   void createComputeCommandBuffers();
   void createSyncObjects();
-  void updateUniformBuffer(uint32_t currentImage);
-  void recordComputeCommandBuffer(vk::CommandBuffer commandBuffer);
+  virtual void updateUniformBuffer(uint32_t currentImage) = 0;
+  virtual void recordComputeCommandBuffer(vk::CommandBuffer commandBuffer) = 0;
   void waitForFence(vk::Fence fence);
   void recreateSwapChain();
   void recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t imageIndex);
 
   void drawFrame();
+  virtual void drawCommand(vk::CommandBuffer commandBuffer) const = 0;
+  [[nodiscard]] virtual vk::VertexInputBindingDescription getVertexBindingDescription() const = 0;
+  [[nodiscard]] virtual std::array<vk::VertexInputAttributeDescription, 2>
+  getVertexAttributeDescription() const = 0;
 };
 
 } // namespace plaxel

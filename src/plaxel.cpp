@@ -1,9 +1,9 @@
 #include "plaxel.h"
-#include "renderer/base_renderer.h"
+#include "renderer/renderer.h"
 using namespace plaxel;
 
 void Plaxel::start() {
-  BaseRenderer renderer;
+  Renderer renderer;
   renderer.showWindow();
 
   // Create compute shader

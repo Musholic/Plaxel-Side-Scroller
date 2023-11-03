@@ -12,6 +12,8 @@ add_executable(plaxel main.cpp
         src/renderer/base_renderer.h
         src/plaxel.cpp
         src/plaxel.h
+        src/renderer/renderer.cpp
+        src/renderer/renderer.h
 )
 
 target_link_libraries(plaxel PRIVATE glm::glm)
