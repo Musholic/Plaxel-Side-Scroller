@@ -82,7 +82,6 @@ void BaseRenderer::initVulkan() {
   createSwapChain();
   createImageViews();
   createRenderPass();
-  createComputeDescriptorSetLayout();
 
   initCustomDescriptorSetLayout();
 
@@ -463,32 +462,6 @@ void BaseRenderer::createRenderPass() {
   renderPass = vk::raii::RenderPass(device, renderPassInfo);
 }
 
-void BaseRenderer::createComputeDescriptorSetLayout() {
-  std::array<vk::DescriptorSetLayoutBinding, 3> layoutBindings;
-  layoutBindings[0].binding = 0;
-  layoutBindings[0].descriptorCount = 1;
-  layoutBindings[0].descriptorType = vk::DescriptorType::eUniformBuffer;
-  layoutBindings[0].pImmutableSamplers = nullptr;
-  layoutBindings[0].stageFlags = vk::ShaderStageFlagBits::eCompute;
-
-  layoutBindings[1].binding = 1;
-  layoutBindings[1].descriptorCount = 1;
-  layoutBindings[1].descriptorType = vk::DescriptorType::eStorageBuffer;
-  layoutBindings[1].pImmutableSamplers = nullptr;
-  layoutBindings[1].stageFlags = vk::ShaderStageFlagBits::eCompute;
-
-  layoutBindings[2].binding = 2;
-  layoutBindings[2].descriptorCount = 1;
-  layoutBindings[2].descriptorType = vk::DescriptorType::eStorageBuffer;
-  layoutBindings[2].pImmutableSamplers = nullptr;
-  layoutBindings[2].stageFlags = vk::ShaderStageFlagBits::eCompute;
-
-  vk::DescriptorSetLayoutCreateInfo layoutInfo{};
-  layoutInfo.bindingCount = 3;
-  layoutInfo.pBindings = layoutBindings.data();
-
-  computeDescriptorSetLayout = vk::raii::DescriptorSetLayout(device, layoutInfo);
-}
 
 void BaseRenderer::createGraphicsPipeline() {
   auto vertShaderCode = readFile("shaders/shader.vert.spv");
@@ -589,6 +562,13 @@ vk::PipelineLayoutCreateInfo BaseRenderer::getPipelineLayoutInfo() const {
   return pipelineLayoutInfo;
 }
 
+vk::PipelineLayoutCreateInfo BaseRenderer::getComputePipelineLayoutInfo() const {
+  vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
+  pipelineLayoutInfo.setLayoutCount = 0;
+  pipelineLayoutInfo.pSetLayouts = nullptr;
+  return pipelineLayoutInfo;
+}
+
 vk::raii::ShaderModule BaseRenderer::createShaderModule(const std::vector<char> &code) {
   vk::ShaderModuleCreateInfo createInfo;
   createInfo.codeSize = code.size();
@@ -607,9 +587,7 @@ void BaseRenderer::createComputePipeline() {
   computeShaderStageInfo.module = *computeShaderModule;
   computeShaderStageInfo.pName = "main";
 
-  vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
-  pipelineLayoutInfo.setLayoutCount = 1;
-  pipelineLayoutInfo.pSetLayouts = &(*computeDescriptorSetLayout);
+  vk::PipelineLayoutCreateInfo pipelineLayoutInfo = getComputePipelineLayoutInfo();
 
   computePipelineLayout = vk::raii::PipelineLayout(device, pipelineLayoutInfo);
 

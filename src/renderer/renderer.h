@@ -11,54 +11,51 @@
 #include <glm/fwd.hpp>
 namespace plaxel {
 
-
-struct Particle {
-  glm::vec2 position;
-  glm::vec2 velocity;
-  glm::vec4 color;
+struct Vertex {
+  // TODO: check alignment issues?
+  glm::vec3 pos;
+  glm::vec2 texCoord;
 
   static vk::VertexInputBindingDescription getBindingDescription() {
-    vk::VertexInputBindingDescription bindingDescription;
+    vk::VertexInputBindingDescription bindingDescription{};
     bindingDescription.binding = 0;
-    bindingDescription.stride = sizeof(Particle);
+    bindingDescription.stride = sizeof(Vertex);
 
     return bindingDescription;
   }
 
-  static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions() {
-    std::array<vk::VertexInputAttributeDescription, 2> attributeDescriptions;
+  static std::vector<vk::VertexInputAttributeDescription> getAttributeDescriptions() {
+    std::vector<vk::VertexInputAttributeDescription> attributeDescriptions{};
 
-    attributeDescriptions[0].binding = 0;
-    attributeDescriptions[0].location = 0;
-    attributeDescriptions[0].format = vk::Format::eR32G32Sfloat;
-    attributeDescriptions[0].offset = offsetof(Particle, position);
-
-    attributeDescriptions[1].binding = 0;
-    attributeDescriptions[1].location = 1;
-    attributeDescriptions[1].format = vk::Format::eR32G32B32A32Sfloat;
-    attributeDescriptions[1].offset = offsetof(Particle, color);
+    attributeDescriptions.emplace_back(0, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, pos));
+    attributeDescriptions.emplace_back(1, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, texCoord));
 
     return attributeDescriptions;
   }
 };
 
+const std::vector<Vertex> vertices = {
+    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f}},  {{0.5f, -0.5f, 0.0f}, {0.0f, 0.0f}},
+    {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f}},    {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f}},
+
+    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f}}, {{0.5f, -0.5f, -0.5f}, {0.0f, 0.0f}},
+    {{0.5f, 0.5f, -0.5f}, {0.0f, 1.0f}},   {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f}}};
+
+const std::vector<uint32_t> indices = {0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4};
+
 class Renderer : public BaseRenderer {
 private:
-  void createShaderStorageBuffers();
-
   void initVulkan() override;
   void initCustomDescriptorSetLayout() override;
   vk::raii::CommandBuffers computeCommandBuffers = nullptr;
-
-  vk::raii::DescriptorSets computeDescriptorSets = nullptr;
-
-  vk::raii::Buffer shaderStorageBuffer = nullptr;
-  vk::raii::DeviceMemory shaderStorageBufferMemory = nullptr;
 
   vk::raii::Image textureImage = nullptr;
   vk::raii::DeviceMemory textureImageMemory = nullptr;
   vk::raii::ImageView textureImageView = nullptr;
   vk::raii::Sampler textureSampler = nullptr;
+
+  vk::raii::DescriptorSetLayout computeDescriptorSetLayout = nullptr;
+  vk::raii::DescriptorSets computeDescriptorSets = nullptr;
 
   vk::raii::DescriptorSetLayout descriptorSetLayout = nullptr;
   vk::raii::DescriptorSets descriptorSets = nullptr;
@@ -68,6 +65,7 @@ private:
   vk::raii::Buffer indexBuffer = nullptr;
   vk::raii::DeviceMemory indexBufferMemory = nullptr;
 
+  void createComputeDescriptorSetLayout();
   void createComputeDescriptorSets();
   void recordComputeCommandBuffer(vk::CommandBuffer commandBuffer) override;
   void drawCommand(vk::CommandBuffer commandBuffer) const override;
@@ -92,6 +90,7 @@ private:
   vk::raii::ImageView createImageView(vk::Image image, vk::Format format,
                                       vk::ImageAspectFlags aspectFlags);
   [[nodiscard]] vk::PipelineLayoutCreateInfo getPipelineLayoutInfo() const override;
+  [[nodiscard]] vk::PipelineLayoutCreateInfo getComputePipelineLayoutInfo() const override;
 };
 
 } // namespace plaxel

@@ -12,40 +12,8 @@
 
 namespace plaxel {
 
-struct Vertex {
-  glm::vec3 pos;
-  glm::vec2 texCoord;
-
-  static vk::VertexInputBindingDescription getBindingDescription() {
-    vk::VertexInputBindingDescription bindingDescription{};
-    bindingDescription.binding = 0;
-    bindingDescription.stride = sizeof(Vertex);
-
-    return bindingDescription;
-  }
-
-  static std::vector<vk::VertexInputAttributeDescription> getAttributeDescriptions() {
-    std::vector<vk::VertexInputAttributeDescription> attributeDescriptions{};
-
-    attributeDescriptions.emplace_back(0, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, pos));
-    attributeDescriptions.emplace_back(1, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, texCoord));
-
-    return attributeDescriptions;
-  }
-};
-
-const std::vector<Vertex> vertices = {
-    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f}},  {{0.5f, -0.5f, 0.0f}, {0.0f, 0.0f}},
-    {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f}},    {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f}},
-
-    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f}}, {{0.5f, -0.5f, -0.5f}, {0.0f, 0.0f}},
-    {{0.5f, 0.5f, -0.5f}, {0.0f, 1.0f}},   {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f}}};
-
-const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4};
-
 void Renderer::initVulkan() {
   BaseRenderer::initVulkan();
-  createShaderStorageBuffers();
 
   createVertexBuffer();
   createIndexBuffer();
@@ -57,44 +25,23 @@ void Renderer::initVulkan() {
   createComputeDescriptorSets();
 }
 
-void Renderer::initCustomDescriptorSetLayout() { createDescriptorSetLayout(); }
+void Renderer::initCustomDescriptorSetLayout() {
+  createDescriptorSetLayout();
+  createComputeDescriptorSetLayout();
+}
 
-void Renderer::createShaderStorageBuffers() {
-  // Initialize particles
-  std::default_random_engine rndEngine((unsigned)time(nullptr));
-  std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
+void Renderer::createComputeDescriptorSetLayout() {
+  std::vector<vk::DescriptorSetLayoutBinding> layoutBindings;
+  layoutBindings.emplace_back(0, vk::DescriptorType::eStorageBuffer, 1,
+                              vk::ShaderStageFlagBits::eCompute);
+  layoutBindings.emplace_back(1, vk::DescriptorType::eStorageBuffer, 1,
+                              vk::ShaderStageFlagBits::eCompute);
 
-  // Initial particle positions on a circle
-  std::vector<Particle> particles(PARTICLE_COUNT);
-  for (auto &particle : particles) {
-    float r = 0.25f * sqrt(rndDist(rndEngine));
-    float theta = rndDist(rndEngine) * 2.0f * std::numbers::pi_v<float>;
-    float x = r * cos(theta) * windowSize.height / windowSize.width;
-    float y = r * sin(theta);
-    particle.position = glm::vec2(x, y);
-    particle.velocity = glm::normalize(glm::vec2(x, y)) * 0.00025f;
-    particle.color = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), 1.0f);
-  }
+  vk::DescriptorSetLayoutCreateInfo layoutInfo{};
+  layoutInfo.bindingCount = layoutBindings.size();
+  layoutInfo.pBindings = layoutBindings.data();
 
-  vk::DeviceSize bufferSize = sizeof(Particle) * PARTICLE_COUNT;
-
-  // Create a staging buffer used to upload data to the gpu
-  vk::raii::Buffer stagingBuffer = nullptr;
-  vk::raii::DeviceMemory stagingBufferMemory = nullptr;
-  createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc,
-               vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-               stagingBuffer, stagingBufferMemory);
-
-  void *data = stagingBufferMemory.mapMemory(0, bufferSize);
-  memcpy(data, particles.data(), bufferSize);
-  stagingBufferMemory.unmapMemory();
-
-  createBuffer(bufferSize,
-               vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eVertexBuffer |
-                   vk::BufferUsageFlagBits::eTransferDst,
-               vk::MemoryPropertyFlagBits::eDeviceLocal, shaderStorageBuffer,
-               shaderStorageBufferMemory);
-  copyBuffer(*stagingBuffer, *shaderStorageBuffer, bufferSize);
+  computeDescriptorSetLayout = vk::raii::DescriptorSetLayout(device, layoutInfo);
 }
 
 void Renderer::createComputeDescriptorSets() {
@@ -107,30 +54,34 @@ void Renderer::createComputeDescriptorSets() {
   computeDescriptorSets = vk::raii::DescriptorSets(device, allocInfo);
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-    vk::DescriptorBufferInfo uniformBufferInfo;
-    uniformBufferInfo.buffer = *uniformBuffers[i];
-    uniformBufferInfo.offset = 0;
-    uniformBufferInfo.range = sizeof(UniformBufferObject);
-
-    std::array<vk::WriteDescriptorSet, 2> descriptorWrites;
-    descriptorWrites[0].dstSet = *computeDescriptorSets[i];
-    descriptorWrites[0].dstBinding = 0;
-    descriptorWrites[0].dstArrayElement = 0;
-    descriptorWrites[0].descriptorType = vk::DescriptorType::eUniformBuffer;
-    descriptorWrites[0].descriptorCount = 1;
-    descriptorWrites[0].pBufferInfo = &uniformBufferInfo;
-
+    std::vector<vk::WriteDescriptorSet> descriptorWrites;
     vk::DescriptorBufferInfo storageBufferInfoCurrentFrame;
-    storageBufferInfoCurrentFrame.buffer = *shaderStorageBuffer;
+    storageBufferInfoCurrentFrame.buffer = *vertexBuffer;
     storageBufferInfoCurrentFrame.offset = 0;
-    storageBufferInfoCurrentFrame.range = sizeof(Particle) * PARTICLE_COUNT;
+    storageBufferInfoCurrentFrame.range = sizeof(Vertex) * MAX_VERTEX_COUNT;
 
-    descriptorWrites[1].dstSet = *computeDescriptorSets[i];
-    descriptorWrites[1].dstBinding = 1;
-    descriptorWrites[1].dstArrayElement = 0;
-    descriptorWrites[1].descriptorType = vk::DescriptorType::eStorageBuffer;
-    descriptorWrites[1].descriptorCount = 1;
-    descriptorWrites[1].pBufferInfo = &storageBufferInfoCurrentFrame;
+    vk::WriteDescriptorSet descriptorWrite{};
+    descriptorWrite.dstSet = *computeDescriptorSets[i];
+    descriptorWrite.dstBinding = 0;
+    descriptorWrite.dstArrayElement = 0;
+    descriptorWrite.descriptorType = vk::DescriptorType::eStorageBuffer;
+    descriptorWrite.descriptorCount = 1;
+    descriptorWrite.pBufferInfo = &storageBufferInfoCurrentFrame;
+    descriptorWrites.push_back(descriptorWrite);
+
+    vk::DescriptorBufferInfo storageBufferInfoCurrentFrame2;
+    storageBufferInfoCurrentFrame.buffer = *indexBuffer;
+    storageBufferInfoCurrentFrame.offset = 0;
+    storageBufferInfoCurrentFrame.range = sizeof(uint32_t) * MAX_INDEX_COUNT;
+
+    vk::WriteDescriptorSet descriptorWrite2{};
+    descriptorWrite2.dstSet = *computeDescriptorSets[i];
+    descriptorWrite2.dstBinding = 1;
+    descriptorWrite2.dstArrayElement = 0;
+    descriptorWrite2.descriptorType = vk::DescriptorType::eStorageBuffer;
+    descriptorWrite2.descriptorCount = 1;
+    descriptorWrite2.pBufferInfo = &storageBufferInfoCurrentFrame2;
+    descriptorWrites.push_back(descriptorWrite);
 
     device.updateDescriptorSets(descriptorWrites, nullptr);
   }
@@ -145,7 +96,7 @@ void Renderer::recordComputeCommandBuffer(vk::CommandBuffer commandBuffer) {
 
   commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, *computePipelineLayout, 0,
                                    *computeDescriptorSets[currentFrame], nullptr);
-  commandBuffer.dispatch(PARTICLE_COUNT / 256, 1, 1);
+  commandBuffer.dispatch(1, 1, 1);
 
   commandBuffer.end();
 }
@@ -153,7 +104,7 @@ void Renderer::recordComputeCommandBuffer(vk::CommandBuffer commandBuffer) {
 void Renderer::drawCommand(vk::CommandBuffer commandBuffer) const {
   std::vector<vk::DeviceSize> offsets = {0};
   commandBuffer.bindVertexBuffers(0, *vertexBuffer, offsets);
-  commandBuffer.bindIndexBuffer(*indexBuffer, 0, vk::IndexType::eUint16);
+  commandBuffer.bindIndexBuffer(*indexBuffer, 0, vk::IndexType::eUint32);
 
   commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *pipelineLayout, 0,
                                    *descriptorSets[currentFrame], nullptr);
@@ -172,7 +123,7 @@ vk::VertexInputBindingDescription Renderer::getVertexBindingDescription() const 
 void Renderer::createVertexBuffer() {
   using enum vk::MemoryPropertyFlagBits;
   using enum vk::BufferUsageFlagBits;
-  vk::DeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+  vk::DeviceSize bufferSize = sizeof(vertices[0]) * MAX_VERTEX_COUNT;
 
   vk::raii::Buffer stagingBuffer = nullptr;
   vk::raii::DeviceMemory stagingBufferMemory = nullptr;
@@ -183,8 +134,8 @@ void Renderer::createVertexBuffer() {
   memcpy(data, vertices.data(), bufferSize);
   stagingBufferMemory.unmapMemory();
 
-  createBuffer(bufferSize, eTransferDst | eVertexBuffer, eDeviceLocal, vertexBuffer,
-               vertexBufferMemory);
+  createBuffer(bufferSize, eStorageBuffer | eTransferDst | eVertexBuffer, eDeviceLocal,
+               vertexBuffer, vertexBufferMemory);
 
   copyBuffer(*stagingBuffer, *vertexBuffer, bufferSize);
 }
@@ -192,7 +143,7 @@ void Renderer::createVertexBuffer() {
 void Renderer::createIndexBuffer() {
   using enum vk::MemoryPropertyFlagBits;
   using enum vk::BufferUsageFlagBits;
-  vk::DeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+  vk::DeviceSize bufferSize = sizeof(indices[0]) * MAX_INDEX_COUNT;
 
   vk::raii::Buffer stagingBuffer = nullptr;
   vk::raii::DeviceMemory stagingBufferMemory = nullptr;
@@ -203,7 +154,7 @@ void Renderer::createIndexBuffer() {
   memcpy(data, indices.data(), bufferSize);
   stagingBufferMemory.unmapMemory();
 
-  createBuffer(bufferSize, eTransferDst | eIndexBuffer, eDeviceLocal, indexBuffer,
+  createBuffer(bufferSize, eStorageBuffer | eTransferDst | eIndexBuffer, eDeviceLocal, indexBuffer,
                indexBufferMemory);
 
   copyBuffer(*stagingBuffer, *indexBuffer, bufferSize);
@@ -471,6 +422,13 @@ vk::PipelineLayoutCreateInfo Renderer::getPipelineLayoutInfo() const {
   vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
   pipelineLayoutInfo.setLayoutCount = 1;
   pipelineLayoutInfo.pSetLayouts = &*descriptorSetLayout;
+  return pipelineLayoutInfo;
+}
+
+vk::PipelineLayoutCreateInfo Renderer::getComputePipelineLayoutInfo() const {
+  vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
+  pipelineLayoutInfo.setLayoutCount = 1;
+  pipelineLayoutInfo.pSetLayouts = &*computeDescriptorSetLayout;
   return pipelineLayoutInfo;
 }
 

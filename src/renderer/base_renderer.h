@@ -37,7 +37,8 @@ struct SwapChainSupportDetails {
 
 const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
 const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-const uint32_t PARTICLE_COUNT = 8192;
+const uint32_t MAX_VERTEX_COUNT = 8192;
+const uint32_t MAX_INDEX_COUNT = 8192;
 const int MAX_FRAMES_IN_FLIGHT = 2;
 const uint64_t FENCE_TIMEOUT = 100000000;
 
@@ -149,6 +150,7 @@ protected:
 
   void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
   [[nodiscard]] virtual vk::PipelineLayoutCreateInfo getPipelineLayoutInfo() const;
+  [[nodiscard]] virtual vk::PipelineLayoutCreateInfo getComputePipelineLayoutInfo() const;
   virtual void initCustomDescriptorSetLayout();
   uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
@@ -156,7 +158,6 @@ protected:
 
   vk::raii::Device device = nullptr;
 
-  vk::raii::DescriptorSetLayout computeDescriptorSetLayout = nullptr;
   vk::raii::PipelineLayout computePipelineLayout = nullptr;
   vk::raii::Pipeline computePipeline = nullptr;
 
@@ -229,7 +230,6 @@ private:
   vk::Extent2D chooseSwapExtent(const vk::SurfaceCapabilitiesKHR &capabilities);
   void createImageViews();
   void createRenderPass();
-  void createComputeDescriptorSetLayout();
   void createGraphicsPipeline();
   vk::raii::ShaderModule createShaderModule(const std::vector<char> &code);
   void createComputePipeline();
