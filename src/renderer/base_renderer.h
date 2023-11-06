@@ -249,7 +249,7 @@ private:
   void drawFrame();
   virtual void drawCommand(vk::CommandBuffer commandBuffer) const = 0;
   [[nodiscard]] virtual vk::VertexInputBindingDescription getVertexBindingDescription() const = 0;
-  [[nodiscard]] virtual std::array<vk::VertexInputAttributeDescription, 3>
+  [[nodiscard]] virtual std::vector<vk::VertexInputAttributeDescription>
   getVertexAttributeDescription() const = 0;
 };
 

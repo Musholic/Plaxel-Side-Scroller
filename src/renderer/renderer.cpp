@@ -14,7 +14,6 @@ namespace plaxel {
 
 struct Vertex {
   glm::vec3 pos;
-  glm::vec3 color;
   glm::vec2 texCoord;
 
   static vk::VertexInputBindingDescription getBindingDescription() {
@@ -25,37 +24,22 @@ struct Vertex {
     return bindingDescription;
   }
 
-  static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescriptions() {
-    std::array<vk::VertexInputAttributeDescription, 3> attributeDescriptions{};
+  static std::vector<vk::VertexInputAttributeDescription> getAttributeDescriptions() {
+    std::vector<vk::VertexInputAttributeDescription> attributeDescriptions{};
 
-    attributeDescriptions[0].binding = 0;
-    attributeDescriptions[0].location = 0;
-    attributeDescriptions[0].format = vk::Format::eR32G32B32Sfloat;
-    attributeDescriptions[0].offset = offsetof(Vertex, pos);
-
-    attributeDescriptions[1].binding = 0;
-    attributeDescriptions[1].location = 1;
-    attributeDescriptions[1].format = vk::Format::eR32G32B32Sfloat;
-    attributeDescriptions[1].offset = offsetof(Vertex, color);
-
-    attributeDescriptions[2].binding = 0;
-    attributeDescriptions[2].location = 2;
-    attributeDescriptions[2].format = vk::Format::eR32G32Sfloat;
-    attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
+    attributeDescriptions.emplace_back(0, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, pos));
+    attributeDescriptions.emplace_back(1, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, texCoord));
 
     return attributeDescriptions;
   }
 };
 
-const std::vector<Vertex> vertices = {{{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-                                      {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-                                      {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-                                      {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
+const std::vector<Vertex> vertices = {
+    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f}},  {{0.5f, -0.5f, 0.0f}, {0.0f, 0.0f}},
+    {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f}},    {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f}},
 
-                                      {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-                                      {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-                                      {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-                                      {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}};
+    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f}}, {{0.5f, -0.5f, -0.5f}, {0.0f, 0.0f}},
+    {{0.5f, 0.5f, -0.5f}, {0.0f, 1.0f}},   {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f}}};
 
 const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4};
 
@@ -177,7 +161,7 @@ void Renderer::drawCommand(vk::CommandBuffer commandBuffer) const {
   commandBuffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 }
 
-std::array<vk::VertexInputAttributeDescription, 3> Renderer::getVertexAttributeDescription() const {
+std::vector<vk::VertexInputAttributeDescription> Renderer::getVertexAttributeDescription() const {
   return Vertex::getAttributeDescriptions();
 }
 

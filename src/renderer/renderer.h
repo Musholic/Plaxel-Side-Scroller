@@ -72,7 +72,7 @@ private:
   void recordComputeCommandBuffer(vk::CommandBuffer commandBuffer) override;
   void drawCommand(vk::CommandBuffer commandBuffer) const override;
   [[nodiscard]] vk::VertexInputBindingDescription getVertexBindingDescription() const override;
-  [[nodiscard]] std::array<vk::VertexInputAttributeDescription, 3>
+  [[nodiscard]] std::vector<vk::VertexInputAttributeDescription>
   getVertexAttributeDescription() const override;
   void createVertexBuffer();
   void createIndexBuffer();
