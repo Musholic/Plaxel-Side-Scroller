@@ -1,5 +1,8 @@
 #include "base_renderer.h"
+#include <chrono>
 #include <fstream>
+#include <glm/ext/matrix_clip_space.hpp>
+#include <glm/ext/matrix_transform.hpp>
 #include <limits>
 #include <random>
 #include <set>
@@ -80,15 +83,21 @@ void BaseRenderer::initVulkan() {
   createImageViews();
   createRenderPass();
   createComputeDescriptorSetLayout();
+
+  initCustomDescriptorSetLayout();
+
   createGraphicsPipeline();
   createComputePipeline();
   createFramebuffers();
   createCommandPool();
+  createUniformBuffers();
   createDescriptorPool();
   createCommandBuffers();
   createComputeCommandBuffers();
   createSyncObjects();
 }
+
+void BaseRenderer::initCustomDescriptorSetLayout() {}
 
 void BaseRenderer::createInstance() {
   if (enableValidationLayers && !checkValidationLayerSupport()) {
@@ -288,6 +297,7 @@ void BaseRenderer::createLogicalDevice() {
   }
 
   vk::PhysicalDeviceFeatures deviceFeatures{};
+  deviceFeatures.samplerAnisotropy = vk::True;
 
   vk::DeviceCreateInfo createInfo{};
   createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
@@ -512,6 +522,7 @@ void BaseRenderer::createGraphicsPipeline() {
   vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
   vk::PipelineInputAssemblyStateCreateInfo inputAssembly;
+  inputAssembly.topology = vk::PrimitiveTopology::eTriangleList;
   inputAssembly.primitiveRestartEnable = vk::False;
 
   vk::PipelineViewportStateCreateInfo viewportState;
@@ -531,10 +542,7 @@ void BaseRenderer::createGraphicsPipeline() {
   vk::PipelineColorBlendAttachmentState colorBlendAttachment;
   using enum vk::ColorComponentFlagBits;
   colorBlendAttachment.colorWriteMask = eR | eG | eB | eA;
-  colorBlendAttachment.blendEnable = vk::True;
-  colorBlendAttachment.srcColorBlendFactor = vk::BlendFactor::eSrcAlpha;
-  colorBlendAttachment.dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha;
-  colorBlendAttachment.srcAlphaBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha;
+  colorBlendAttachment.blendEnable = vk::False;
 
   vk::PipelineColorBlendStateCreateInfo colorBlending;
   colorBlending.logicOpEnable = vk::False;
@@ -552,9 +560,7 @@ void BaseRenderer::createGraphicsPipeline() {
   dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
   dynamicState.pDynamicStates = dynamicStates.data();
 
-  vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
-  pipelineLayoutInfo.setLayoutCount = 0;
-  pipelineLayoutInfo.pSetLayouts = nullptr;
+  vk::PipelineLayoutCreateInfo pipelineLayoutInfo = getPipelineLayoutInfo();
 
   pipelineLayout = vk::raii::PipelineLayout(device, pipelineLayoutInfo);
 
@@ -574,6 +580,13 @@ void BaseRenderer::createGraphicsPipeline() {
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
   graphicsPipeline = vk::raii::Pipeline(device, nullptr, pipelineInfo);
+}
+
+vk::PipelineLayoutCreateInfo BaseRenderer::getPipelineLayoutInfo() const {
+  vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
+  pipelineLayoutInfo.setLayoutCount = 0;
+  pipelineLayoutInfo.pSetLayouts = nullptr;
+  return pipelineLayoutInfo;
 }
 
 vk::raii::ShaderModule BaseRenderer::createShaderModule(const std::vector<char> &code) {
@@ -696,17 +709,20 @@ void BaseRenderer::copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::De
 
 
 void BaseRenderer::createDescriptorPool() {
-  std::array<vk::DescriptorPoolSize, 2> poolSizes;
+  std::array<vk::DescriptorPoolSize, 3> poolSizes;
   poolSizes[0].type = vk::DescriptorType::eUniformBuffer;
-  poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+  poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 2;
 
   poolSizes[1].type = vk::DescriptorType::eStorageBuffer;
   poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 2;
 
+  poolSizes[2].type = vk::DescriptorType::eCombinedImageSampler;
+  poolSizes[2].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
   vk::DescriptorPoolCreateInfo poolInfo;
-  poolInfo.poolSizeCount = 2;
+  poolInfo.poolSizeCount = poolSizes.size();
   poolInfo.pPoolSizes = poolSizes.data();
-  poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+  poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT * 2);
   poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 
   descriptorPool = vk::raii::DescriptorPool(device, poolInfo);
@@ -750,7 +766,6 @@ void BaseRenderer::draw() {
   // We want to animate the particle system using the last frames time to get smooth, frame-rate
   // independent animation
   double currentTime = glfwGetTime();
-  lastFrameTime = (currentTime - lastTime) * 1000.0;
   lastTime = currentTime;
 
   fpsCount++;
@@ -900,4 +915,34 @@ void BaseRenderer::recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t
 
   commandBuffer.endRenderPass();
   commandBuffer.end();
+}
+
+void BaseRenderer::createUniformBuffers() {
+  vk::DeviceSize bufferSize = sizeof(UniformBufferObject);
+
+  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    createBuffer(bufferSize, vk::BufferUsageFlagBits::eUniformBuffer,
+                 vk::MemoryPropertyFlagBits::eHostVisible |
+                     vk::MemoryPropertyFlagBits::eHostCoherent,
+                 uniformBuffers[i], uniformBuffersMemory[i]);
+    uniformBuffersMapped[i] = uniformBuffersMemory[i].mapMemory(0, bufferSize);
+  }
+}
+
+void BaseRenderer::updateUniformBuffer(uint32_t currentImage) {
+  static auto startTime = std::chrono::high_resolution_clock::now();
+
+  auto currentTime = std::chrono::high_resolution_clock::now();
+  float time =
+      std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+  UniformBufferObject ubo{};
+  ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+  ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f),
+                         glm::vec3(0.0f, 0.0f, 1.0f));
+  ubo.proj = glm::perspective(glm::radians(45.0f),
+                              swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
+  ubo.proj[1][1] *= -1;
+
+  memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
 }

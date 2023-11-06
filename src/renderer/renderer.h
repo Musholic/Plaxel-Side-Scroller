@@ -6,11 +6,11 @@
 #define PLAXEL_RENDERER_H
 
 #include "base_renderer.h"
+
+#include <glm/detail/type_mat4x4.hpp>
+#include <glm/fwd.hpp>
 namespace plaxel {
 
-struct UniformBufferObject {
-  float deltaTime = 1.0f;
-};
 
 struct Particle {
   glm::vec2 position;
@@ -47,25 +47,51 @@ private:
   void createShaderStorageBuffers();
 
   void initVulkan() override;
-
-  std::array<vk::raii::Buffer, MAX_FRAMES_IN_FLIGHT> uniformBuffers{nullptr, nullptr};
-  std::array<vk::raii::DeviceMemory, MAX_FRAMES_IN_FLIGHT> uniformBuffersMemory{nullptr, nullptr};
-  std::array<void *, MAX_FRAMES_IN_FLIGHT> uniformBuffersMapped{};
-
+  void initCustomDescriptorSetLayout() override;
   vk::raii::CommandBuffers computeCommandBuffers = nullptr;
 
   vk::raii::DescriptorSets computeDescriptorSets = nullptr;
 
   vk::raii::Buffer shaderStorageBuffer = nullptr;
   vk::raii::DeviceMemory shaderStorageBufferMemory = nullptr;
-  void createUniformBuffers();
+
+  vk::raii::Image textureImage = nullptr;
+  vk::raii::DeviceMemory textureImageMemory = nullptr;
+  vk::raii::ImageView textureImageView = nullptr;
+  vk::raii::Sampler textureSampler = nullptr;
+
+  vk::raii::DescriptorSetLayout descriptorSetLayout = nullptr;
+  vk::raii::DescriptorSets descriptorSets = nullptr;
+
+  vk::raii::Buffer vertexBuffer = nullptr;
+  vk::raii::DeviceMemory vertexBufferMemory = nullptr;
+  vk::raii::Buffer indexBuffer = nullptr;
+  vk::raii::DeviceMemory indexBufferMemory = nullptr;
+
   void createComputeDescriptorSets();
-  void updateUniformBuffer(uint32_t currentImage) override;
   void recordComputeCommandBuffer(vk::CommandBuffer commandBuffer) override;
   void drawCommand(vk::CommandBuffer commandBuffer) const override;
   [[nodiscard]] vk::VertexInputBindingDescription getVertexBindingDescription() const override;
-  [[nodiscard]] std::array<vk::VertexInputAttributeDescription, 2>
+  [[nodiscard]] std::array<vk::VertexInputAttributeDescription, 3>
   getVertexAttributeDescription() const override;
+  void createVertexBuffer();
+  void createIndexBuffer();
+  void createDescriptorSetLayout();
+  void createDescriptorSets();
+  void createTextureImageView();
+  void createTextureSampler();
+  void createTextureImage();
+  void createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling,
+                   vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
+                   vk::raii::Image &image, vk::raii::DeviceMemory &imageMemory);
+  vk::raii::CommandBuffer beginSingleTimeCommands();
+  void endSingleTimeCommands(vk::CommandBuffer commandBuffer);
+  void transitionImageLayout(vk::Image image, vk::Format format, vk::ImageLayout oldLayout,
+                             vk::ImageLayout newLayout);
+  void copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height);
+  vk::raii::ImageView createImageView(vk::Image image, vk::Format format,
+                                      vk::ImageAspectFlags aspectFlags);
+  [[nodiscard]] vk::PipelineLayoutCreateInfo getPipelineLayoutInfo() const override;
 };
 
 } // namespace plaxel

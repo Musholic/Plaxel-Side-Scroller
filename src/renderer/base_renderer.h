@@ -5,12 +5,20 @@
 
 #include <GLFW/glfw3.h>
 #include <fstream>
+#include <glm/detail/type_mat4x4.hpp>
+#include <glm/fwd.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
 #include <iostream>
 #include <optional>
 
 namespace plaxel {
+
+struct UniformBufferObject {
+  alignas(16) glm::mat4 model;
+  alignas(16) glm::mat4 view;
+  alignas(16) glm::mat4 proj;
+};
 
 struct QueueFamilyIndices {
   std::optional<uint32_t> graphicsAndComputeFamily;
@@ -140,8 +148,10 @@ protected:
                     vk::raii::DeviceMemory &bufferMemory);
 
   void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
+  [[nodiscard]] virtual vk::PipelineLayoutCreateInfo getPipelineLayoutInfo() const;
+  virtual void initCustomDescriptorSetLayout();
+  uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
-  float lastFrameTime = 0.0f;
   uint32_t currentFrame = 0;
 
   vk::raii::Device device = nullptr;
@@ -152,14 +162,18 @@ protected:
 
   vk::raii::DescriptorPool descriptorPool = nullptr;
 
+  vk::raii::CommandPool commandPool = nullptr;
+  vk::raii::Queue graphicsQueue = nullptr;
+  vk::raii::PhysicalDevice physicalDevice = nullptr;
+  vk::raii::PipelineLayout pipelineLayout = nullptr;
+  std::array<vk::raii::Buffer, MAX_FRAMES_IN_FLIGHT> uniformBuffers{nullptr, nullptr};
+
 private:
   GLFWwindow *window{};
   const bool enableValidationLayers;
   vk::raii::DebugUtilsMessengerEXT debugMessenger = nullptr;
   vk::raii::SurfaceKHR surface = nullptr;
-  vk::raii::PhysicalDevice physicalDevice = nullptr;
 
-  vk::raii::Queue graphicsQueue = nullptr;
   vk::raii::Queue computeQueue = nullptr;
   vk::raii::Queue presentQueue = nullptr;
 
@@ -172,13 +186,13 @@ private:
   vk::Extent2D swapChainExtent;
 
   vk::raii::RenderPass renderPass = nullptr;
-  vk::raii::PipelineLayout pipelineLayout = nullptr;
   vk::raii::Pipeline graphicsPipeline = nullptr;
-
-  vk::raii::CommandPool commandPool = nullptr;
 
   vk::raii::CommandBuffers commandBuffers = nullptr;
   vk::raii::CommandBuffers computeCommandBuffers = nullptr;
+
+  std::array<vk::raii::DeviceMemory, MAX_FRAMES_IN_FLIGHT> uniformBuffersMemory{nullptr, nullptr};
+  std::array<void *, MAX_FRAMES_IN_FLIGHT> uniformBuffersMapped{};
 
   std::array<vk::raii::Semaphore, MAX_FRAMES_IN_FLIGHT> imageAvailableSemaphores{nullptr, nullptr};
   std::array<vk::raii::Semaphore, MAX_FRAMES_IN_FLIGHT> renderFinishedSemaphores{nullptr, nullptr};
@@ -221,12 +235,12 @@ private:
   void createComputePipeline();
   void createFramebuffers();
   void createCommandPool();
-  uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
   void createDescriptorPool();
   void createCommandBuffers();
   void createComputeCommandBuffers();
   void createSyncObjects();
-  virtual void updateUniformBuffer(uint32_t currentImage) = 0;
+  void createUniformBuffers();
+  void updateUniformBuffer(uint32_t currentImage);
   virtual void recordComputeCommandBuffer(vk::CommandBuffer commandBuffer) = 0;
   void waitForFence(vk::Fence fence);
   void recreateSwapChain();
@@ -235,7 +249,7 @@ private:
   void drawFrame();
   virtual void drawCommand(vk::CommandBuffer commandBuffer) const = 0;
   [[nodiscard]] virtual vk::VertexInputBindingDescription getVertexBindingDescription() const = 0;
-  [[nodiscard]] virtual std::array<vk::VertexInputAttributeDescription, 2>
+  [[nodiscard]] virtual std::array<vk::VertexInputAttributeDescription, 3>
   getVertexAttributeDescription() const = 0;
 };
 
