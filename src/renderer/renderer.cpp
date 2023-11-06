@@ -70,9 +70,9 @@ void Renderer::createComputeDescriptorSets() {
     descriptorWrites.push_back(descriptorWrite);
 
     vk::DescriptorBufferInfo storageBufferInfoCurrentFrame2;
-    storageBufferInfoCurrentFrame.buffer = *indexBuffer;
-    storageBufferInfoCurrentFrame.offset = 0;
-    storageBufferInfoCurrentFrame.range = sizeof(uint32_t) * MAX_INDEX_COUNT;
+    storageBufferInfoCurrentFrame2.buffer = *indexBuffer;
+    storageBufferInfoCurrentFrame2.offset = 0;
+    storageBufferInfoCurrentFrame2.range = sizeof(uint32_t) * MAX_INDEX_COUNT;
 
     vk::WriteDescriptorSet descriptorWrite2{};
     descriptorWrite2.dstSet = *computeDescriptorSets[i];
@@ -81,7 +81,7 @@ void Renderer::createComputeDescriptorSets() {
     descriptorWrite2.descriptorType = vk::DescriptorType::eStorageBuffer;
     descriptorWrite2.descriptorCount = 1;
     descriptorWrite2.pBufferInfo = &storageBufferInfoCurrentFrame2;
-    descriptorWrites.push_back(descriptorWrite);
+    descriptorWrites.push_back(descriptorWrite2);
 
     device.updateDescriptorSets(descriptorWrites, nullptr);
   }
@@ -281,21 +281,23 @@ void Renderer::createDescriptorSets() {
     imageInfo.imageView = *textureImageView;
     imageInfo.sampler = *textureSampler;
 
-    std::array<vk::WriteDescriptorSet, 2> descriptorWrites;
+    std::vector<vk::WriteDescriptorSet> descriptorWrites;
 
-    descriptorWrites[0].dstSet = *descriptorSets[i];
-    descriptorWrites[0].dstBinding = 0;
-    descriptorWrites[0].dstArrayElement = 0;
-    descriptorWrites[0].descriptorType = vk::DescriptorType::eUniformBuffer;
-    descriptorWrites[0].descriptorCount = 1;
-    descriptorWrites[0].pBufferInfo = &bufferInfo;
+    vk::WriteDescriptorSet &descriptorWrite = descriptorWrites.emplace_back();
+    descriptorWrite.dstSet = *descriptorSets[i];
+    descriptorWrite.dstBinding = 0;
+    descriptorWrite.dstArrayElement = 0;
+    descriptorWrite.descriptorType = vk::DescriptorType::eUniformBuffer;
+    descriptorWrite.descriptorCount = 1;
+    descriptorWrite.pBufferInfo = &bufferInfo;
 
-    descriptorWrites[1].dstSet = *descriptorSets[i];
-    descriptorWrites[1].dstBinding = 1;
-    descriptorWrites[1].dstArrayElement = 0;
-    descriptorWrites[1].descriptorType = vk::DescriptorType::eCombinedImageSampler;
-    descriptorWrites[1].descriptorCount = 1;
-    descriptorWrites[1].pImageInfo = &imageInfo;
+    vk::WriteDescriptorSet &descriptorWrite2 = descriptorWrites.emplace_back();
+    descriptorWrite2.dstSet = *descriptorSets[i];
+    descriptorWrite2.dstBinding = 1;
+    descriptorWrite2.dstArrayElement = 0;
+    descriptorWrite2.descriptorType = vk::DescriptorType::eCombinedImageSampler;
+    descriptorWrite2.descriptorCount = 1;
+    descriptorWrite2.pImageInfo = &imageInfo;
 
     device.updateDescriptorSets(descriptorWrites, nullptr);
   }
