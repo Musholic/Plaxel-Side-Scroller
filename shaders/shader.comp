@@ -9,15 +9,50 @@ layout(std140, binding = 0) buffer Vertices {
     Vertex vertices[];
 };
 
-layout(std140, binding = 1) buffer Indices {
-    int indices[];
+layout(std430, binding = 1) buffer Indices {
+    uint indices[];
 };
 
 layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
+// Index of the lastly available vertex buffer index
+uint vInd = 0;
+// Index of the lastly available index buffer index
+uint iInd = 0;
+
+uint addVertex(vec3 pos, vec2 texCoord);
+void addSquare(uint a, uint b, uint c, uint d);
+
 void main() 
 {
-    uint index = gl_GlobalInvocationID.x;  
+    uint index = gl_GlobalInvocationID.x;
 
+    vInd = 0;
+    uint a = addVertex(vec3(-0.5, -0.5, 0.0), vec2(1.0, 0.0));
+    uint b = addVertex(vec3(0.5, -0.5, 0.0), vec2(0.0, 0.0));
+    uint c = addVertex(vec3(0.5, 0.5, 0.0), vec2(0.0, 1.0));
+    uint d = addVertex(vec3(-0.5, 0.5, 0.0), vec2(1.0, 1.0));
+    addSquare(a, b, c, d);
 
+    a = addVertex(vec3(-0.5, -0.5, -0.5), vec2(1.0, 0.0));
+    b = addVertex(vec3(0.5, -0.5, -0.5), vec2(0.0, 0.0));
+    c = addVertex(vec3(0.5, 0.5, -0.5), vec2(0.0, 1.0));
+    d = addVertex(vec3(-0.5, 0.5, -0.5), vec2(1.0, 1.0));
+    addSquare(a, b, c, d);
+}
+
+uint addVertex(vec3 pos, vec2 texCoord) {
+    vertices[vInd].position = pos;
+    vertices[vInd].texCoord = texCoord;
+    return vInd++;
+}
+
+void addSquare(uint a, uint b, uint c, uint d) {
+    indices[iInd++] = a;
+    indices[iInd++] = b;
+    indices[iInd++] = c;
+
+    indices[iInd++] = c;
+    indices[iInd++] = d;
+    indices[iInd++] = a;
 }

@@ -12,9 +12,8 @@
 namespace plaxel {
 
 struct Vertex {
-  // TODO: check alignment issues?
-  glm::vec3 pos;
-  glm::vec2 texCoord;
+  alignas(16) glm::vec3 pos;
+  alignas(16) glm::vec2 texCoord;
 
   static vk::VertexInputBindingDescription getBindingDescription() {
     vk::VertexInputBindingDescription bindingDescription{};
@@ -33,15 +32,6 @@ struct Vertex {
     return attributeDescriptions;
   }
 };
-
-const std::vector<Vertex> vertices = {
-    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f}},  {{0.5f, -0.5f, 0.0f}, {0.0f, 0.0f}},
-    {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f}},    {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f}},
-
-    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f}}, {{0.5f, -0.5f, -0.5f}, {0.0f, 0.0f}},
-    {{0.5f, 0.5f, -0.5f}, {0.0f, 1.0f}},   {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f}}};
-
-const std::vector<uint32_t> indices = {0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4};
 
 class Renderer : public BaseRenderer {
 private:

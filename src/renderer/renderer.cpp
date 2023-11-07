@@ -109,7 +109,9 @@ void Renderer::drawCommand(vk::CommandBuffer commandBuffer) const {
   commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *pipelineLayout, 0,
                                    *descriptorSets[currentFrame], nullptr);
 
-  commandBuffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+  // TODO make it dynamically set by the compute shader
+  int nbTriangle = 4;
+  commandBuffer.drawIndexed(3 * nbTriangle, 1, 0, 0, 0);
 }
 
 std::vector<vk::VertexInputAttributeDescription> Renderer::getVertexAttributeDescription() const {
@@ -123,41 +125,19 @@ vk::VertexInputBindingDescription Renderer::getVertexBindingDescription() const 
 void Renderer::createVertexBuffer() {
   using enum vk::MemoryPropertyFlagBits;
   using enum vk::BufferUsageFlagBits;
-  vk::DeviceSize bufferSize = sizeof(vertices[0]) * MAX_VERTEX_COUNT;
+  vk::DeviceSize bufferSize = sizeof(Vertex) * MAX_VERTEX_COUNT;
 
-  vk::raii::Buffer stagingBuffer = nullptr;
-  vk::raii::DeviceMemory stagingBufferMemory = nullptr;
-  createBuffer(bufferSize, eTransferSrc, eHostVisible | eHostCoherent, stagingBuffer,
-               stagingBufferMemory);
-
-  void *data = stagingBufferMemory.mapMemory(0, bufferSize);
-  memcpy(data, vertices.data(), bufferSize);
-  stagingBufferMemory.unmapMemory();
-
-  createBuffer(bufferSize, eStorageBuffer | eTransferDst | eVertexBuffer, eDeviceLocal,
-               vertexBuffer, vertexBufferMemory);
-
-  copyBuffer(*stagingBuffer, *vertexBuffer, bufferSize);
+  createBuffer(bufferSize, eStorageBuffer | eVertexBuffer, eDeviceLocal, vertexBuffer,
+               vertexBufferMemory);
 }
 
 void Renderer::createIndexBuffer() {
   using enum vk::MemoryPropertyFlagBits;
   using enum vk::BufferUsageFlagBits;
-  vk::DeviceSize bufferSize = sizeof(indices[0]) * MAX_INDEX_COUNT;
+  vk::DeviceSize bufferSize = sizeof(uint32_t) * MAX_INDEX_COUNT;
 
-  vk::raii::Buffer stagingBuffer = nullptr;
-  vk::raii::DeviceMemory stagingBufferMemory = nullptr;
-  createBuffer(bufferSize, eTransferSrc, eHostVisible | eHostCoherent, stagingBuffer,
-               stagingBufferMemory);
-
-  void *data = stagingBufferMemory.mapMemory(0, bufferSize);
-  memcpy(data, indices.data(), bufferSize);
-  stagingBufferMemory.unmapMemory();
-
-  createBuffer(bufferSize, eStorageBuffer | eTransferDst | eIndexBuffer, eDeviceLocal, indexBuffer,
+  createBuffer(bufferSize, eStorageBuffer | eIndexBuffer, eDeviceLocal, indexBuffer,
                indexBufferMemory);
-
-  copyBuffer(*stagingBuffer, *indexBuffer, bufferSize);
 }
 
 void Renderer::createTextureImage() {
