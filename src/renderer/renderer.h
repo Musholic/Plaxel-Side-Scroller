@@ -69,16 +69,11 @@ private:
   void createTextureImageView();
   void createTextureSampler();
   void createTextureImage();
-  void createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling,
-                   vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
-                   vk::raii::Image &image, vk::raii::DeviceMemory &imageMemory);
   vk::raii::CommandBuffer beginSingleTimeCommands();
   void endSingleTimeCommands(vk::CommandBuffer commandBuffer);
   void transitionImageLayout(vk::Image image, vk::Format format, vk::ImageLayout oldLayout,
                              vk::ImageLayout newLayout);
   void copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height);
-  vk::raii::ImageView createImageView(vk::Image image, vk::Format format,
-                                      vk::ImageAspectFlags aspectFlags);
   [[nodiscard]] vk::PipelineLayoutCreateInfo getPipelineLayoutInfo() const override;
   [[nodiscard]] vk::PipelineLayoutCreateInfo getComputePipelineLayoutInfo() const override;
 };

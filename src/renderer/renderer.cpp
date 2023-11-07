@@ -203,20 +203,6 @@ void Renderer::createTextureSampler() {
   textureSampler = vk::raii::Sampler(device, samplerInfo);
 }
 
-vk::raii::ImageView Renderer::createImageView(vk::Image image, vk::Format format,
-                                              vk::ImageAspectFlags aspectFlags) {
-  vk::ImageViewCreateInfo viewInfo;
-  viewInfo.image = image;
-  viewInfo.viewType = vk::ImageViewType::e2D;
-  viewInfo.format = format;
-  viewInfo.subresourceRange.aspectMask = aspectFlags;
-  viewInfo.subresourceRange.baseMipLevel = 0;
-  viewInfo.subresourceRange.levelCount = 1;
-  viewInfo.subresourceRange.baseArrayLayer = 0;
-  viewInfo.subresourceRange.layerCount = 1;
-
-  return {device, viewInfo};
-}
 
 void Renderer::createDescriptorSetLayout() {
   vk::DescriptorSetLayoutBinding uboLayoutBinding;
@@ -281,33 +267,6 @@ void Renderer::createDescriptorSets() {
 
     device.updateDescriptorSets(descriptorWrites, nullptr);
   }
-}
-
-void Renderer::createImage(uint32_t width, uint32_t height, vk::Format format,
-                           vk::ImageTiling tiling, vk::ImageUsageFlags usage,
-                           vk::MemoryPropertyFlags properties, vk::raii::Image &image,
-                           vk::raii::DeviceMemory &imageMemory) {
-  vk::ImageCreateInfo imageInfo;
-  imageInfo.imageType = vk::ImageType::e2D;
-  imageInfo.extent.width = width;
-  imageInfo.extent.height = height;
-  imageInfo.extent.depth = 1;
-  imageInfo.mipLevels = 1;
-  imageInfo.arrayLayers = 1;
-  imageInfo.format = format;
-  imageInfo.tiling = tiling;
-  imageInfo.usage = usage;
-
-  image = vk::raii::Image(device, imageInfo);
-
-  vk::MemoryRequirements memRequirements = image.getMemoryRequirements();
-
-  vk::MemoryAllocateInfo allocInfo;
-  allocInfo.allocationSize = memRequirements.size;
-  allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
-
-  imageMemory = vk::raii::DeviceMemory(device, allocInfo);
-  image.bindMemory(*imageMemory, 0);
 }
 
 void Renderer::transitionImageLayout(vk::Image image, vk::Format format, vk::ImageLayout oldLayout,

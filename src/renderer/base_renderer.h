@@ -148,11 +148,16 @@ protected:
                     vk::MemoryPropertyFlags properties, vk::raii::Buffer &buffer,
                     vk::raii::DeviceMemory &bufferMemory);
 
-  void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
+  [[maybe_unused]] void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
   [[nodiscard]] virtual vk::PipelineLayoutCreateInfo getPipelineLayoutInfo() const;
   [[nodiscard]] virtual vk::PipelineLayoutCreateInfo getComputePipelineLayoutInfo() const;
   virtual void initCustomDescriptorSetLayout();
   uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
+  void createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling,
+                   vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
+                   vk::raii::Image &image, vk::raii::DeviceMemory &imageMemory);
+  vk::raii::ImageView createImageView(vk::Image image, vk::Format format,
+                                      vk::ImageAspectFlags aspectFlags);
 
   uint32_t currentFrame = 0;
 
@@ -182,6 +187,10 @@ private:
   std::vector<vk::Image> swapChainImages;
   std::vector<vk::raii::ImageView> swapChainImageViews;
   std::vector<vk::raii::Framebuffer> swapChainFramebuffers;
+
+  vk::raii::Image depthImage = nullptr;
+  vk::raii::DeviceMemory depthImageMemory = nullptr;
+  vk::raii::ImageView depthImageView = nullptr;
 
   vk::Format swapChainImageFormat = vk::Format::eUndefined;
   vk::Extent2D swapChainExtent;
@@ -251,6 +260,10 @@ private:
   [[nodiscard]] virtual vk::VertexInputBindingDescription getVertexBindingDescription() const = 0;
   [[nodiscard]] virtual std::vector<vk::VertexInputAttributeDescription>
   getVertexAttributeDescription() const = 0;
+  void createDepthResources();
+  vk::Format findDepthFormat();
+  vk::Format findSupportedFormat(const std::vector<vk::Format> &candidates, vk::ImageTiling tiling,
+                                 vk::FormatFeatureFlags features);
 };
 
 } // namespace plaxel
