@@ -69,10 +69,6 @@ private:
   void createTextureImageView();
   void createTextureSampler();
   void createTextureImage();
-  vk::raii::CommandBuffer beginSingleTimeCommands();
-  void endSingleTimeCommands(vk::CommandBuffer commandBuffer);
-  void transitionImageLayout(vk::Image image, vk::Format format, vk::ImageLayout oldLayout,
-                             vk::ImageLayout newLayout);
   void copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height);
   [[nodiscard]] vk::PipelineLayoutCreateInfo getPipelineLayoutInfo() const override;
   [[nodiscard]] vk::PipelineLayoutCreateInfo getComputePipelineLayoutInfo() const override;

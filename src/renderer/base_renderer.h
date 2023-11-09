@@ -99,6 +99,11 @@ public:
   using runtime_error::runtime_error;
 };
 
+class NotImplementedError : public std::runtime_error {
+public:
+  using runtime_error::runtime_error;
+};
+
 static std::vector<char> readFile(const std::string &filename) {
   std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
@@ -122,17 +127,15 @@ public:
   BaseRenderer();
   virtual ~BaseRenderer() = default;
 
-  void closeWindow();
   constexpr static std::string WINDOW_TITLE = "Plaxel";
   bool fullscreen = false;
 
+  void closeWindow();
   bool shouldClose();
-
   void draw();
-
-  void loadShader(std::string fileName);
-
   void showWindow();
+
+  void saveScreenshot(const char *filename);
 
 private:
   // These objects needs to be destructed last
@@ -158,6 +161,9 @@ protected:
                    vk::raii::Image &image, vk::raii::DeviceMemory &imageMemory);
   vk::raii::ImageView createImageView(vk::Image image, vk::Format format,
                                       vk::ImageAspectFlags aspectFlags);
+  vk::raii::CommandBuffer beginSingleTimeCommands();
+  void endSingleTimeCommands(vk::CommandBuffer commandBuffer);
+  void transitionImageLayout(vk::Image image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
 
   uint32_t currentFrame = 0;
 
@@ -212,7 +218,6 @@ private:
 
   bool framebufferResized = false;
 
-  double lastTime = 0.0f;
   double lastFpsCountTime = 0.0f;
   int fpsCount = 0;
 
@@ -264,6 +269,10 @@ private:
   vk::Format findDepthFormat();
   vk::Format findSupportedFormat(const std::vector<vk::Format> &candidates, vk::ImageTiling tiling,
                                  vk::FormatFeatureFlags features);
+  void createImage(const vk::ImageCreateInfo &imageInfo, const vk::MemoryPropertyFlags &properties,
+                   vk::raii::Image &image, vk::raii::DeviceMemory &imageMemory);
+  vk::AccessFlags accessFlagsForLayout(vk::ImageLayout layout);
+  vk::PipelineStageFlags pipelineStageForLayout(vk::ImageLayout layout);
 };
 
 } // namespace plaxel

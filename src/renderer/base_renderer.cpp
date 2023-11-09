@@ -25,8 +25,6 @@ BaseRenderer::BaseRenderer()
 void BaseRenderer::showWindow() {
   createWindow();
   initVulkan();
-
-  lastTime = glfwGetTime();
 }
 
 void BaseRenderer::closeWindow() {
@@ -68,10 +66,6 @@ void BaseRenderer::framebufferResizeCallback(GLFWwindow *window, int width, int 
 }
 
 bool BaseRenderer::shouldClose() { return glfwWindowShouldClose(window); }
-
-void BaseRenderer::loadShader(std::string fileName) {
-  // TODO
-}
 
 void BaseRenderer::initVulkan() {
   createInstance();
@@ -343,7 +337,8 @@ void BaseRenderer::createSwapChain() {
   createInfo.imageColorSpace = surfaceFormat.colorSpace;
   createInfo.imageExtent = extent;
   createInfo.imageArrayLayers = 1;
-  createInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment;
+  createInfo.imageUsage =
+      vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc;
 
   QueueFamilyIndices indices = findQueueFamilies(*physicalDevice);
   std::vector<uint32_t> queueFamilyIndices = {indices.graphicsAndComputeFamily.value(),
@@ -765,7 +760,6 @@ void BaseRenderer::draw() {
   // We want to animate the particle system using the last frames time to get smooth, frame-rate
   // independent animation
   double currentTime = glfwGetTime();
-  lastTime = currentTime;
 
   fpsCount++;
   if (currentTime - lastFpsCountTime >= 1.0) {
@@ -931,14 +925,8 @@ void BaseRenderer::createUniformBuffers() {
 }
 
 void BaseRenderer::updateUniformBuffer(uint32_t currentImage) {
-  static auto startTime = std::chrono::high_resolution_clock::now();
-
-  auto currentTime = std::chrono::high_resolution_clock::now();
-  float time =
-      std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-
   UniformBufferObject ubo{};
-  ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+  ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(1.0f), glm::vec3(0.0f, 0.0f, 1.0f));
   ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f),
                          glm::vec3(0.0f, 0.0f, 1.0f));
   ubo.proj = glm::perspective(glm::radians(45.0f),
@@ -995,6 +983,12 @@ void BaseRenderer::createImage(uint32_t width, uint32_t height, vk::Format forma
   imageInfo.tiling = tiling;
   imageInfo.usage = usage;
 
+  createImage(imageInfo, properties, image, imageMemory);
+}
+
+void BaseRenderer::createImage(const vk::ImageCreateInfo &imageInfo,
+                               const vk::MemoryPropertyFlags &properties, vk::raii::Image &image,
+                               vk::raii::DeviceMemory &imageMemory) {
   image = vk::raii::Image(device, imageInfo);
 
   vk::MemoryRequirements memRequirements = image.getMemoryRequirements();
@@ -1020,4 +1014,220 @@ vk::raii::ImageView BaseRenderer::createImageView(vk::Image image, vk::Format fo
   viewInfo.subresourceRange.layerCount = 1;
 
   return {device, viewInfo};
+}
+
+void BaseRenderer::transitionImageLayout(vk::Image image, vk::ImageLayout oldLayout,
+                                         vk::ImageLayout newLayout) {
+  vk::raii::CommandBuffer commandBuffer = beginSingleTimeCommands();
+
+  vk::ImageMemoryBarrier barrier;
+  barrier.oldLayout = oldLayout;
+  barrier.newLayout = newLayout;
+  barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.image = image;
+  barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+  barrier.subresourceRange.baseMipLevel = 0;
+  barrier.subresourceRange.levelCount = 1;
+  barrier.subresourceRange.baseArrayLayer = 0;
+  barrier.subresourceRange.layerCount = 1;
+
+  vk::PipelineStageFlags sourceStage;
+  vk::PipelineStageFlags destinationStage;
+
+  barrier.srcAccessMask = accessFlagsForLayout(oldLayout);
+  barrier.dstAccessMask = accessFlagsForLayout(newLayout);
+  sourceStage = pipelineStageForLayout(oldLayout);
+  destinationStage = pipelineStageForLayout(newLayout);
+
+  commandBuffer.pipelineBarrier(sourceStage, destinationStage, vk::DependencyFlagBits::eByRegion,
+                                nullptr, nullptr, barrier);
+
+  endSingleTimeCommands(*commandBuffer);
+}
+
+vk::raii::CommandBuffer BaseRenderer::beginSingleTimeCommands() {
+  vk::CommandBufferAllocateInfo allocInfo;
+  allocInfo.level = vk::CommandBufferLevel::ePrimary;
+  allocInfo.commandPool = *commandPool;
+  allocInfo.commandBufferCount = 1;
+
+  vk::raii::CommandBuffers commandBuffers{device, allocInfo};
+
+  vk::CommandBufferBeginInfo beginInfo;
+  beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+
+  vk::raii::CommandBuffer commandBuffer(std::move(commandBuffers[0]));
+  commandBuffer.begin(beginInfo);
+
+  return commandBuffer;
+}
+
+void BaseRenderer::endSingleTimeCommands(vk::CommandBuffer commandBuffer) {
+  commandBuffer.end();
+
+  vk::SubmitInfo submitInfo;
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &commandBuffer;
+
+  graphicsQueue.submit(submitInfo);
+  graphicsQueue.waitIdle();
+}
+
+void BaseRenderer::saveScreenshot(const char *filename) {
+  bool supportsBlit = true;
+
+  // Check blit support for source and destination
+
+  // Get format properties for the swapchain color format
+  // Check if the device supports blitting from optimal images (the swapchain images are in optimal
+  // format)
+  vk::FormatProperties formatProps;
+  formatProps = physicalDevice.getFormatProperties(swapChainImageFormat);
+  if (!(formatProps.optimalTilingFeatures & vk::FormatFeatureFlagBits::eBlitSrc)) {
+    supportsBlit = false;
+  }
+
+  // Check if the device supports blitting to linear images
+  formatProps = physicalDevice.getFormatProperties(vk::Format::eR8G8B8A8Unorm);
+  if (!(formatProps.linearTilingFeatures & vk::FormatFeatureFlagBits::eBlitDst)) {
+    supportsBlit = false;
+  }
+
+  // Source for the copy is the last rendered swapchain image
+  auto &srcImage = swapChainImages[currentFrame];
+
+  // Create the linear tiled destination image to copy to and to read the memory from
+  vk::ImageCreateInfo imgCreateInfo;
+  imgCreateInfo.imageType = vk::ImageType::e2D;
+  // Note that vkCmdBlitImage (if supported) will also do format conversions if the swapchain color
+  // format would differ
+  imgCreateInfo.format = vk::Format::eR8G8B8A8Unorm;
+  imgCreateInfo.extent.width = windowSize.width;
+  imgCreateInfo.extent.height = windowSize.height;
+  imgCreateInfo.extent.depth = 1;
+  imgCreateInfo.arrayLayers = 1;
+  imgCreateInfo.mipLevels = 1;
+  imgCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
+  imgCreateInfo.tiling = vk::ImageTiling::eLinear;
+  imgCreateInfo.usage = vk::ImageUsageFlagBits::eTransferDst;
+  // Create the image
+  // Memory must be host visible to copy from
+  vk::raii::Image dstImage = nullptr;
+  vk::raii::DeviceMemory dstImageMemory = nullptr;
+  createImage(imgCreateInfo,
+              vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+              dstImage, dstImageMemory);
+
+  // Do the actual blit from the swapchain image to our host visible destination image
+  // Transition destination image to transfer destination layout
+  transitionImageLayout(*dstImage, vk::ImageLayout::eUndefined,
+                        vk::ImageLayout::eTransferDstOptimal);
+  // Transition swapchain image from present to transfer source layout
+  transitionImageLayout(srcImage, vk::ImageLayout::ePresentSrcKHR,
+                        vk::ImageLayout::eTransferSrcOptimal);
+
+  const vk::raii::CommandBuffer &commandBuffer = beginSingleTimeCommands();
+  // If source and destination support blit we'll blit as this also does automatic format conversion
+  // (e.g. from BGR to RGB)
+  if (supportsBlit) {
+    // Define the region to blit (we will blit the whole swapchain image)
+    vk::Offset3D blitSize;
+    blitSize.x = windowSize.width;
+    blitSize.y = windowSize.height;
+    blitSize.z = 1;
+    vk::ImageBlit imageBlitRegion;
+    imageBlitRegion.srcSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+    imageBlitRegion.srcSubresource.layerCount = 1;
+    imageBlitRegion.srcOffsets[1] = blitSize;
+    imageBlitRegion.dstSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+    imageBlitRegion.dstSubresource.layerCount = 1;
+    imageBlitRegion.dstOffsets[1] = blitSize;
+
+    // Issue the blit command
+    commandBuffer.blitImage(srcImage, vk::ImageLayout::eTransferSrcOptimal, *dstImage,
+                            vk::ImageLayout::eTransferDstOptimal, imageBlitRegion,
+                            vk::Filter::eNearest);
+  } else {
+    throw NotImplementedError("only blit support should be necessary");
+  }
+  endSingleTimeCommands(*commandBuffer);
+
+  // Transition destination image to general layout, which is the required layout for mapping the
+  // image memory later on
+  transitionImageLayout(*dstImage, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eGeneral);
+  // Transition back the swap chain image after the blit is done
+  transitionImageLayout(srcImage, vk::ImageLayout::eTransferSrcOptimal,
+                        vk::ImageLayout::ePresentSrcKHR);
+
+  // Get layout of the image (including row pitch)
+  vk::SubresourceLayout subResourceLayout =
+      dstImage.getSubresourceLayout({vk::ImageAspectFlagBits::eColor});
+
+  // Map image memory so we can start copying from it
+  const char *data = (const char *)dstImageMemory.mapMemory(0, vk::WholeSize);
+  data += subResourceLayout.offset;
+
+  std::ofstream file(filename, std::ios::out | std::ios::binary);
+
+  // ppm header
+  file << "P6\n" << windowSize.width << "\n" << windowSize.height << "\n" << 255 << "\n";
+
+  // ppm binary pixel data
+  for (uint32_t y = 0; y < windowSize.height; y++) {
+    unsigned int *row = (unsigned int *)data;
+    for (uint32_t x = 0; x < windowSize.width; x++) {
+      file.write((char *)row, 3);
+      row++;
+    }
+    data += subResourceLayout.rowPitch;
+  }
+  file.close();
+
+  std::cout << "Screenshot saved to disk" << std::endl;
+}
+
+inline vk::AccessFlags BaseRenderer::accessFlagsForLayout(vk::ImageLayout layout) {
+  switch (layout) {
+  case vk::ImageLayout::ePreinitialized:
+    return vk::AccessFlagBits::eHostWrite;
+  case vk::ImageLayout::eTransferDstOptimal:
+    return vk::AccessFlagBits::eTransferWrite;
+  case vk::ImageLayout::eTransferSrcOptimal:
+    return vk::AccessFlagBits::eTransferRead;
+  case vk::ImageLayout::eColorAttachmentOptimal:
+    return vk::AccessFlagBits::eColorAttachmentWrite;
+  case vk::ImageLayout::eDepthStencilAttachmentOptimal:
+    return vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+  case vk::ImageLayout::eShaderReadOnlyOptimal:
+    return vk::AccessFlagBits::eShaderRead;
+  default:
+    return {};
+  }
+}
+
+inline vk::PipelineStageFlags BaseRenderer::pipelineStageForLayout(vk::ImageLayout layout) {
+  switch (layout) {
+  case vk::ImageLayout::eTransferDstOptimal:
+  case vk::ImageLayout::eTransferSrcOptimal:
+    return vk::PipelineStageFlagBits::eTransfer;
+
+  case vk::ImageLayout::eColorAttachmentOptimal:
+    return vk::PipelineStageFlagBits::eColorAttachmentOutput;
+
+  case vk::ImageLayout::eDepthStencilAttachmentOptimal:
+    return vk::PipelineStageFlagBits::eEarlyFragmentTests;
+
+  case vk::ImageLayout::eShaderReadOnlyOptimal:
+    return vk::PipelineStageFlagBits::eFragmentShader;
+
+  case vk::ImageLayout::ePreinitialized:
+    return vk::PipelineStageFlagBits::eHost;
+
+  case vk::ImageLayout::eUndefined:
+    return vk::PipelineStageFlagBits::eTopOfPipe;
+
+  default:
+    return vk::PipelineStageFlagBits::eBottomOfPipe;
+  }
 }

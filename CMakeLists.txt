@@ -36,12 +36,19 @@ include(shaderCompiling-CMakeLists.txt)
 
 # plaxel_test setup
 find_package(GTest CONFIG REQUIRED)
+find_package(OpenImageIO CONFIG REQUIRED)
+find_package(Boost REQUIRED COMPONENTS thread filesystem)
 
-add_executable(plaxel_test test/plaxel.cpp)
+add_executable(plaxel_test test/plaxel.cpp
+        test/renderer/renderer.cpp)
 
 enable_testing()
 
+configure_file(test/renderer/simple_drawing_test.ppm test/renderer/simple_drawing_test.ppm COPYONLY)
+
 target_link_libraries(plaxel_test PRIVATE plaxel_lib)
 target_link_libraries(plaxel_test PRIVATE GTest::gtest GTest::gtest_main GTest::gmock GTest::gmock_main)
+target_link_libraries(plaxel_test PRIVATE OpenImageIO::OpenImageIO)
+target_link_libraries(plaxel_test PRIVATE Boost::boost Boost::thread Boost::filesystem)
 
 add_test(AllTestsInMain plaxel_test)

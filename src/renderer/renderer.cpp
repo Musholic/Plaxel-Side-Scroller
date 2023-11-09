@@ -169,12 +169,11 @@ void Renderer::createTextureImage() {
               vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, eDeviceLocal,
               textureImage, textureImageMemory);
 
-  transitionImageLayout(*textureImage, vk::Format::eR8G8B8A8Srgb, vk::ImageLayout::eUndefined,
+  transitionImageLayout(*textureImage, vk::ImageLayout::eUndefined,
                         vk::ImageLayout::eTransferDstOptimal);
   copyBufferToImage(*stagingBuffer, *textureImage, static_cast<uint32_t>(texWidth),
                     static_cast<uint32_t>(texHeight));
-  transitionImageLayout(*textureImage, vk::Format::eR8G8B8A8Srgb,
-                        vk::ImageLayout::eTransferDstOptimal,
+  transitionImageLayout(*textureImage, vk::ImageLayout::eTransferDstOptimal,
                         vk::ImageLayout::eShaderReadOnlyOptimal);
 }
 
@@ -269,48 +268,6 @@ void Renderer::createDescriptorSets() {
   }
 }
 
-void Renderer::transitionImageLayout(vk::Image image, vk::Format format, vk::ImageLayout oldLayout,
-                                     vk::ImageLayout newLayout) {
-  vk::raii::CommandBuffer commandBuffer = beginSingleTimeCommands();
-
-  vk::ImageMemoryBarrier barrier;
-  barrier.oldLayout = oldLayout;
-  barrier.newLayout = newLayout;
-  barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  barrier.image = image;
-  barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-  barrier.subresourceRange.baseMipLevel = 0;
-  barrier.subresourceRange.levelCount = 1;
-  barrier.subresourceRange.baseArrayLayer = 0;
-  barrier.subresourceRange.layerCount = 1;
-
-  vk::PipelineStageFlags sourceStage;
-  vk::PipelineStageFlags destinationStage;
-
-  if (oldLayout == vk::ImageLayout::eUndefined &&
-      newLayout == vk::ImageLayout::eTransferDstOptimal) {
-    barrier.srcAccessMask = vk::AccessFlagBits::eNone;
-    barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
-
-    sourceStage = vk::PipelineStageFlagBits::eTopOfPipe;
-    destinationStage = vk::PipelineStageFlagBits::eTransfer;
-  } else if (oldLayout == vk::ImageLayout::eTransferDstOptimal &&
-             newLayout == vk::ImageLayout::eShaderReadOnlyOptimal) {
-    barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
-    barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
-
-    sourceStage = vk::PipelineStageFlagBits::eTransfer;
-    destinationStage = vk::PipelineStageFlagBits::eFragmentShader;
-  } else {
-    throw std::invalid_argument("unsupported layout transition!");
-  }
-  commandBuffer.pipelineBarrier(sourceStage, destinationStage, vk::DependencyFlagBits::eByRegion,
-                                nullptr, nullptr, barrier);
-
-  endSingleTimeCommands(*commandBuffer);
-}
-
 void Renderer::copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width,
                                  uint32_t height) {
   vk::raii::CommandBuffer commandBuffer = beginSingleTimeCommands();
@@ -329,34 +286,6 @@ void Renderer::copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t wi
   commandBuffer.copyBufferToImage(buffer, image, vk::ImageLayout::eTransferDstOptimal, region);
 
   endSingleTimeCommands(*commandBuffer);
-}
-
-vk::raii::CommandBuffer Renderer::beginSingleTimeCommands() {
-  vk::CommandBufferAllocateInfo allocInfo;
-  allocInfo.level = vk::CommandBufferLevel::ePrimary;
-  allocInfo.commandPool = *commandPool;
-  allocInfo.commandBufferCount = 1;
-
-  vk::raii::CommandBuffers commandBuffers{device, allocInfo};
-
-  vk::CommandBufferBeginInfo beginInfo;
-  beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
-
-  vk::raii::CommandBuffer commandBuffer(std::move(commandBuffers[0]));
-  commandBuffer.begin(beginInfo);
-
-  return commandBuffer;
-}
-
-void Renderer::endSingleTimeCommands(vk::CommandBuffer commandBuffer) {
-  commandBuffer.end();
-
-  vk::SubmitInfo submitInfo;
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &commandBuffer;
-
-  graphicsQueue.submit(submitInfo);
-  graphicsQueue.waitIdle();
 }
 
 vk::PipelineLayoutCreateInfo Renderer::getPipelineLayoutInfo() const {
