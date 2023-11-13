@@ -12,12 +12,19 @@ void hideWindowsByDefault() {
 }
 
 TEST(RendererTest, Test) {
+  // Arrange
   hideWindowsByDefault();
 
   Renderer r;
   r.showWindow();
+
+  // Act
+  // We need to draw 2 frames, to free up one of the swapChainImage so we can use it to save our
+  // screenshot
   r.draw();
   r.draw();
+
+  // Assert
   r.saveScreenshot("test_result.ppm");
   r.closeWindow();
 
@@ -30,6 +37,7 @@ TEST(RendererTest, Test) {
   std::cout << "Spec: " << xres << "x" << yres << std::endl;
 
   auto comp = OIIO::ImageBufAlgo::compare(testResultImage, refTestImage, 1.0f / 255.0f, 0.0f);
+
   if (comp.nwarn == 0 && comp.nfail == 0) {
     std::cout << "Images match within tolerance\n";
   } else {
@@ -44,4 +52,6 @@ TEST(RendererTest, Test) {
   const OpenImageIO_v2_4::ImageBuf &diff =
       OIIO::ImageBufAlgo::absdiff(refTestImage, testResultImage);
   diff.write("diff.ppm");
+
+  EXPECT_EQ(comp.nfail, 0);
 }

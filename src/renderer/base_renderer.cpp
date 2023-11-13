@@ -1091,6 +1091,7 @@ void BaseRenderer::saveScreenshot(const char *filename) {
   }
 
   // Source for the copy is the last rendered swapchain image
+  // The current frame is not in use yet, so we can use it here
   auto &srcImage = swapChainImages[currentFrame];
 
   // Create the linear tiled destination image to copy to and to read the memory from
