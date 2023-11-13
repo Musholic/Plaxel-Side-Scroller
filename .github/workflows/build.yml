@@ -42,4 +42,6 @@ jobs:
       - name: Start xpra display
         run: xpra start :100
       - name: Run tests to generate coverage statistics
-        run: DISPLAY=:100.0 ./build/plaxel_test
+        run: |
+          cd build
+          DISPLAY=:100.0 ./plaxel_test
