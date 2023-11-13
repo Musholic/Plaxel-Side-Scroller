@@ -39,6 +39,7 @@ add_executable(plaxel main.cpp)
 target_link_libraries(plaxel PRIVATE plaxel_lib)
 
 include(shaderCompiling-CMakeLists.txt)
+add_dependencies(plaxel_lib Shaders)
 
 # plaxel_test setup
 find_package(GTest CONFIG REQUIRED)
@@ -56,9 +57,10 @@ target_link_libraries(plaxel_test PRIVATE plaxel_lib)
 target_link_libraries(plaxel_test PRIVATE GTest::gtest GTest::gtest_main GTest::gmock GTest::gmock_main)
 target_link_libraries(plaxel_test PRIVATE OpenImageIO::OpenImageIO)
 target_link_libraries(plaxel_test PRIVATE Boost::boost Boost::thread Boost::filesystem)
+target_link_libraries(plaxel_test PRIVATE gcov)
 
 add_test(AllTestsInMain plaxel_test)
 
-target_compile_options(plaxel PRIVATE -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic)
-target_compile_options(plaxel_lib PRIVATE -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic)
-target_compile_options(plaxel_test PRIVATE -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic)
+target_compile_options(plaxel PRIVATE -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic --coverage -O0 -g)
+target_compile_options(plaxel_lib PRIVATE -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic --coverage -O0 -g)
+target_compile_options(plaxel_test PRIVATE -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic --coverage -O0 -g)

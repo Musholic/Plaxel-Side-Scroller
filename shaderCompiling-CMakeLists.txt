@@ -30,7 +30,6 @@ add_custom_target(
         DEPENDS ${SPIRV_BINARY_FILES}
 )
 
-add_dependencies(plaxel Shaders)
 
 add_custom_command(TARGET plaxel POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:plaxel>/shaders/"
