@@ -44,12 +44,12 @@ void BaseRenderer::createWindow() {
   windowSize.height = mode->height;
 
   if (fullscreen) {
-    window = glfwCreateWindow(windowSize.width, windowSize.height, WINDOW_TITLE.c_str(), monitor,
+    window = glfwCreateWindow(windowSize.width, windowSize.height, WINDOW_TITLE.data(), monitor,
                               nullptr);
   } else {
     windowSize.width /= 2;
     windowSize.height /= 2;
-    window = glfwCreateWindow(windowSize.width, windowSize.height, WINDOW_TITLE.c_str(), nullptr,
+    window = glfwCreateWindow(windowSize.width, windowSize.height, WINDOW_TITLE.data(), nullptr,
                               nullptr);
   }
 
@@ -60,7 +60,8 @@ void BaseRenderer::createWindow() {
   }
 }
 
-void BaseRenderer::framebufferResizeCallback(GLFWwindow *window, int width, int height) {
+void BaseRenderer::framebufferResizeCallback(GLFWwindow *window, [[maybe_unused]] int width,
+                                             [[maybe_unused]] int height) {
   auto pRenderer = std::bit_cast<BaseRenderer *>(glfwGetWindowUserPointer(window));
   pRenderer->framebufferResized = true;
 }

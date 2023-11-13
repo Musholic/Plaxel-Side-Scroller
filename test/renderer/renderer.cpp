@@ -6,7 +6,14 @@
 
 using namespace plaxel;
 
+void hideWindowsByDefault() {
+  glfwInit();
+  glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+}
+
 TEST(RendererTest, Test) {
+  hideWindowsByDefault();
+
   Renderer r;
   r.showWindow();
   r.draw();

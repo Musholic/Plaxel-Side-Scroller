@@ -1,4 +1,8 @@
-cmake_minimum_required(VERSION 3.27)
+cmake_minimum_required(VERSION 3.22)
+
+set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake"
+        CACHE STRING "Vcpkg toolchain file")
+
 project(plaxel)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -30,6 +34,7 @@ target_include_directories(plaxel_lib PRIVATE ${Stb_INCLUDE_DIR})
 # plaxel main executable
 add_executable(plaxel main.cpp)
 
+
 target_link_libraries(plaxel PRIVATE plaxel_lib)
 
 include(shaderCompiling-CMakeLists.txt)
@@ -52,3 +57,7 @@ target_link_libraries(plaxel_test PRIVATE OpenImageIO::OpenImageIO)
 target_link_libraries(plaxel_test PRIVATE Boost::boost Boost::thread Boost::filesystem)
 
 add_test(AllTestsInMain plaxel_test)
+
+target_compile_options(plaxel PRIVATE -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic)
+target_compile_options(plaxel_lib PRIVATE -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic)
+target_compile_options(plaxel_test PRIVATE -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic)

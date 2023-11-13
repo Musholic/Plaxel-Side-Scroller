@@ -127,7 +127,7 @@ public:
   BaseRenderer();
   virtual ~BaseRenderer() = default;
 
-  constexpr static std::string WINDOW_TITLE = "Plaxel";
+  constexpr static std::string_view WINDOW_TITLE = "Plaxel";
   bool fullscreen = false;
 
   void closeWindow();
@@ -222,7 +222,8 @@ private:
   int fpsCount = 0;
 
   void createWindow();
-  static void framebufferResizeCallback(GLFWwindow *window, int width, int height);
+  static void framebufferResizeCallback(GLFWwindow *window, [[maybe_unused]] int width,
+                                        [[maybe_unused]] int height);
 
   void createInstance();
   bool checkValidationLayerSupport();

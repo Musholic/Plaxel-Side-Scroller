@@ -23,13 +23,6 @@
     {
       "name": "openimageio",
       "version>=": "2.4.14.0#3"
-    },
-    {
-      "name": "boost-thread",
-      "version>=": "1.83.0"
-    },
-    {
-      "name": "boost-filesystem",
-      "version>=": "1.83.0"
-  } ]
+    }
+  ]
 }
