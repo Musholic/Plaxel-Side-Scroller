@@ -29,6 +29,7 @@ target_link_libraries(plaxel_lib PRIVATE glm::glm)
 target_link_libraries(plaxel_lib PRIVATE glfw)
 # Public seems required for compilation of test binaries...
 target_link_libraries(plaxel_lib PUBLIC Vulkan::Vulkan)
+target_link_libraries(plaxel_lib PRIVATE gcov)
 
 target_include_directories(plaxel_lib PRIVATE ${Stb_INCLUDE_DIR})
 
@@ -37,6 +38,7 @@ add_executable(plaxel main.cpp)
 
 
 target_link_libraries(plaxel PRIVATE plaxel_lib)
+target_link_libraries(plaxel PRIVATE gcov)
 
 include(shaderCompiling-CMakeLists.txt)
 add_dependencies(plaxel_lib Shaders)
