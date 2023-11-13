@@ -27,7 +27,8 @@ configure_file(textures/texture.jpg textures/texture.jpg COPYONLY)
 
 target_link_libraries(plaxel_lib PRIVATE glm::glm)
 target_link_libraries(plaxel_lib PRIVATE glfw)
-target_link_libraries(plaxel_lib PRIVATE Vulkan::Vulkan)
+# Public seems required for compilation of test binaries...
+target_link_libraries(plaxel_lib PUBLIC Vulkan::Vulkan)
 
 target_include_directories(plaxel_lib PRIVATE ${Stb_INCLUDE_DIR})
 
