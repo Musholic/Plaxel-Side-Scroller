@@ -46,19 +46,20 @@ add_dependencies(plaxel_lib Shaders)
 # plaxel_test setup
 find_package(GTest CONFIG REQUIRED)
 find_package(OpenImageIO CONFIG REQUIRED)
-find_package(Boost REQUIRED COMPONENTS thread filesystem)
+find_package(Boost REQUIRED COMPONENTS thread filesystem iostreams)
 
 add_executable(plaxel_test test/plaxel.cpp
         test/renderer/renderer.cpp)
 
 enable_testing()
 
-configure_file(test/renderer/simple_drawing_test.ppm test/renderer/simple_drawing_test.ppm COPYONLY)
+configure_file(test/renderer/simple_drawing_test.ppm.gz test/renderer/simple_drawing_test.ppm.gz COPYONLY)
 
 target_link_libraries(plaxel_test PRIVATE plaxel_lib)
 target_link_libraries(plaxel_test PRIVATE GTest::gtest GTest::gtest_main GTest::gmock GTest::gmock_main)
 target_link_libraries(plaxel_test PRIVATE OpenImageIO::OpenImageIO)
-target_link_libraries(plaxel_test PRIVATE Boost::boost Boost::thread Boost::filesystem)
+target_link_libraries(plaxel_test PRIVATE Boost::boost Boost::thread Boost::filesystem Boost::iostreams)
+target_link_libraries(plaxel_lib PRIVATE ZLIB::ZLIB)
 target_link_libraries(plaxel_test PRIVATE gcov)
 
 add_test(AllTestsInMain plaxel_test)

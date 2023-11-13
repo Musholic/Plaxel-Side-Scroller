@@ -2,6 +2,9 @@
 #include <OpenImageIO/imagebuf.h>
 #include <OpenImageIO/imagebufalgo.h>
 #include <OpenImageIO/imageio.h>
+#include <boost/iostreams/copy.hpp>
+#include <boost/iostreams/filter/gzip.hpp>
+#include <boost/iostreams/filtering_streambuf.hpp>
 #include <filesystem>
 #include <gtest/gtest.h>
 
@@ -10,6 +13,28 @@ using namespace plaxel;
 void hideWindowsByDefault() {
   glfwInit();
   glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+}
+
+void compressFile(const std::string &fileName, const std::string &outputFileName) {
+  std::ifstream file(fileName, std::ios_base::in | std::ios_base::binary);
+  boost::iostreams::filtering_streambuf<boost::iostreams::input> in;
+  in.push(boost::iostreams::gzip_compressor());
+  in.push(file);
+
+  std::ofstream fileOut(outputFileName, std::ios_base::out | std::ios_base::binary);
+  boost::iostreams::copy(in, fileOut);
+  fileOut.close();
+}
+
+void decompressFile(const std::string &fileName, const std::string &outputFileName) {
+  std::ifstream file(fileName, std::ios_base::in | std::ios_base::binary);
+  boost::iostreams::filtering_streambuf<boost::iostreams::input> in;
+  in.push(boost::iostreams::gzip_decompressor());
+  in.push(file);
+
+  std::ofstream fileOut(outputFileName, std::ios_base::out | std::ios_base::binary);
+  boost::iostreams::copy(in, fileOut);
+  fileOut.close();
 }
 
 TEST(RendererTest, Test) {
@@ -27,11 +52,15 @@ TEST(RendererTest, Test) {
 
   // Assert
   std::filesystem::create_directory("test_report");
-  r.saveScreenshot("test_report/test_result.ppm");
+  std::filesystem::create_directory("workTmp");
+  r.saveScreenshot("workTmp/test_result.ppm");
   r.closeWindow();
 
-  OIIO::ImageBuf refTestImage("test/renderer/simple_drawing_test.ppm");
-  OIIO::ImageBuf testResultImage("test_report/test_result.ppm");
+  compressFile("workTmp/test_result.ppm", "test_report/test_result.ppm.gz");
+  decompressFile("test/renderer/simple_drawing_test.ppm.gz", "workTmp/expected.ppm");
+
+  OIIO::ImageBuf refTestImage("workTmp/expected.ppm");
+  OIIO::ImageBuf testResultImage("workTmp/test_result.ppm");
 
   const OIIO::ImageSpec &spec = testResultImage.spec();
   int xres = spec.width;
@@ -53,7 +82,8 @@ TEST(RendererTest, Test) {
 
   const OpenImageIO_v2_4::ImageBuf &diff =
       OIIO::ImageBufAlgo::absdiff(refTestImage, testResultImage);
-  diff.write("test_report/diff.ppm");
+  diff.write("workTmp/diff.ppm");
+  compressFile("workTmp/diff.ppm", "test_report/diff.ppm.gz");
 
   EXPECT_EQ(comp.nfail, 0);
 }
