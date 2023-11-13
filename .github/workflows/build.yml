@@ -23,7 +23,9 @@ jobs:
         with:
           doNotCache: false
       - name: Install deps
-        run: sudo apt-get update && sudo apt-get install -y libxinerama-dev libxcursor-dev xorg-dev libglu1-mesa-dev pkg-config
+        run: |
+          sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends libxinerama-dev libxcursor-dev \
+          xorg-dev libglu1-mesa-dev pkg-config mesa-vulkan-drivers vulkan-validationlayers-dev xpra
       - name: Prepare Vulkan SDK
         uses: humbletim/setup-vulkan-sdk@v1.2.0
         with:
@@ -37,6 +39,7 @@ jobs:
           mkdir build
           cmake -S . -B build
           build-wrapper-linux-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} cmake --build build/ --config Release
+      - name: Start xpra display
+        run: xpra start :100
       - name: Run tests to generate coverage statistics
-        run: |
-          ./build/plaxel_test
+        run: DISPLAY=:100.0 ./build/plaxel_test
