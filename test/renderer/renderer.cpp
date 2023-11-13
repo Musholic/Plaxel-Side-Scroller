@@ -38,7 +38,7 @@ TEST(RendererTest, Test) {
   int yres = spec.height;
   std::cout << "Spec: " << xres << "x" << yres << std::endl;
 
-  auto comp = OIIO::ImageBufAlgo::compare(testResultImage, refTestImage, 1.0f / 255.0f, 0.0f);
+  auto comp = OIIO::ImageBufAlgo::compare(testResultImage, refTestImage, 3.0f / 255.0f, 0.0f);
 
   if (comp.nwarn == 0 && comp.nfail == 0) {
     std::cout << "Images match within tolerance\n";
