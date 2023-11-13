@@ -39,16 +39,11 @@ void BaseRenderer::createWindow() {
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
   auto monitor = glfwGetPrimaryMonitor();
-  auto mode = glfwGetVideoMode(monitor);
-  windowSize.width = mode->width;
-  windowSize.height = mode->height;
 
   if (fullscreen) {
     window = glfwCreateWindow(windowSize.width, windowSize.height, WINDOW_TITLE.data(), monitor,
                               nullptr);
   } else {
-    windowSize.width /= 2;
-    windowSize.height /= 2;
     window = glfwCreateWindow(windowSize.width, windowSize.height, WINDOW_TITLE.data(), nullptr,
                               nullptr);
   }
