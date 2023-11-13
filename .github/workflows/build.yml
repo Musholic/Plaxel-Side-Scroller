@@ -47,8 +47,10 @@ jobs:
           cd build
           DISPLAY=:100.0 ./plaxel_test
       - name: Collect coverage into one XML report
+        if: always()
         run: gcovr --sonarqube > coverage.xml
       - name: Run sonar-scanner
+        if: always()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -56,3 +58,9 @@ jobs:
           sonar-scanner \
             --define sonar.cfamily.build-wrapper-output="${{ env.BUILD_WRAPPER_OUT_DIR }}" \
             --define sonar.coverageReportPaths=coverage.xml
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test_report
+          path: build/test_report
+          retention-days: 30

@@ -2,6 +2,7 @@
 #include <OpenImageIO/imagebuf.h>
 #include <OpenImageIO/imagebufalgo.h>
 #include <OpenImageIO/imageio.h>
+#include <filesystem>
 #include <gtest/gtest.h>
 
 using namespace plaxel;
@@ -25,11 +26,12 @@ TEST(RendererTest, Test) {
   r.draw();
 
   // Assert
-  r.saveScreenshot("test_result.ppm");
+  std::filesystem::create_directory("test_report");
+  r.saveScreenshot("test_report/test_result.ppm");
   r.closeWindow();
 
   OIIO::ImageBuf refTestImage("test/renderer/simple_drawing_test.ppm");
-  OIIO::ImageBuf testResultImage("test_result.ppm");
+  OIIO::ImageBuf testResultImage("test_report/test_result.ppm");
 
   const OIIO::ImageSpec &spec = testResultImage.spec();
   int xres = spec.width;
@@ -51,7 +53,7 @@ TEST(RendererTest, Test) {
 
   const OpenImageIO_v2_4::ImageBuf &diff =
       OIIO::ImageBufAlgo::absdiff(refTestImage, testResultImage);
-  diff.write("diff.ppm");
+  diff.write("test_report/diff.ppm");
 
   EXPECT_EQ(comp.nfail, 0);
 }
