@@ -25,7 +25,7 @@ jobs:
       - name: Install deps
         run: |
           sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends libxinerama-dev libxcursor-dev \
-          xorg-dev libglu1-mesa-dev pkg-config mesa-vulkan-drivers vulkan-validationlayers-dev xpra
+          xorg-dev libglu1-mesa-dev pkg-config mesa-vulkan-drivers vulkan-validationlayers-dev xpra gcovr
       - name: Prepare Vulkan SDK
         uses: humbletim/setup-vulkan-sdk@v1.2.0
         with:
@@ -45,3 +45,13 @@ jobs:
         run: |
           cd build
           DISPLAY=:100.0 ./plaxel_test
+      - name: Collect coverage into one XML report
+        run: gcovr --sonarqube > coverage.xml
+      - name: Run sonar-scanner
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          sonar-scanner \
+            --define sonar.cfamily.build-wrapper-output="${{ env.BUILD_WRAPPER_OUT_DIR }}" \
+            --define sonar.coverageReportPaths=coverage.xml
