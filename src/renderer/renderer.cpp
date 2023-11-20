@@ -17,6 +17,7 @@ void Renderer::initVulkan() {
 
   createVertexBuffer();
   createIndexBuffer();
+  createDrawCommandBuffer();
   createTextureImage();
   createTextureImageView();
   createTextureSampler();
@@ -35,6 +36,8 @@ void Renderer::createComputeDescriptorSetLayout() {
   layoutBindings.emplace_back(0, vk::DescriptorType::eStorageBuffer, 1,
                               vk::ShaderStageFlagBits::eCompute);
   layoutBindings.emplace_back(1, vk::DescriptorType::eStorageBuffer, 1,
+                              vk::ShaderStageFlagBits::eCompute);
+  layoutBindings.emplace_back(2, vk::DescriptorType::eStorageBuffer, 1,
                               vk::ShaderStageFlagBits::eCompute);
 
   vk::DescriptorSetLayoutCreateInfo layoutInfo{};
@@ -83,6 +86,20 @@ void Renderer::createComputeDescriptorSets() {
     descriptorWrite2.pBufferInfo = &storageBufferInfoCurrentFrame2;
     descriptorWrites.push_back(descriptorWrite2);
 
+    vk::DescriptorBufferInfo storageBufferInfoCurrentFrame3;
+    storageBufferInfoCurrentFrame3.buffer = *drawCommandBuffer;
+    storageBufferInfoCurrentFrame3.offset = 0;
+    storageBufferInfoCurrentFrame3.range = sizeof(VkDrawIndexedIndirectCommand);
+
+    vk::WriteDescriptorSet descriptorWrite3{};
+    descriptorWrite3.dstSet = *computeDescriptorSets[i];
+    descriptorWrite3.dstBinding = 2;
+    descriptorWrite3.dstArrayElement = 0;
+    descriptorWrite3.descriptorType = vk::DescriptorType::eStorageBuffer;
+    descriptorWrite3.descriptorCount = 1;
+    descriptorWrite3.pBufferInfo = &storageBufferInfoCurrentFrame3;
+    descriptorWrites.push_back(descriptorWrite3);
+
     device.updateDescriptorSets(descriptorWrites, nullptr);
   }
 }
@@ -109,9 +126,7 @@ void Renderer::drawCommand(vk::CommandBuffer commandBuffer) const {
   commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *pipelineLayout, 0,
                                    *descriptorSets[currentFrame], nullptr);
 
-  // TODO make it dynamically set by the compute shader
-  int nbTriangle = 4;
-  commandBuffer.drawIndexed(3 * nbTriangle, 1, 0, 0, 0);
+  commandBuffer.drawIndexedIndirect(*drawCommandBuffer, 0, 1, 0);
 }
 
 std::vector<vk::VertexInputAttributeDescription> Renderer::getVertexAttributeDescription() const {
@@ -138,6 +153,15 @@ void Renderer::createIndexBuffer() {
 
   createBuffer(bufferSize, eStorageBuffer | eIndexBuffer, eDeviceLocal, indexBuffer,
                indexBufferMemory);
+}
+
+void Renderer::createDrawCommandBuffer() {
+  using enum vk::MemoryPropertyFlagBits;
+  using enum vk::BufferUsageFlagBits;
+  vk::DeviceSize bufferSize = sizeof(VkDrawIndexedIndirectCommand);
+
+  createBuffer(bufferSize, eStorageBuffer | eIndirectBuffer, eDeviceLocal, drawCommandBuffer,
+               drawCommandBufferMemory);
 }
 
 void Renderer::createTextureImage() {
@@ -201,7 +225,6 @@ void Renderer::createTextureSampler() {
 
   textureSampler = vk::raii::Sampler(device, samplerInfo);
 }
-
 
 void Renderer::createDescriptorSetLayout() {
   vk::DescriptorSetLayoutBinding uboLayoutBinding;

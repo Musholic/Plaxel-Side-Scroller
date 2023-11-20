@@ -54,6 +54,8 @@ private:
   vk::raii::DeviceMemory vertexBufferMemory = nullptr;
   vk::raii::Buffer indexBuffer = nullptr;
   vk::raii::DeviceMemory indexBufferMemory = nullptr;
+  vk::raii::Buffer drawCommandBuffer = nullptr;
+  vk::raii::DeviceMemory drawCommandBufferMemory = nullptr;
 
   void createComputeDescriptorSetLayout();
   void createComputeDescriptorSets();
@@ -72,6 +74,7 @@ private:
   void copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height);
   [[nodiscard]] vk::PipelineLayoutCreateInfo getPipelineLayoutInfo() const override;
   [[nodiscard]] vk::PipelineLayoutCreateInfo getComputePipelineLayoutInfo() const override;
+  void createDrawCommandBuffer();
 };
 
 } // namespace plaxel
