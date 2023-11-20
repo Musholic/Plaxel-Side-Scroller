@@ -3,6 +3,7 @@
 
 #include <vulkan/vulkan_raii.hpp>
 
+#include "camera.h"
 #include <GLFW/glfw3.h>
 #include <fstream>
 #include <glm/detail/type_mat4x4.hpp>
@@ -13,6 +14,10 @@
 #include <optional>
 
 namespace plaxel {
+
+struct MouseButtons {
+  bool left = false;
+};
 
 struct UniformBufferObject {
   alignas(16) glm::mat4 model;
@@ -220,10 +225,16 @@ private:
 
   double lastFpsCountTime = 0.0f;
   int fpsCount = 0;
+  glm::vec2 mousePos;
+  Camera camera;
+  MouseButtons mouseButtons;
 
   void createWindow();
   static void framebufferResizeCallback(GLFWwindow *window, [[maybe_unused]] int width,
                                         [[maybe_unused]] int height);
+  static void mouseMoveHandler(GLFWwindow *window, double posx, double posy);
+  static void keyboardHandler(GLFWwindow *window, int key, int scancode, int action, int mods);
+  static void mouseHandler(GLFWwindow *window, int button, int action, int mods);
 
   void createInstance();
   static bool checkValidationLayerSupport();
@@ -274,6 +285,11 @@ private:
                    vk::raii::Image &image, vk::raii::DeviceMemory &imageMemory);
   static vk::AccessFlags accessFlagsForLayout(vk::ImageLayout layout);
   static vk::PipelineStageFlags pipelineStageForLayout(vk::ImageLayout layout);
+  void mouseMoved(const glm::vec2 &newPos);
+  void keyPressed(int key);
+  void keyReleased(int key);
+  void mouseAction(int button, int action, int mods);
+  void handleCameraKeys(int key, bool pressed);
 };
 
 } // namespace plaxel

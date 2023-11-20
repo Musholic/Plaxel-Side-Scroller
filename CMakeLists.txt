@@ -19,7 +19,9 @@ set(SOURCES
         src/renderer/base_renderer.cpp
         src/renderer/base_renderer.h
         src/renderer/renderer.cpp
-        src/renderer/renderer.h)
+        src/renderer/renderer.h
+        src/renderer/camera.cpp
+        src/renderer/camera.h)
 
 add_library(plaxel_lib STATIC ${SOURCES})
 

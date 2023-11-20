@@ -50,6 +50,9 @@ void BaseRenderer::createWindow() {
 
   glfwSetWindowUserPointer(window, this);
   glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+  glfwSetCursorPosCallback(window, mouseMoveHandler);
+  glfwSetKeyCallback(window, keyboardHandler);
+  glfwSetMouseButtonCallback(window, mouseHandler);
   if (!window) {
     throw VulkanInitializationError("Could not create window");
   }
@@ -708,7 +711,7 @@ void BaseRenderer::createDescriptorPool() {
   poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 2;
 
   poolSizes[1].type = vk::DescriptorType::eStorageBuffer;
-  poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 2;
+  poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 3;
 
   poolSizes[2].type = vk::DescriptorType::eCombinedImageSampler;
   poolSizes[2].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
@@ -926,14 +929,16 @@ void BaseRenderer::createUniformBuffers() {
 }
 
 void BaseRenderer::updateUniformBuffer(uint32_t currentImage) {
+  camera.update();
+
   UniformBufferObject ubo{};
-  ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-  ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f),
-                         glm::vec3(0.0f, 0.0f, 1.0f));
+  ubo.model = glm::mat4(1.0f);
+
+  ubo.view = camera.getViewMatrix();
+
   ubo.proj =
       glm::perspective(glm::radians(45.0f),
                        (float)swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
-  ubo.proj[1][1] *= -1;
 
   memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
 }
@@ -950,7 +955,8 @@ void BaseRenderer::createDepthResources() {
 vk::Format BaseRenderer::findDepthFormat() const {
   using enum vk::Format;
   return findSupportedFormat({eD32Sfloat, eD32SfloatS8Uint, eD24UnormS8Uint},
-                             vk::ImageTiling::eOptimal, vk::FormatFeatureFlagBits::eDepthStencilAttachment);
+                             vk::ImageTiling::eOptimal,
+                             vk::FormatFeatureFlagBits::eDepthStencilAttachment);
 }
 
 vk::Format BaseRenderer::findSupportedFormat(const std::vector<vk::Format> &candidates,
@@ -1230,5 +1236,88 @@ inline vk::PipelineStageFlags BaseRenderer::pipelineStageForLayout(vk::ImageLayo
     return eTopOfPipe;
   default:
     return eBottomOfPipe;
+  }
+}
+
+void BaseRenderer::mouseMoveHandler(GLFWwindow *window, double posx, double posy) {
+  auto renderer = (BaseRenderer *)glfwGetWindowUserPointer(window);
+  renderer->mouseMoved(glm::vec2(posx, posy));
+}
+
+void BaseRenderer::mouseMoved(const glm::vec2 &newPos) {
+  glm::vec2 deltaPos = mousePos - newPos;
+  mousePos = newPos;
+  if (mouseButtons.left) {
+    if (deltaPos == glm::vec2()) {
+      return;
+    }
+
+    camera.rotate(deltaPos.x, deltaPos.y);
+  }
+}
+
+void BaseRenderer::keyboardHandler(GLFWwindow *window, int key, int scancode, int action,
+                                   int mods) {
+  auto renderer = (BaseRenderer *)glfwGetWindowUserPointer(window);
+  switch (action) {
+  case GLFW_PRESS:
+    renderer->keyPressed(key);
+    break;
+
+  case GLFW_RELEASE:
+    renderer->keyReleased(key);
+    break;
+
+  default:
+    break;
+  }
+}
+
+void BaseRenderer::keyPressed(int key) { handleCameraKeys(key, true); }
+void BaseRenderer::keyReleased(int key) {
+  handleCameraKeys(key, false);
+  if (key == GLFW_KEY_P) {
+    camera.printDebug();
+  }
+}
+void BaseRenderer::handleCameraKeys(int key, bool pressed) {
+  switch (key) {
+  case GLFW_KEY_W:
+    camera.keys.forward = pressed;
+    break;
+  case GLFW_KEY_S:
+    camera.keys.backward = pressed;
+    break;
+  case GLFW_KEY_A:
+    camera.keys.left = pressed;
+    break;
+  case GLFW_KEY_D:
+    camera.keys.right = pressed;
+    break;
+  case GLFW_KEY_LEFT_SHIFT:
+    camera.keys.up = pressed;
+    break;
+  case GLFW_KEY_LEFT_CONTROL:
+    camera.keys.down = pressed;
+    break;
+  }
+}
+
+void BaseRenderer::mouseHandler(GLFWwindow *window, int button, int action, int mods) {
+  auto renderer = (BaseRenderer *)glfwGetWindowUserPointer(window);
+  renderer->mouseAction(button, action, mods);
+}
+
+void BaseRenderer::mouseAction(int button, int action, int mods) {
+  switch (button) {
+  case GLFW_MOUSE_BUTTON_LEFT:
+    mouseButtons.left = action == GLFW_PRESS;
+    break;
+  case GLFW_MOUSE_BUTTON_RIGHT:
+    mouseButtons.right = action == GLFW_PRESS;
+    break;
+  case GLFW_MOUSE_BUTTON_MIDDLE:
+    mouseButtons.middle = action == GLFW_PRESS;
+    break;
   }
 }
