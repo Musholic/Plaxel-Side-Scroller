@@ -870,6 +870,7 @@ void BaseRenderer::recreateSwapChain() {
   createSwapChain();
   swapChainImageViews.clear();
   createImageViews();
+  createDepthResources();
   swapChainFramebuffers.clear();
   createFramebuffers();
 }
