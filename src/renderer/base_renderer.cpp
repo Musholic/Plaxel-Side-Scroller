@@ -1314,11 +1314,5 @@ void BaseRenderer::mouseAction(int button, int action, int mods) {
   case GLFW_MOUSE_BUTTON_LEFT:
     mouseButtons.left = action == GLFW_PRESS;
     break;
-  case GLFW_MOUSE_BUTTON_RIGHT:
-    mouseButtons.right = action == GLFW_PRESS;
-    break;
-  case GLFW_MOUSE_BUTTON_MIDDLE:
-    mouseButtons.middle = action == GLFW_PRESS;
-    break;
   }
 }
