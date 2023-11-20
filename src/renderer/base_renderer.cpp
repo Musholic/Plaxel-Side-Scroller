@@ -87,7 +87,9 @@ void BaseRenderer::initVulkan() {
   createSyncObjects();
 }
 
-void BaseRenderer::initCustomDescriptorSetLayout() {}
+void BaseRenderer::initCustomDescriptorSetLayout() {
+  // Overridden for additional descriptor set layout
+}
 
 void BaseRenderer::createInstance() {
   if (enableValidationLayers && !checkValidationLayerSupport()) {
@@ -147,7 +149,7 @@ bool BaseRenderer::checkValidationLayerSupport() {
   return true;
 }
 
-std::vector<const char *> BaseRenderer::getRequiredExtensions() {
+std::vector<const char *> BaseRenderer::getRequiredExtensions() const {
   uint32_t glfwExtensionCount = 0;
   const char **glfwExtensions;
   glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
@@ -192,11 +194,11 @@ void BaseRenderer::createSurface() {
 }
 
 void BaseRenderer::pickPhysicalDevice() {
-  vk::raii::PhysicalDevices devices(instance);
+  vk::raii::PhysicalDevices physicalDevices(instance);
 
-  for (const auto &device : devices) {
-    if (isDeviceSuitable(*device)) {
-      physicalDevice = device;
+  for (const auto &physicalDeviceCandidate : physicalDevices) {
+    if (isDeviceSuitable(*physicalDeviceCandidate)) {
+      physicalDevice = physicalDeviceCandidate;
       break;
     }
   }
@@ -206,24 +208,25 @@ void BaseRenderer::pickPhysicalDevice() {
   }
 }
 
-bool BaseRenderer::isDeviceSuitable(vk::PhysicalDevice device) {
-  QueueFamilyIndices indices = findQueueFamilies(device);
+bool BaseRenderer::isDeviceSuitable(vk::PhysicalDevice physicalDeviceCandidate) {
+  QueueFamilyIndices indices = findQueueFamilies(physicalDeviceCandidate);
 
-  bool extensionsSupported = checkDeviceExtensionSupport(device);
+  bool extensionsSupported = checkDeviceExtensionSupport(physicalDeviceCandidate);
 
   bool swapChainAdequate = false;
   if (extensionsSupported) {
-    SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device);
+    SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDeviceCandidate);
     swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
   }
 
   return indices.isComplete() && extensionsSupported && swapChainAdequate;
 }
 
-QueueFamilyIndices BaseRenderer::findQueueFamilies(vk::PhysicalDevice device) {
+QueueFamilyIndices BaseRenderer::findQueueFamilies(vk::PhysicalDevice physicalDeviceCandidate) {
   QueueFamilyIndices indices;
 
-  std::vector<vk::QueueFamilyProperties> queueFamilies = device.getQueueFamilyProperties();
+  std::vector<vk::QueueFamilyProperties> queueFamilies =
+      physicalDeviceCandidate.getQueueFamilyProperties();
 
   int i = 0;
   for (const auto &queueFamily : queueFamilies) {
@@ -232,7 +235,7 @@ QueueFamilyIndices BaseRenderer::findQueueFamilies(vk::PhysicalDevice device) {
       indices.graphicsAndComputeFamily = i;
     }
 
-    if (device.getSurfaceSupportKHR(i, *surface)) {
+    if (physicalDeviceCandidate.getSurfaceSupportKHR(i, *surface)) {
       indices.presentFamily = i;
     }
 
@@ -246,9 +249,9 @@ QueueFamilyIndices BaseRenderer::findQueueFamilies(vk::PhysicalDevice device) {
   return indices;
 }
 
-bool BaseRenderer::checkDeviceExtensionSupport(vk::PhysicalDevice device) {
+bool BaseRenderer::checkDeviceExtensionSupport(vk::PhysicalDevice physicalDevice) {
   std::vector<vk::ExtensionProperties> availableExtensions =
-      device.enumerateDeviceExtensionProperties();
+      physicalDevice.enumerateDeviceExtensionProperties();
 
   std::set<std::string, std::less<>> requiredExtensions(deviceExtensions.begin(),
                                                         deviceExtensions.end());
@@ -260,12 +263,13 @@ bool BaseRenderer::checkDeviceExtensionSupport(vk::PhysicalDevice device) {
   return requiredExtensions.empty();
 }
 
-SwapChainSupportDetails BaseRenderer::querySwapChainSupport(vk::PhysicalDevice device) {
+SwapChainSupportDetails
+BaseRenderer::querySwapChainSupport(vk::PhysicalDevice physicalDeviceCandidate) {
   SwapChainSupportDetails details;
 
-  details.capabilities = device.getSurfaceCapabilitiesKHR(*surface);
-  details.formats = device.getSurfaceFormatsKHR(*surface);
-  details.presentModes = device.getSurfacePresentModesKHR(*surface);
+  details.capabilities = physicalDeviceCandidate.getSurfaceCapabilitiesKHR(*surface);
+  details.formats = physicalDeviceCandidate.getSurfaceFormatsKHR(*surface);
+  details.presentModes = physicalDeviceCandidate.getSurfacePresentModesKHR(*surface);
 
   return details;
 }
@@ -723,7 +727,7 @@ void BaseRenderer::createCommandBuffers() {
   allocInfo.commandPool = *commandPool;
   allocInfo.commandBufferCount = MAX_FRAMES_IN_FLIGHT;
 
-  commandBuffers = vk::raii::CommandBuffers(device, allocInfo);
+  mainCommandBuffers = vk::raii::CommandBuffers(device, allocInfo);
 }
 
 void BaseRenderer::createComputeCommandBuffers() {
@@ -802,8 +806,8 @@ void BaseRenderer::drawFrame() {
 
   device.resetFences(*inFlightFences[currentFrame]);
 
-  commandBuffers[currentFrame].reset();
-  recordCommandBuffer(*commandBuffers[currentFrame], imageIndex);
+  mainCommandBuffers[currentFrame].reset();
+  recordCommandBuffer(*mainCommandBuffers[currentFrame], imageIndex);
 
   std::vector<vk::Semaphore> waitSemaphores = {*computeFinishedSemaphores[currentFrame],
                                                *imageAvailableSemaphores[currentFrame]};
@@ -815,7 +819,7 @@ void BaseRenderer::drawFrame() {
   submitInfo.pWaitSemaphores = waitSemaphores.data();
   submitInfo.pWaitDstStageMask = waitStages.data();
   submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &*commandBuffers[currentFrame];
+  submitInfo.pCommandBuffers = &*mainCommandBuffers[currentFrame];
   submitInfo.signalSemaphoreCount = 1;
   submitInfo.pSignalSemaphores = &*renderFinishedSemaphores[currentFrame];
 

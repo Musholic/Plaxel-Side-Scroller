@@ -5,7 +5,7 @@ namespace plaxel {
 
 class Plaxel {
 public:
-  void start();
+  static void start();
 };
 }
 

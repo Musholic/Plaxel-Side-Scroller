@@ -204,7 +204,7 @@ private:
   vk::raii::RenderPass renderPass = nullptr;
   vk::raii::Pipeline graphicsPipeline = nullptr;
 
-  vk::raii::CommandBuffers commandBuffers = nullptr;
+  vk::raii::CommandBuffers mainCommandBuffers = nullptr;
   vk::raii::CommandBuffers computeCommandBuffers = nullptr;
 
   std::array<vk::raii::DeviceMemory, MAX_FRAMES_IN_FLIGHT> uniformBuffersMemory{nullptr, nullptr};
@@ -226,21 +226,21 @@ private:
                                         [[maybe_unused]] int height);
 
   void createInstance();
-  bool checkValidationLayerSupport();
-  std::vector<const char *> getRequiredExtensions();
-  vk::DebugUtilsMessengerCreateInfoEXT createDebugMessengerCreateInfo();
+  static bool checkValidationLayerSupport();
+  [[nodiscard]] std::vector<const char *> getRequiredExtensions() const;
+  static vk::DebugUtilsMessengerCreateInfoEXT createDebugMessengerCreateInfo();
   void setupDebugMessenger();
   void createSurface();
   void pickPhysicalDevice();
-  bool isDeviceSuitable(vk::PhysicalDevice device);
-  QueueFamilyIndices findQueueFamilies(vk::PhysicalDevice device);
-  bool checkDeviceExtensionSupport(vk::PhysicalDevice device);
-  SwapChainSupportDetails querySwapChainSupport(vk::PhysicalDevice device);
+  bool isDeviceSuitable(vk::PhysicalDevice physicalDeviceCandidate);
+  QueueFamilyIndices findQueueFamilies(vk::PhysicalDevice physicalDeviceCandidate);
+  static bool checkDeviceExtensionSupport(vk::PhysicalDevice physicalDevice);
+  SwapChainSupportDetails querySwapChainSupport(vk::PhysicalDevice physicalDeviceCandidate);
   void createLogicalDevice();
   void createSwapChain();
-  vk::SurfaceFormatKHR
+  static vk::SurfaceFormatKHR
   chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &availableFormats);
-  vk::PresentModeKHR
+  static vk::PresentModeKHR
   chooseSwapPresentMode(const std::vector<vk::PresentModeKHR> &availablePresentModes);
   vk::Extent2D chooseSwapExtent(const vk::SurfaceCapabilitiesKHR &capabilities);
   void createImageViews();
@@ -272,8 +272,8 @@ private:
                                  vk::FormatFeatureFlags features);
   void createImage(const vk::ImageCreateInfo &imageInfo, const vk::MemoryPropertyFlags &properties,
                    vk::raii::Image &image, vk::raii::DeviceMemory &imageMemory);
-  vk::AccessFlags accessFlagsForLayout(vk::ImageLayout layout);
-  vk::PipelineStageFlags pipelineStageForLayout(vk::ImageLayout layout);
+  static vk::AccessFlags accessFlagsForLayout(vk::ImageLayout layout);
+  static vk::PipelineStageFlags pipelineStageForLayout(vk::ImageLayout layout);
 };
 
 } // namespace plaxel
