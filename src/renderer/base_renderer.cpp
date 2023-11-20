@@ -177,7 +177,7 @@ vk::DebugUtilsMessengerCreateInfoEXT BaseRenderer::createDebugMessengerCreateInf
   return createInfo;
 }
 
-void BaseRenderer::setupDebugMessenger() {
+void BaseRenderer::setupDebugMessenger() const {
   if (!enableValidationLayers)
     return;
 
@@ -194,11 +194,9 @@ void BaseRenderer::createSurface() {
 }
 
 void BaseRenderer::pickPhysicalDevice() {
-  vk::raii::PhysicalDevices physicalDevices(instance);
-
-  for (const auto &physicalDeviceCandidate : physicalDevices) {
+  for (auto &physicalDeviceCandidate : vk::raii::PhysicalDevices{instance}) {
     if (isDeviceSuitable(*physicalDeviceCandidate)) {
-      physicalDevice = physicalDeviceCandidate;
+      physicalDevice = std::move(physicalDeviceCandidate);
       break;
     }
   }
@@ -208,7 +206,7 @@ void BaseRenderer::pickPhysicalDevice() {
   }
 }
 
-bool BaseRenderer::isDeviceSuitable(vk::PhysicalDevice physicalDeviceCandidate) {
+bool BaseRenderer::isDeviceSuitable(vk::PhysicalDevice physicalDeviceCandidate) const {
   QueueFamilyIndices indices = findQueueFamilies(physicalDeviceCandidate);
 
   bool extensionsSupported = checkDeviceExtensionSupport(physicalDeviceCandidate);
@@ -222,7 +220,8 @@ bool BaseRenderer::isDeviceSuitable(vk::PhysicalDevice physicalDeviceCandidate) 
   return indices.isComplete() && extensionsSupported && swapChainAdequate;
 }
 
-QueueFamilyIndices BaseRenderer::findQueueFamilies(vk::PhysicalDevice physicalDeviceCandidate) {
+QueueFamilyIndices
+BaseRenderer::findQueueFamilies(vk::PhysicalDevice physicalDeviceCandidate) const {
   QueueFamilyIndices indices;
 
   std::vector<vk::QueueFamilyProperties> queueFamilies =
@@ -264,7 +263,7 @@ bool BaseRenderer::checkDeviceExtensionSupport(vk::PhysicalDevice physicalDevice
 }
 
 SwapChainSupportDetails
-BaseRenderer::querySwapChainSupport(vk::PhysicalDevice physicalDeviceCandidate) {
+BaseRenderer::querySwapChainSupport(vk::PhysicalDevice physicalDeviceCandidate) const {
   SwapChainSupportDetails details;
 
   details.capabilities = physicalDeviceCandidate.getSurfaceCapabilitiesKHR(*surface);
@@ -622,7 +621,7 @@ void BaseRenderer::createFramebuffers() {
 
     vk::FramebufferCreateInfo framebufferInfo;
     framebufferInfo.renderPass = *renderPass;
-    framebufferInfo.attachmentCount = attachments.size();
+    framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
     framebufferInfo.pAttachments = attachments.data();
     framebufferInfo.width = swapChainExtent.width;
     framebufferInfo.height = swapChainExtent.height;
@@ -661,7 +660,8 @@ void BaseRenderer::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage,
   buffer.bindMemory(*bufferMemory, 0);
 }
 
-uint32_t BaseRenderer::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) {
+uint32_t BaseRenderer::findMemoryType(uint32_t typeFilter,
+                                      vk::MemoryPropertyFlags properties) const {
   vk::PhysicalDeviceMemoryProperties memProperties = physicalDevice.getMemoryProperties();
 
   for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
@@ -848,13 +848,14 @@ void BaseRenderer::drawFrame() {
 
   currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
-void BaseRenderer::waitForFence(vk::Fence fence) {
+void BaseRenderer::waitForFence(vk::Fence fence) const {
   while (vk::Result::eTimeout == device.waitForFences({fence}, vk::True, FENCE_TIMEOUT))
     ;
 }
 
 void BaseRenderer::recreateSwapChain() {
-  int width = 0, height = 0;
+  int width = 0;
+  int height = 0;
   glfwGetFramebufferSize(window, &width, &height);
   while (width == 0 || height == 0) {
     glfwGetFramebufferSize(window, &width, &height);
@@ -929,8 +930,9 @@ void BaseRenderer::updateUniformBuffer(uint32_t currentImage) {
   ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
   ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f),
                          glm::vec3(0.0f, 0.0f, 1.0f));
-  ubo.proj = glm::perspective(glm::radians(45.0f),
-                              swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
+  ubo.proj =
+      glm::perspective(glm::radians(45.0f),
+                       (float)swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
   ubo.proj[1][1] *= -1;
 
   memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
@@ -945,15 +947,15 @@ void BaseRenderer::createDepthResources() {
   depthImageView = createImageView(*depthImage, depthFormat, vk::ImageAspectFlagBits::eDepth);
 }
 
-vk::Format BaseRenderer::findDepthFormat() {
-  return findSupportedFormat(
-      {vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint},
-      vk::ImageTiling::eOptimal, vk::FormatFeatureFlagBits::eDepthStencilAttachment);
+vk::Format BaseRenderer::findDepthFormat() const {
+  using enum vk::Format;
+  return findSupportedFormat({eD32Sfloat, eD32SfloatS8Uint, eD24UnormS8Uint},
+                             vk::ImageTiling::eOptimal, vk::FormatFeatureFlagBits::eDepthStencilAttachment);
 }
 
 vk::Format BaseRenderer::findSupportedFormat(const std::vector<vk::Format> &candidates,
                                              vk::ImageTiling tiling,
-                                             vk::FormatFeatureFlags features) {
+                                             vk::FormatFeatureFlags features) const {
   for (vk::Format format : candidates) {
     vk::FormatProperties props = physicalDevice.getFormatProperties(format);
 
@@ -1096,7 +1098,7 @@ void BaseRenderer::saveScreenshot(const char *filename) {
 
   // Source for the copy is the last rendered swapchain image
   // The current frame is not in use yet, so we can use it here
-  auto &srcImage = swapChainImages[currentFrame];
+  auto srcImage = swapChainImages[currentFrame];
 
   // Create the linear tiled destination image to copy to and to read the memory from
   vk::ImageCreateInfo imgCreateInfo;
@@ -1166,7 +1168,7 @@ void BaseRenderer::saveScreenshot(const char *filename) {
       dstImage.getSubresourceLayout({vk::ImageAspectFlagBits::eColor});
 
   // Map image memory so we can start copying from it
-  const char *data = (const char *)dstImageMemory.mapMemory(0, vk::WholeSize);
+  auto *data = (char *)dstImageMemory.mapMemory(0, vk::WholeSize);
   data += subResourceLayout.offset;
 
   std::ofstream file(filename, std::ios::out | std::ios::binary);
@@ -1176,7 +1178,7 @@ void BaseRenderer::saveScreenshot(const char *filename) {
 
   // ppm binary pixel data
   for (uint32_t y = 0; y < windowSize.height; y++) {
-    unsigned int *row = (unsigned int *)data;
+    auto *row = (unsigned int *)data;
     for (uint32_t x = 0; x < windowSize.width; x++) {
       file.write((char *)row, 3);
       row++;
@@ -1190,18 +1192,20 @@ void BaseRenderer::saveScreenshot(const char *filename) {
 
 inline vk::AccessFlags BaseRenderer::accessFlagsForLayout(vk::ImageLayout layout) {
   switch (layout) {
-  case vk::ImageLayout::ePreinitialized:
-    return vk::AccessFlagBits::eHostWrite;
-  case vk::ImageLayout::eTransferDstOptimal:
-    return vk::AccessFlagBits::eTransferWrite;
-  case vk::ImageLayout::eTransferSrcOptimal:
-    return vk::AccessFlagBits::eTransferRead;
-  case vk::ImageLayout::eColorAttachmentOptimal:
-    return vk::AccessFlagBits::eColorAttachmentWrite;
-  case vk::ImageLayout::eDepthStencilAttachmentOptimal:
-    return vk::AccessFlagBits::eDepthStencilAttachmentWrite;
-  case vk::ImageLayout::eShaderReadOnlyOptimal:
-    return vk::AccessFlagBits::eShaderRead;
+    using enum vk::AccessFlagBits;
+    using enum vk::ImageLayout;
+  case ePreinitialized:
+    return eHostWrite;
+  case eTransferDstOptimal:
+    return eTransferWrite;
+  case eTransferSrcOptimal:
+    return eTransferRead;
+  case eColorAttachmentOptimal:
+    return eColorAttachmentWrite;
+  case eDepthStencilAttachmentOptimal:
+    return eDepthStencilAttachmentWrite;
+  case eShaderReadOnlyOptimal:
+    return eShaderRead;
   default:
     return {};
   }
@@ -1209,26 +1213,22 @@ inline vk::AccessFlags BaseRenderer::accessFlagsForLayout(vk::ImageLayout layout
 
 inline vk::PipelineStageFlags BaseRenderer::pipelineStageForLayout(vk::ImageLayout layout) {
   switch (layout) {
-  case vk::ImageLayout::eTransferDstOptimal:
-  case vk::ImageLayout::eTransferSrcOptimal:
-    return vk::PipelineStageFlagBits::eTransfer;
-
-  case vk::ImageLayout::eColorAttachmentOptimal:
-    return vk::PipelineStageFlagBits::eColorAttachmentOutput;
-
-  case vk::ImageLayout::eDepthStencilAttachmentOptimal:
-    return vk::PipelineStageFlagBits::eEarlyFragmentTests;
-
-  case vk::ImageLayout::eShaderReadOnlyOptimal:
-    return vk::PipelineStageFlagBits::eFragmentShader;
-
-  case vk::ImageLayout::ePreinitialized:
-    return vk::PipelineStageFlagBits::eHost;
-
-  case vk::ImageLayout::eUndefined:
-    return vk::PipelineStageFlagBits::eTopOfPipe;
-
+    using enum vk::PipelineStageFlagBits;
+    using enum vk::ImageLayout;
+  case eTransferDstOptimal:
+  case eTransferSrcOptimal:
+    return eTransfer;
+  case eColorAttachmentOptimal:
+    return eColorAttachmentOutput;
+  case eDepthStencilAttachmentOptimal:
+    return eEarlyFragmentTests;
+  case eShaderReadOnlyOptimal:
+    return eFragmentShader;
+  case ePreinitialized:
+    return eHost;
+  case eUndefined:
+    return eTopOfPipe;
   default:
-    return vk::PipelineStageFlagBits::eBottomOfPipe;
+    return eBottomOfPipe;
   }
 }

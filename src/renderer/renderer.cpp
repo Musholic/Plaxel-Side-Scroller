@@ -38,7 +38,7 @@ void Renderer::createComputeDescriptorSetLayout() {
                               vk::ShaderStageFlagBits::eCompute);
 
   vk::DescriptorSetLayoutCreateInfo layoutInfo{};
-  layoutInfo.bindingCount = layoutBindings.size();
+  layoutInfo.bindingCount = static_cast<uint32_t>(layoutBindings.size());
   layoutInfo.pBindings = layoutBindings.data();
 
   computeDescriptorSetLayout = vk::raii::DescriptorSetLayout(device, layoutInfo);

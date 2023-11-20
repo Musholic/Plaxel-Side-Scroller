@@ -155,7 +155,7 @@ protected:
   [[nodiscard]] virtual vk::PipelineLayoutCreateInfo getPipelineLayoutInfo() const;
   [[nodiscard]] virtual vk::PipelineLayoutCreateInfo getComputePipelineLayoutInfo() const;
   virtual void initCustomDescriptorSetLayout();
-  uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
+  uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) const;
   void createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling,
                    vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
                    vk::raii::Image &image, vk::raii::DeviceMemory &imageMemory);
@@ -229,13 +229,13 @@ private:
   static bool checkValidationLayerSupport();
   [[nodiscard]] std::vector<const char *> getRequiredExtensions() const;
   static vk::DebugUtilsMessengerCreateInfoEXT createDebugMessengerCreateInfo();
-  void setupDebugMessenger();
+  void setupDebugMessenger() const;
   void createSurface();
   void pickPhysicalDevice();
-  bool isDeviceSuitable(vk::PhysicalDevice physicalDeviceCandidate);
-  QueueFamilyIndices findQueueFamilies(vk::PhysicalDevice physicalDeviceCandidate);
+  bool isDeviceSuitable(vk::PhysicalDevice physicalDeviceCandidate) const;
+  QueueFamilyIndices findQueueFamilies(vk::PhysicalDevice physicalDeviceCandidate) const;
   static bool checkDeviceExtensionSupport(vk::PhysicalDevice physicalDevice);
-  SwapChainSupportDetails querySwapChainSupport(vk::PhysicalDevice physicalDeviceCandidate);
+  SwapChainSupportDetails querySwapChainSupport(vk::PhysicalDevice physicalDeviceCandidate) const;
   void createLogicalDevice();
   void createSwapChain();
   static vk::SurfaceFormatKHR
@@ -257,7 +257,7 @@ private:
   void createUniformBuffers();
   void updateUniformBuffer(uint32_t currentImage);
   virtual void recordComputeCommandBuffer(vk::CommandBuffer commandBuffer) = 0;
-  void waitForFence(vk::Fence fence);
+  void waitForFence(vk::Fence fence) const;
   void recreateSwapChain();
   void recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t imageIndex);
 
@@ -267,9 +267,9 @@ private:
   [[nodiscard]] virtual std::vector<vk::VertexInputAttributeDescription>
   getVertexAttributeDescription() const = 0;
   void createDepthResources();
-  vk::Format findDepthFormat();
+  vk::Format findDepthFormat() const;
   vk::Format findSupportedFormat(const std::vector<vk::Format> &candidates, vk::ImageTiling tiling,
-                                 vk::FormatFeatureFlags features);
+                                 vk::FormatFeatureFlags features) const;
   void createImage(const vk::ImageCreateInfo &imageInfo, const vk::MemoryPropertyFlags &properties,
                    vk::raii::Image &image, vk::raii::DeviceMemory &imageMemory);
   static vk::AccessFlags accessFlagsForLayout(vk::ImageLayout layout);
