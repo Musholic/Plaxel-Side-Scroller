@@ -1,0 +1,12 @@
+.idea:
+
+# CMake
+cmake-build-*/
+
+.git/
+
+vcpkg/buildtrees/
+vcpkg/downloads/
+vcpkg/packages/
+
+Dockerfile
