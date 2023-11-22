@@ -204,7 +204,7 @@ void BaseRenderer::pickPhysicalDevice() {
     }
   }
 
-  if (*physicalDevice == nullptr) {
+  if (!*physicalDevice) {
     throw VulkanInitializationError("failed to find a suitable GPU!");
   }
 }
@@ -751,10 +751,9 @@ void BaseRenderer::createSyncObjects() {
     imageAvailableSemaphores[i] = vk::raii::Semaphore(device, semaphoreInfo);
     renderFinishedSemaphores[i] = vk::raii::Semaphore(device, semaphoreInfo);
     inFlightFences[i] = vk::raii::Fence(device, fenceInfo);
-
-    computeFinishedSemaphores[i] = vk::raii::Semaphore(device, semaphoreInfo);
-    computeInFlightFences[i] = vk::raii::Fence(device, fenceInfo);
   }
+  computeFinishedSemaphore = vk::raii::Semaphore(device, semaphoreInfo);
+  computeFence = vk::raii::Fence(device, fenceInfo);
 }
 
 void BaseRenderer::draw() {
@@ -776,12 +775,12 @@ void BaseRenderer::draw() {
 void BaseRenderer::drawFrame() {
   vk::SubmitInfo submitInfo;
 
-  // Compute submission
-  waitForFence(*computeInFlightFences[currentFrame]);
-
   updateUniformBuffer(currentFrame);
 
-  device.resetFences(*computeInFlightFences[currentFrame]);
+  // Compute submission
+  waitForFence(*computeFence);
+
+  device.resetFences(*computeFence);
 
   computeCommandBuffers[currentFrame].reset();
   recordComputeCommandBuffer(*computeCommandBuffers[currentFrame]);
@@ -789,9 +788,9 @@ void BaseRenderer::drawFrame() {
   submitInfo.commandBufferCount = 1;
   submitInfo.pCommandBuffers = &*computeCommandBuffers[currentFrame];
   submitInfo.signalSemaphoreCount = 1;
-  submitInfo.pSignalSemaphores = &*computeFinishedSemaphores[currentFrame];
+  submitInfo.pSignalSemaphores = &*computeFinishedSemaphore;
 
-  computeQueue.submit(submitInfo, *computeInFlightFences[currentFrame]);
+  computeQueue.submit(submitInfo, *computeFence);
 
   // Graphics submission
   waitForFence(*inFlightFences[currentFrame]);
@@ -812,13 +811,13 @@ void BaseRenderer::drawFrame() {
   mainCommandBuffers[currentFrame].reset();
   recordCommandBuffer(*mainCommandBuffers[currentFrame], imageIndex);
 
-  std::vector<vk::Semaphore> waitSemaphores = {*computeFinishedSemaphores[currentFrame],
+  std::vector<vk::Semaphore> waitSemaphores = {*computeFinishedSemaphore,
                                                *imageAvailableSemaphores[currentFrame]};
   std::vector<vk::PipelineStageFlags> waitStages = {
       vk::PipelineStageFlagBits::eVertexInput, vk::PipelineStageFlagBits::eColorAttachmentOutput};
   submitInfo = vk::SubmitInfo{};
 
-  submitInfo.waitSemaphoreCount = 2;
+  submitInfo.waitSemaphoreCount = waitSemaphores.size();
   submitInfo.pWaitSemaphores = waitSemaphores.data();
   submitInfo.pWaitDstStageMask = waitStages.data();
   submitInfo.commandBufferCount = 1;
@@ -937,9 +936,9 @@ void BaseRenderer::updateUniformBuffer(uint32_t currentImage) {
 
   ubo.view = camera.getViewMatrix();
 
-  ubo.proj =
-      glm::perspective(glm::radians(45.0f),
-                       (float)swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
+  ubo.proj = glm::perspective(glm::radians(45.0f),
+                              (float)swapChainExtent.width / (float)swapChainExtent.height, 0.001f,
+                              256.0f);
 
   memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
 }

@@ -217,9 +217,9 @@ private:
 
   std::array<vk::raii::Semaphore, MAX_FRAMES_IN_FLIGHT> imageAvailableSemaphores{nullptr, nullptr};
   std::array<vk::raii::Semaphore, MAX_FRAMES_IN_FLIGHT> renderFinishedSemaphores{nullptr, nullptr};
-  std::array<vk::raii::Semaphore, MAX_FRAMES_IN_FLIGHT> computeFinishedSemaphores{nullptr, nullptr};
+  vk::raii::Semaphore computeFinishedSemaphore = nullptr;
   std::array<vk::raii::Fence, MAX_FRAMES_IN_FLIGHT> inFlightFences{nullptr, nullptr};
-  std::array<vk::raii::Fence, MAX_FRAMES_IN_FLIGHT> computeInFlightFences{nullptr, nullptr};
+  vk::raii::Fence computeFence = nullptr;
 
   bool framebufferResized = false;
 
