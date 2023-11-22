@@ -45,7 +45,7 @@ private:
   vk::raii::Sampler textureSampler = nullptr;
 
   vk::raii::DescriptorSetLayout computeDescriptorSetLayout = nullptr;
-  vk::raii::DescriptorSets computeDescriptorSets = nullptr;
+  vk::raii::DescriptorSet computeDescriptorSet = nullptr;
 
   vk::raii::DescriptorSetLayout descriptorSetLayout = nullptr;
   vk::raii::DescriptorSets descriptorSets = nullptr;

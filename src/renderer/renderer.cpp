@@ -48,60 +48,59 @@ void Renderer::createComputeDescriptorSetLayout() {
 }
 
 void Renderer::createComputeDescriptorSets() {
-  std::vector<vk::DescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, *computeDescriptorSetLayout);
+  std::vector<vk::DescriptorSetLayout> layouts(1, *computeDescriptorSetLayout);
   vk::DescriptorSetAllocateInfo allocInfo;
   allocInfo.descriptorPool = *descriptorPool;
-  allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+  allocInfo.descriptorSetCount = 1;
   allocInfo.pSetLayouts = layouts.data();
 
-  computeDescriptorSets = vk::raii::DescriptorSets(device, allocInfo);
+  auto computeDescriptorSets = vk::raii::DescriptorSets(device, allocInfo);
+  computeDescriptorSet = std::move(computeDescriptorSets[0]);
 
-  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-    std::vector<vk::WriteDescriptorSet> descriptorWrites;
-    vk::DescriptorBufferInfo storageBufferInfoCurrentFrame;
-    storageBufferInfoCurrentFrame.buffer = *vertexBuffer;
-    storageBufferInfoCurrentFrame.offset = 0;
-    storageBufferInfoCurrentFrame.range = sizeof(Vertex) * MAX_VERTEX_COUNT;
+  std::vector<vk::WriteDescriptorSet> descriptorWrites;
+  vk::DescriptorBufferInfo storageBufferInfoCurrentFrame;
+  storageBufferInfoCurrentFrame.buffer = *vertexBuffer;
+  storageBufferInfoCurrentFrame.offset = 0;
+  storageBufferInfoCurrentFrame.range = sizeof(Vertex) * MAX_VERTEX_COUNT;
 
-    vk::WriteDescriptorSet descriptorWrite{};
-    descriptorWrite.dstSet = *computeDescriptorSets[i];
-    descriptorWrite.dstBinding = 0;
-    descriptorWrite.dstArrayElement = 0;
-    descriptorWrite.descriptorType = vk::DescriptorType::eStorageBuffer;
-    descriptorWrite.descriptorCount = 1;
-    descriptorWrite.pBufferInfo = &storageBufferInfoCurrentFrame;
-    descriptorWrites.push_back(descriptorWrite);
+  vk::WriteDescriptorSet descriptorWrite{};
+  descriptorWrite.dstSet = *computeDescriptorSet;
+  descriptorWrite.dstBinding = 0;
+  descriptorWrite.dstArrayElement = 0;
+  descriptorWrite.descriptorType = vk::DescriptorType::eStorageBuffer;
+  descriptorWrite.descriptorCount = 1;
+  descriptorWrite.pBufferInfo = &storageBufferInfoCurrentFrame;
+  descriptorWrites.push_back(descriptorWrite);
 
-    vk::DescriptorBufferInfo storageBufferInfoCurrentFrame2;
-    storageBufferInfoCurrentFrame2.buffer = *indexBuffer;
-    storageBufferInfoCurrentFrame2.offset = 0;
-    storageBufferInfoCurrentFrame2.range = sizeof(uint32_t) * MAX_INDEX_COUNT;
+  vk::DescriptorBufferInfo storageBufferInfoCurrentFrame2;
+  storageBufferInfoCurrentFrame2.buffer = *indexBuffer;
+  storageBufferInfoCurrentFrame2.offset = 0;
+  storageBufferInfoCurrentFrame2.range = sizeof(uint32_t) * MAX_INDEX_COUNT;
 
-    vk::WriteDescriptorSet descriptorWrite2{};
-    descriptorWrite2.dstSet = *computeDescriptorSets[i];
-    descriptorWrite2.dstBinding = 1;
-    descriptorWrite2.dstArrayElement = 0;
-    descriptorWrite2.descriptorType = vk::DescriptorType::eStorageBuffer;
-    descriptorWrite2.descriptorCount = 1;
-    descriptorWrite2.pBufferInfo = &storageBufferInfoCurrentFrame2;
-    descriptorWrites.push_back(descriptorWrite2);
+  vk::WriteDescriptorSet descriptorWrite2{};
+  descriptorWrite2.dstSet = *computeDescriptorSet;
+  descriptorWrite2.dstBinding = 1;
+  descriptorWrite2.dstArrayElement = 0;
+  descriptorWrite2.descriptorType = vk::DescriptorType::eStorageBuffer;
+  descriptorWrite2.descriptorCount = 1;
+  descriptorWrite2.pBufferInfo = &storageBufferInfoCurrentFrame2;
+  descriptorWrites.push_back(descriptorWrite2);
 
-    vk::DescriptorBufferInfo storageBufferInfoCurrentFrame3;
-    storageBufferInfoCurrentFrame3.buffer = *drawCommandBuffer;
-    storageBufferInfoCurrentFrame3.offset = 0;
-    storageBufferInfoCurrentFrame3.range = sizeof(VkDrawIndexedIndirectCommand);
+  vk::DescriptorBufferInfo storageBufferInfoCurrentFrame3;
+  storageBufferInfoCurrentFrame3.buffer = *drawCommandBuffer;
+  storageBufferInfoCurrentFrame3.offset = 0;
+  storageBufferInfoCurrentFrame3.range = sizeof(VkDrawIndexedIndirectCommand);
 
-    vk::WriteDescriptorSet descriptorWrite3{};
-    descriptorWrite3.dstSet = *computeDescriptorSets[i];
-    descriptorWrite3.dstBinding = 2;
-    descriptorWrite3.dstArrayElement = 0;
-    descriptorWrite3.descriptorType = vk::DescriptorType::eStorageBuffer;
-    descriptorWrite3.descriptorCount = 1;
-    descriptorWrite3.pBufferInfo = &storageBufferInfoCurrentFrame3;
-    descriptorWrites.push_back(descriptorWrite3);
+  vk::WriteDescriptorSet descriptorWrite3{};
+  descriptorWrite3.dstSet = *computeDescriptorSet;
+  descriptorWrite3.dstBinding = 2;
+  descriptorWrite3.dstArrayElement = 0;
+  descriptorWrite3.descriptorType = vk::DescriptorType::eStorageBuffer;
+  descriptorWrite3.descriptorCount = 1;
+  descriptorWrite3.pBufferInfo = &storageBufferInfoCurrentFrame3;
+  descriptorWrites.push_back(descriptorWrite3);
 
-    device.updateDescriptorSets(descriptorWrites, nullptr);
-  }
+  device.updateDescriptorSets(descriptorWrites, nullptr);
 }
 
 void Renderer::recordComputeCommandBuffer(vk::CommandBuffer commandBuffer) {
@@ -112,7 +111,7 @@ void Renderer::recordComputeCommandBuffer(vk::CommandBuffer commandBuffer) {
   commandBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, *computePipeline);
 
   commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, *computePipelineLayout, 0,
-                                   *computeDescriptorSets[currentFrame], nullptr);
+                                   *computeDescriptorSet, nullptr);
   commandBuffer.dispatch(1, 1, 1);
 
   commandBuffer.end();
