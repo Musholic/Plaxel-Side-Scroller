@@ -215,7 +215,9 @@ void Renderer::createTextureSampler() {
   samplerInfo.addressModeU = vk::SamplerAddressMode::eRepeat;
   samplerInfo.addressModeV = vk::SamplerAddressMode::eRepeat;
   samplerInfo.addressModeW = vk::SamplerAddressMode::eRepeat;
-  samplerInfo.anisotropyEnable = vk::True;
+  // TODO:anisotropy filtering can be very slow with lavapipe in some cases, we need to disable it
+  // automatically when using lavapipe
+  samplerInfo.anisotropyEnable = vk::False;
   samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
   samplerInfo.borderColor = vk::BorderColor::eIntOpaqueBlack;
   samplerInfo.unnormalizedCoordinates = vk::False;
