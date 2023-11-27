@@ -89,7 +89,7 @@ protected:
 
   vk::Extent2D windowSize{1280, 720};
 
-  [[maybe_unused]] void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer,
+  void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer,
                                    vk::DeviceSize size) const;
   [[nodiscard]] virtual vk::PipelineLayoutCreateInfo getPipelineLayoutInfo() const;
   [[nodiscard]] virtual vk::PipelineLayoutCreateInfo getComputePipelineLayoutInfo() const;
@@ -99,7 +99,7 @@ protected:
                    vk::raii::Image &image, vk::raii::DeviceMemory &imageMemory);
   vk::raii::ImageView createImageView(vk::Image image, vk::Format format,
                                       vk::ImageAspectFlags aspectFlags);
-  vk::raii::CommandBuffer beginSingleTimeCommands();
+  [[nodiscard]] vk::raii::CommandBuffer beginSingleTimeCommands() const;
   void endSingleTimeCommands(vk::CommandBuffer commandBuffer) const;
   void transitionImageLayout(vk::Image image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
 

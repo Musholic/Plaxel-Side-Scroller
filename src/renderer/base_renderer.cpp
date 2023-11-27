@@ -629,32 +629,15 @@ void BaseRenderer::createCommandPool() {
   commandPool = vk::raii::CommandPool(device, poolInfo);
 }
 
-[[maybe_unused]] void BaseRenderer::copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer,
+void BaseRenderer::copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer,
                                                vk::DeviceSize size) const {
-  vk::CommandBufferAllocateInfo allocInfo;
-  allocInfo.commandPool = *commandPool;
-  allocInfo.commandBufferCount = 1;
-
-  vk::raii::CommandBuffers commandBuffers(device, allocInfo);
-  vk::raii::CommandBuffer commandBuffer(std::move(commandBuffers[0]));
-
-  vk::CommandBufferBeginInfo beginInfo;
-  beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
-
-  commandBuffer.begin(beginInfo);
+  vk::raii::CommandBuffer commandBuffer = beginSingleTimeCommands();
 
   vk::BufferCopy copyRegion;
   copyRegion.size = size;
   commandBuffer.copyBuffer(srcBuffer, dstBuffer, copyRegion);
 
-  commandBuffer.end();
-
-  vk::SubmitInfo submitInfo;
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &*commandBuffer;
-
-  graphicsQueue.submit(submitInfo);
-  graphicsQueue.waitIdle();
+  endSingleTimeCommands(*commandBuffer);
 }
 
 void BaseRenderer::createDescriptorPool() {
@@ -1003,7 +986,7 @@ void BaseRenderer::transitionImageLayout(vk::Image image, vk::ImageLayout oldLay
   endSingleTimeCommands(*commandBuffer);
 }
 
-vk::raii::CommandBuffer BaseRenderer::beginSingleTimeCommands() {
+vk::raii::CommandBuffer BaseRenderer::beginSingleTimeCommands() const {
   vk::CommandBufferAllocateInfo allocInfo;
   allocInfo.level = vk::CommandBufferLevel::ePrimary;
   allocInfo.commandPool = *commandPool;

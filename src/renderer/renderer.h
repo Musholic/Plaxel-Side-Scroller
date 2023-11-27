@@ -74,6 +74,7 @@ private:
   void copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height);
   [[nodiscard]] vk::PipelineLayoutCreateInfo getPipelineLayoutInfo() const override;
   [[nodiscard]] vk::PipelineLayoutCreateInfo getComputePipelineLayoutInfo() const override;
+  Buffer createBufferWithInitialData(size_t size, vk::BufferUsageFlags usage, const void *src);
 };
 
 } // namespace plaxel

@@ -110,9 +110,20 @@ void Renderer::createComputeBuffers() {
 
   drawCommandBuffer.emplace(device, physicalDevice, sizeof(VkDrawIndexedIndirectCommand),
                             eStorageBuffer | eIndirectBuffer, eDeviceLocal);
-  testDataBuffer.emplace(device, physicalDevice, sizeof(int), eStorageBuffer, eDeviceLocal);
   int src = 0;
-  testDataBuffer->copyToMemory(&src);
+  testDataBuffer = createBufferWithInitialData(sizeof(int), vk::BufferUsageFlags(), &src);
+}
+
+Buffer Renderer::createBufferWithInitialData(size_t size, vk::BufferUsageFlags usage,
+                                             const void *src) {
+  using enum vk::MemoryPropertyFlagBits;
+  using enum vk::BufferUsageFlagBits;
+  Buffer stagingBuffer(device, physicalDevice, size, eTransferSrc,
+                       eHostVisible | eHostCoherent);
+  stagingBuffer.copyToMemory(&src);
+  Buffer buffer(device, physicalDevice, size, usage | eTransferDst, eDeviceLocal);
+  copyBuffer(stagingBuffer.getBuffer(), buffer.getBuffer(), size);
+  return buffer;
 }
 
 void Renderer::createTextureImage() {
