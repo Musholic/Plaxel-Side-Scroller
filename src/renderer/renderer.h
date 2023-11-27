@@ -45,6 +45,7 @@ private:
   vk::raii::ImageView textureImageView = nullptr;
   vk::raii::Sampler textureSampler = nullptr;
 
+  vk::raii::DescriptorPool computeDescriptorPool = nullptr;
   vk::raii::DescriptorSetLayout computeDescriptorSetLayout = nullptr;
   vk::raii::DescriptorSet computeDescriptorSet = nullptr;
 
@@ -54,6 +55,7 @@ private:
   std::optional<Buffer> vertexBuffer;
   std::optional<Buffer> indexBuffer;
   std::optional<Buffer> drawCommandBuffer;
+  std::optional<Buffer> testDataBuffer;
 
   void createComputeDescriptorSetLayout();
   void createComputeDescriptorSets();
@@ -62,8 +64,8 @@ private:
   [[nodiscard]] vk::VertexInputBindingDescription getVertexBindingDescription() const override;
   [[nodiscard]] std::vector<vk::VertexInputAttributeDescription>
   getVertexAttributeDescription() const override;
-  void createVertexBuffer();
-  void createIndexBuffer();
+  void createComputeBuffers();
+  void createComputeDescriptorPool();
   void createDescriptorSetLayout();
   void createDescriptorSets();
   void createTextureImageView();
@@ -72,7 +74,6 @@ private:
   void copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height);
   [[nodiscard]] vk::PipelineLayoutCreateInfo getPipelineLayoutInfo() const override;
   [[nodiscard]] vk::PipelineLayoutCreateInfo getComputePipelineLayoutInfo() const override;
-  void createDrawCommandBuffer();
 };
 
 } // namespace plaxel

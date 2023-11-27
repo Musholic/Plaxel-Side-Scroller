@@ -14,6 +14,7 @@
 #include <iostream>
 #include <optional>
 
+static const int NB_COMPUTE_BUFFERS = 4;
 namespace plaxel {
 
 struct MouseButtons {
@@ -147,7 +148,7 @@ private:
   vk::raii::Pipeline graphicsPipeline = nullptr;
 
   vk::raii::CommandBuffers mainCommandBuffers = nullptr;
-  vk::raii::CommandBuffers computeCommandBuffers = nullptr;
+  vk::raii::CommandBuffer computeCommandBuffer = nullptr;
 
   std::array<vk::raii::Semaphore, MAX_FRAMES_IN_FLIGHT> imageAvailableSemaphores{nullptr, nullptr};
   std::array<vk::raii::Semaphore, MAX_FRAMES_IN_FLIGHT> renderFinishedSemaphores{nullptr, nullptr};

@@ -658,20 +658,17 @@ void BaseRenderer::createCommandPool() {
 }
 
 void BaseRenderer::createDescriptorPool() {
-  std::array<vk::DescriptorPoolSize, 3> poolSizes;
+  std::array<vk::DescriptorPoolSize, 2> poolSizes;
   poolSizes[0].type = vk::DescriptorType::eUniformBuffer;
-  poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 2;
+  poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
-  poolSizes[1].type = vk::DescriptorType::eStorageBuffer;
-  poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 3;
-
-  poolSizes[2].type = vk::DescriptorType::eCombinedImageSampler;
-  poolSizes[2].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+  poolSizes[1].type = vk::DescriptorType::eCombinedImageSampler;
+  poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
   vk::DescriptorPoolCreateInfo poolInfo;
   poolInfo.poolSizeCount = poolSizes.size();
   poolInfo.pPoolSizes = poolSizes.data();
-  poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT * 2);
+  poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
   poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 
   descriptorPool = vk::raii::DescriptorPool(device, poolInfo);
@@ -688,9 +685,10 @@ void BaseRenderer::createCommandBuffers() {
 void BaseRenderer::createComputeCommandBuffers() {
   vk::CommandBufferAllocateInfo allocInfo;
   allocInfo.commandPool = *commandPool;
-  allocInfo.commandBufferCount = MAX_FRAMES_IN_FLIGHT;
+  allocInfo.commandBufferCount = 1;
 
-  computeCommandBuffers = vk::raii::CommandBuffers(device, allocInfo);
+  auto computeCommandBuffers = vk::raii::CommandBuffers(device, allocInfo);
+  computeCommandBuffer = std::move(computeCommandBuffers[0]);
 }
 
 void BaseRenderer::createSyncObjects() {
@@ -734,11 +732,11 @@ void BaseRenderer::drawFrame() {
 
   device.resetFences(*computeFence);
 
-  computeCommandBuffers[currentFrame].reset();
-  recordComputeCommandBuffer(*computeCommandBuffers[currentFrame]);
+  computeCommandBuffer.reset();
+  recordComputeCommandBuffer(*computeCommandBuffer);
 
   submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &*computeCommandBuffers[currentFrame];
+  submitInfo.pCommandBuffers = &*computeCommandBuffer;
   submitInfo.signalSemaphoreCount = 1;
   submitInfo.pSignalSemaphores = &*computeFinishedSemaphore;
 

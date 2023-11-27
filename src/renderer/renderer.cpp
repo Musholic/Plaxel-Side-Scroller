@@ -14,13 +14,13 @@ namespace plaxel {
 void Renderer::initVulkan() {
   BaseRenderer::initVulkan();
 
-  createVertexBuffer();
-  createIndexBuffer();
-  createDrawCommandBuffer();
+  createComputeBuffers();
+
   createTextureImage();
   createTextureImageView();
   createTextureSampler();
 
+  createComputeDescriptorPool();
   createDescriptorSets();
   createComputeDescriptorSets();
 }
@@ -32,12 +32,10 @@ void Renderer::initCustomDescriptorSetLayout() {
 
 void Renderer::createComputeDescriptorSetLayout() {
   std::vector<vk::DescriptorSetLayoutBinding> layoutBindings;
-  layoutBindings.emplace_back(0, vk::DescriptorType::eStorageBuffer, 1,
-                              vk::ShaderStageFlagBits::eCompute);
-  layoutBindings.emplace_back(1, vk::DescriptorType::eStorageBuffer, 1,
-                              vk::ShaderStageFlagBits::eCompute);
-  layoutBindings.emplace_back(2, vk::DescriptorType::eStorageBuffer, 1,
-                              vk::ShaderStageFlagBits::eCompute);
+  for (int i = 0; i < NB_COMPUTE_BUFFERS; ++i) {
+    layoutBindings.emplace_back(i, vk::DescriptorType::eStorageBuffer, 1,
+                                vk::ShaderStageFlagBits::eCompute);
+  }
 
   vk::DescriptorSetLayoutCreateInfo layoutInfo{};
   layoutInfo.bindingCount = static_cast<uint32_t>(layoutBindings.size());
@@ -49,7 +47,7 @@ void Renderer::createComputeDescriptorSetLayout() {
 void Renderer::createComputeDescriptorSets() {
   std::vector<vk::DescriptorSetLayout> layouts(1, *computeDescriptorSetLayout);
   vk::DescriptorSetAllocateInfo allocInfo;
-  allocInfo.descriptorPool = *descriptorPool;
+  allocInfo.descriptorPool = *computeDescriptorPool;
   allocInfo.descriptorSetCount = 1;
   allocInfo.pSetLayouts = layouts.data();
 
@@ -61,6 +59,8 @@ void Renderer::createComputeDescriptorSets() {
   descriptorWrites.push_back(indexBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 1));
   descriptorWrites.push_back(
       drawCommandBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 2));
+  descriptorWrites.push_back(
+      testDataBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 3));
 
   device.updateDescriptorSets(descriptorWrites, nullptr);
 }
@@ -98,31 +98,21 @@ vk::VertexInputBindingDescription Renderer::getVertexBindingDescription() const 
   return Vertex::getBindingDescription();
 }
 
-void Renderer::createVertexBuffer() {
+void Renderer::createComputeBuffers() {
   using enum vk::MemoryPropertyFlagBits;
   using enum vk::BufferUsageFlagBits;
-  vk::DeviceSize bufferSize = sizeof(Vertex) * MAX_VERTEX_COUNT;
 
-  vertexBuffer.emplace(device, physicalDevice, bufferSize, eStorageBuffer | eVertexBuffer,
-                       eDeviceLocal);
-}
+  vertexBuffer.emplace(device, physicalDevice, sizeof(Vertex) * MAX_VERTEX_COUNT,
+                       eStorageBuffer | eVertexBuffer, eDeviceLocal);
 
-void Renderer::createIndexBuffer() {
-  using enum vk::MemoryPropertyFlagBits;
-  using enum vk::BufferUsageFlagBits;
-  vk::DeviceSize bufferSize = sizeof(uint32_t) * MAX_INDEX_COUNT;
+  indexBuffer.emplace(device, physicalDevice, sizeof(uint32_t) * MAX_INDEX_COUNT,
+                      eStorageBuffer | eIndexBuffer, eDeviceLocal);
 
-  indexBuffer.emplace(device, physicalDevice, bufferSize, eStorageBuffer | eIndexBuffer,
-                      eDeviceLocal);
-}
-
-void Renderer::createDrawCommandBuffer() {
-  using enum vk::MemoryPropertyFlagBits;
-  using enum vk::BufferUsageFlagBits;
-  vk::DeviceSize bufferSize = sizeof(VkDrawIndexedIndirectCommand);
-
-  drawCommandBuffer.emplace(device, physicalDevice, bufferSize, eStorageBuffer | eIndirectBuffer,
-                            eDeviceLocal);
+  drawCommandBuffer.emplace(device, physicalDevice, sizeof(VkDrawIndexedIndirectCommand),
+                            eStorageBuffer | eIndirectBuffer, eDeviceLocal);
+  testDataBuffer.emplace(device, physicalDevice, sizeof(int), eStorageBuffer, eDeviceLocal);
+  int src = 0;
+  testDataBuffer->copyToMemory(&src);
 }
 
 void Renderer::createTextureImage() {
@@ -141,7 +131,6 @@ void Renderer::createTextureImage() {
 
   Buffer stagingBuffer(device, physicalDevice, imageSize, eTransferSrc,
                        eHostVisible | eHostCoherent);
-  vk::raii::DeviceMemory stagingBufferMemory = nullptr;
 
   stagingBuffer.copyToMemory(pixels);
 
@@ -207,6 +196,20 @@ void Renderer::createDescriptorSetLayout() {
   layoutInfo.pBindings = bindings.data();
 
   descriptorSetLayout = vk::raii::DescriptorSetLayout(device, layoutInfo);
+}
+
+void Renderer::createComputeDescriptorPool() {
+  std::array<vk::DescriptorPoolSize, 1> poolSizes;
+  poolSizes[0].type = vk::DescriptorType::eStorageBuffer;
+  poolSizes[0].descriptorCount = NB_COMPUTE_BUFFERS;
+
+  vk::DescriptorPoolCreateInfo poolInfo;
+  poolInfo.poolSizeCount = poolSizes.size();
+  poolInfo.pPoolSizes = poolSizes.data();
+  poolInfo.maxSets = 1;
+  poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
+
+  computeDescriptorPool = vk::raii::DescriptorPool(device, poolInfo);
 }
 
 void Renderer::createDescriptorSets() {
