@@ -52,10 +52,8 @@ private:
   vk::raii::DescriptorSets descriptorSets = nullptr;
 
   std::optional<Buffer> vertexBuffer;
-  vk::raii::Buffer indexBuffer = nullptr;
-  vk::raii::DeviceMemory indexBufferMemory = nullptr;
-  vk::raii::Buffer drawCommandBuffer = nullptr;
-  vk::raii::DeviceMemory drawCommandBufferMemory = nullptr;
+  std::optional<Buffer> indexBuffer;
+  std::optional<Buffer> drawCommandBuffer;
 
   void createComputeDescriptorSetLayout();
   void createComputeDescriptorSets();

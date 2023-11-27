@@ -11,15 +11,17 @@ public:
   [[nodiscard]] vk::Buffer getBuffer() const;
   vk::WriteDescriptorSet &getDescriptorWriteForCompute(vk::DescriptorSet computeDescriptorSet,
                                                        int dstBinding);
+  void copyToMemory(const void *src);
 
   [[nodiscard]] static uint32_t findMemoryType(uint32_t typeFilter,
                                                vk::MemoryPropertyFlags properties,
                                                const vk::raii::PhysicalDevice &physicalDevice);
 
 private:
-  const vk::raii::Buffer buffer;
-  const vk::raii::DeviceMemory bufferMemory;
-  const vk::DeviceSize bufferSize;
+  vk::raii::Buffer buffer;
+  vk::raii::DeviceMemory bufferMemory;
+  vk::DeviceSize bufferSize;
+  void *mappedMemory = nullptr;
 
   vk::WriteDescriptorSet descriptorWrite{};
   vk::DescriptorBufferInfo storageBufferInfoCurrentFrame{};

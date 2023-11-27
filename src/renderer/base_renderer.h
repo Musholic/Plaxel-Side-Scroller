@@ -3,6 +3,7 @@
 
 #include <vulkan/vulkan_raii.hpp>
 
+#include "Buffer.h"
 #include "camera.h"
 #include <GLFW/glfw3.h>
 #include <fstream>
@@ -152,15 +153,10 @@ protected:
 
   vk::Extent2D windowSize{1280, 720};
 
-  void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage,
-                    vk::MemoryPropertyFlags properties, vk::raii::Buffer &buffer,
-                    vk::raii::DeviceMemory &bufferMemory);
-
   [[maybe_unused]] void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
   [[nodiscard]] virtual vk::PipelineLayoutCreateInfo getPipelineLayoutInfo() const;
   [[nodiscard]] virtual vk::PipelineLayoutCreateInfo getComputePipelineLayoutInfo() const;
   virtual void initCustomDescriptorSetLayout();
-  uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) const;
   void createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling,
                    vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
                    vk::raii::Image &image, vk::raii::DeviceMemory &imageMemory);
@@ -183,7 +179,7 @@ protected:
   vk::raii::Queue graphicsQueue = nullptr;
   vk::raii::PhysicalDevice physicalDevice = nullptr;
   vk::raii::PipelineLayout pipelineLayout = nullptr;
-  std::array<vk::raii::Buffer, MAX_FRAMES_IN_FLIGHT> uniformBuffers{nullptr, nullptr};
+  std::vector<plaxel::Buffer> uniformBuffers{};
 
 private:
   GLFWwindow *window{};
@@ -211,9 +207,6 @@ private:
 
   vk::raii::CommandBuffers mainCommandBuffers = nullptr;
   vk::raii::CommandBuffers computeCommandBuffers = nullptr;
-
-  std::array<vk::raii::DeviceMemory, MAX_FRAMES_IN_FLIGHT> uniformBuffersMemory{nullptr, nullptr};
-  std::array<void *, MAX_FRAMES_IN_FLIGHT> uniformBuffersMapped{};
 
   std::array<vk::raii::Semaphore, MAX_FRAMES_IN_FLIGHT> imageAvailableSemaphores{nullptr, nullptr};
   std::array<vk::raii::Semaphore, MAX_FRAMES_IN_FLIGHT> renderFinishedSemaphores{nullptr, nullptr};

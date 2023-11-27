@@ -59,34 +59,9 @@ void Renderer::createComputeDescriptorSets() {
 
   std::vector<vk::WriteDescriptorSet> descriptorWrites;
   descriptorWrites.push_back(vertexBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 0));
-
-  vk::DescriptorBufferInfo storageBufferInfoCurrentFrame2;
-  storageBufferInfoCurrentFrame2.buffer = *indexBuffer;
-  storageBufferInfoCurrentFrame2.offset = 0;
-  storageBufferInfoCurrentFrame2.range = sizeof(uint32_t) * MAX_INDEX_COUNT;
-
-  vk::WriteDescriptorSet descriptorWrite2{};
-  descriptorWrite2.dstSet = *computeDescriptorSet;
-  descriptorWrite2.dstBinding = 1;
-  descriptorWrite2.dstArrayElement = 0;
-  descriptorWrite2.descriptorType = vk::DescriptorType::eStorageBuffer;
-  descriptorWrite2.descriptorCount = 1;
-  descriptorWrite2.pBufferInfo = &storageBufferInfoCurrentFrame2;
-  descriptorWrites.push_back(descriptorWrite2);
-
-  vk::DescriptorBufferInfo storageBufferInfoCurrentFrame3;
-  storageBufferInfoCurrentFrame3.buffer = *drawCommandBuffer;
-  storageBufferInfoCurrentFrame3.offset = 0;
-  storageBufferInfoCurrentFrame3.range = sizeof(VkDrawIndexedIndirectCommand);
-
-  vk::WriteDescriptorSet descriptorWrite3{};
-  descriptorWrite3.dstSet = *computeDescriptorSet;
-  descriptorWrite3.dstBinding = 2;
-  descriptorWrite3.dstArrayElement = 0;
-  descriptorWrite3.descriptorType = vk::DescriptorType::eStorageBuffer;
-  descriptorWrite3.descriptorCount = 1;
-  descriptorWrite3.pBufferInfo = &storageBufferInfoCurrentFrame3;
-  descriptorWrites.push_back(descriptorWrite3);
+  descriptorWrites.push_back(indexBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 1));
+  descriptorWrites.push_back(
+      drawCommandBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 2));
 
   device.updateDescriptorSets(descriptorWrites, nullptr);
 }
@@ -108,12 +83,12 @@ void Renderer::recordComputeCommandBuffer(vk::CommandBuffer commandBuffer) {
 void Renderer::drawCommand(vk::CommandBuffer commandBuffer) const {
   std::vector<vk::DeviceSize> offsets = {0};
   commandBuffer.bindVertexBuffers(0, vertexBuffer->getBuffer(), offsets);
-  commandBuffer.bindIndexBuffer(*indexBuffer, 0, vk::IndexType::eUint32);
+  commandBuffer.bindIndexBuffer(indexBuffer->getBuffer(), 0, vk::IndexType::eUint32);
 
   commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *pipelineLayout, 0,
                                    *descriptorSets[currentFrame], nullptr);
 
-  commandBuffer.drawIndexedIndirect(*drawCommandBuffer, 0, 1, 0);
+  commandBuffer.drawIndexedIndirect(drawCommandBuffer->getBuffer(), 0, 1, 0);
 }
 
 std::vector<vk::VertexInputAttributeDescription> Renderer::getVertexAttributeDescription() const {
@@ -138,8 +113,8 @@ void Renderer::createIndexBuffer() {
   using enum vk::BufferUsageFlagBits;
   vk::DeviceSize bufferSize = sizeof(uint32_t) * MAX_INDEX_COUNT;
 
-  createBuffer(bufferSize, eStorageBuffer | eIndexBuffer, eDeviceLocal, indexBuffer,
-               indexBufferMemory);
+  indexBuffer.emplace(device, physicalDevice, bufferSize, eStorageBuffer | eIndexBuffer,
+                      eDeviceLocal);
 }
 
 void Renderer::createDrawCommandBuffer() {
@@ -147,8 +122,8 @@ void Renderer::createDrawCommandBuffer() {
   using enum vk::BufferUsageFlagBits;
   vk::DeviceSize bufferSize = sizeof(VkDrawIndexedIndirectCommand);
 
-  createBuffer(bufferSize, eStorageBuffer | eIndirectBuffer, eDeviceLocal, drawCommandBuffer,
-               drawCommandBufferMemory);
+  drawCommandBuffer.emplace(device, physicalDevice, bufferSize, eStorageBuffer | eIndirectBuffer,
+                            eDeviceLocal);
 }
 
 void Renderer::createTextureImage() {
@@ -165,14 +140,11 @@ void Renderer::createTextureImage() {
     throw VulkanInitializationError("failed to load texture image!");
   }
 
-  vk::raii::Buffer stagingBuffer = nullptr;
+  Buffer stagingBuffer(device, physicalDevice, imageSize, eTransferSrc,
+                       eHostVisible | eHostCoherent);
   vk::raii::DeviceMemory stagingBufferMemory = nullptr;
-  createBuffer(imageSize, eTransferSrc, eHostVisible | eHostCoherent, stagingBuffer,
-               stagingBufferMemory);
 
-  void *data = stagingBufferMemory.mapMemory(0, imageSize);
-  memcpy(data, pixels, imageSize);
-  stagingBufferMemory.unmapMemory();
+  stagingBuffer.copyToMemory(pixels);
 
   stbi_image_free(pixels);
 
@@ -182,7 +154,7 @@ void Renderer::createTextureImage() {
 
   transitionImageLayout(*textureImage, vk::ImageLayout::eUndefined,
                         vk::ImageLayout::eTransferDstOptimal);
-  copyBufferToImage(*stagingBuffer, *textureImage, static_cast<uint32_t>(texWidth),
+  copyBufferToImage(stagingBuffer.getBuffer(), *textureImage, static_cast<uint32_t>(texWidth),
                     static_cast<uint32_t>(texHeight));
   transitionImageLayout(*textureImage, vk::ImageLayout::eTransferDstOptimal,
                         vk::ImageLayout::eShaderReadOnlyOptimal);
@@ -249,7 +221,7 @@ void Renderer::createDescriptorSets() {
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
     vk::DescriptorBufferInfo bufferInfo;
-    bufferInfo.buffer = *uniformBuffers[i];
+    bufferInfo.buffer = uniformBuffers[i].getBuffer();
     bufferInfo.offset = 0;
     bufferInfo.range = sizeof(UniformBufferObject);
 

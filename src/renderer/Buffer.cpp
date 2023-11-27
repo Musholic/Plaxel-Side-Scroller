@@ -65,4 +65,11 @@ vk::WriteDescriptorSet &Buffer::getDescriptorWriteForCompute(vk::DescriptorSet c
 
   return descriptorWrite;
 }
+
+void Buffer::copyToMemory(const void *src) {
+  if (!mappedMemory) {
+    mappedMemory = bufferMemory.mapMemory(0, bufferSize);
+  }
+  memcpy(mappedMemory, src, bufferSize);
+}
 } // namespace plaxel

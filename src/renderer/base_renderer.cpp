@@ -643,40 +643,6 @@ void BaseRenderer::createCommandPool() {
   commandPool = vk::raii::CommandPool(device, poolInfo);
 }
 
-void BaseRenderer::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage,
-                                vk::MemoryPropertyFlags properties, vk::raii::Buffer &buffer,
-                                vk::raii::DeviceMemory &bufferMemory) {
-  vk::BufferCreateInfo bufferInfo;
-  bufferInfo.size = size;
-  bufferInfo.usage = usage;
-  bufferInfo.sharingMode = vk::SharingMode::eExclusive;
-
-  buffer = vk::raii::Buffer(device, bufferInfo);
-
-  vk::MemoryRequirements memRequirements = buffer.getMemoryRequirements();
-
-  vk::MemoryAllocateInfo allocInfo;
-  allocInfo.allocationSize = memRequirements.size;
-  allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
-
-  bufferMemory = vk::raii::DeviceMemory(device, allocInfo);
-  buffer.bindMemory(*bufferMemory, 0);
-}
-
-uint32_t BaseRenderer::findMemoryType(uint32_t typeFilter,
-                                      vk::MemoryPropertyFlags properties) const {
-  vk::PhysicalDeviceMemoryProperties memProperties = physicalDevice.getMemoryProperties();
-
-  for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-    if ((typeFilter & (1 << i)) &&
-        (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-      return i;
-    }
-  }
-
-  throw VulkanInitializationError("failed to find suitable memory type!");
-}
-
 [[maybe_unused]] void BaseRenderer::copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer,
                                                vk::DeviceSize size) {
   vk::CommandBufferAllocateInfo allocInfo;
@@ -920,11 +886,9 @@ void BaseRenderer::createUniformBuffers() {
   vk::DeviceSize bufferSize = sizeof(UniformBufferObject);
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-    createBuffer(bufferSize, vk::BufferUsageFlagBits::eUniformBuffer,
-                 vk::MemoryPropertyFlagBits::eHostVisible |
-                     vk::MemoryPropertyFlagBits::eHostCoherent,
-                 uniformBuffers[i], uniformBuffersMemory[i]);
-    uniformBuffersMapped[i] = uniformBuffersMemory[i].mapMemory(0, bufferSize);
+    uniformBuffers.emplace_back(
+        device, physicalDevice, bufferSize, vk::BufferUsageFlagBits::eUniformBuffer,
+        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
   }
 }
 
@@ -940,7 +904,7 @@ void BaseRenderer::updateUniformBuffer(uint32_t currentImage) {
                               (float)swapChainExtent.width / (float)swapChainExtent.height, 0.001f,
                               256.0f);
 
-  memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
+  uniformBuffers[currentImage].copyToMemory(&ubo);
 }
 
 void BaseRenderer::createDepthResources() {
@@ -1003,7 +967,8 @@ void BaseRenderer::createImage(const vk::ImageCreateInfo &imageInfo,
 
   vk::MemoryAllocateInfo allocInfo;
   allocInfo.allocationSize = memRequirements.size;
-  allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+  allocInfo.memoryTypeIndex =
+      Buffer::findMemoryType(memRequirements.memoryTypeBits, properties, physicalDevice);
 
   imageMemory = vk::raii::DeviceMemory(device, allocInfo);
   image.bindMemory(*imageMemory, 0);
