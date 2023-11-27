@@ -1,0 +1,36 @@
+#ifndef PLAXEL_BUFFER_H
+#define PLAXEL_BUFFER_H
+
+#include <vulkan/vulkan_raii.hpp>
+namespace plaxel {
+
+class Buffer {
+public:
+  Buffer(const vk::raii::Device &device, const vk::raii::PhysicalDevice &physicalDevice,
+         vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
+  [[nodiscard]] vk::Buffer getBuffer() const;
+  vk::WriteDescriptorSet &getDescriptorWriteForCompute(vk::DescriptorSet computeDescriptorSet,
+                                                       int dstBinding);
+
+  [[nodiscard]] static uint32_t findMemoryType(uint32_t typeFilter,
+                                               vk::MemoryPropertyFlags properties,
+                                               const vk::raii::PhysicalDevice &physicalDevice);
+
+private:
+  const vk::raii::Buffer buffer;
+  const vk::raii::DeviceMemory bufferMemory;
+  const vk::DeviceSize bufferSize;
+
+  vk::WriteDescriptorSet descriptorWrite{};
+  vk::DescriptorBufferInfo storageBufferInfoCurrentFrame{};
+
+  static vk::raii::Buffer initBuffer(const vk::raii::Device &device, unsigned long size,
+                                     const vk::BufferUsageFlags &usage);
+  vk::raii::DeviceMemory initBufferMemory(const vk::raii::Device &device,
+                                          const vk::raii::PhysicalDevice &physicalDevice,
+                                          const vk::MemoryPropertyFlags &properties);
+};
+
+} // namespace plaxel
+
+#endif // PLAXEL_BUFFER_H

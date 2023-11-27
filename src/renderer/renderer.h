@@ -5,6 +5,7 @@
 #ifndef PLAXEL_RENDERER_H
 #define PLAXEL_RENDERER_H
 
+#include "Buffer.h"
 #include "base_renderer.h"
 
 #include <glm/detail/type_mat4x4.hpp>
@@ -50,8 +51,7 @@ private:
   vk::raii::DescriptorSetLayout descriptorSetLayout = nullptr;
   vk::raii::DescriptorSets descriptorSets = nullptr;
 
-  vk::raii::Buffer vertexBuffer = nullptr;
-  vk::raii::DeviceMemory vertexBufferMemory = nullptr;
+  std::optional<Buffer> vertexBuffer;
   vk::raii::Buffer indexBuffer = nullptr;
   vk::raii::DeviceMemory indexBufferMemory = nullptr;
   vk::raii::Buffer drawCommandBuffer = nullptr;

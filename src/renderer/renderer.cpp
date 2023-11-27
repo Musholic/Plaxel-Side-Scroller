@@ -58,19 +58,7 @@ void Renderer::createComputeDescriptorSets() {
   computeDescriptorSet = std::move(computeDescriptorSets[0]);
 
   std::vector<vk::WriteDescriptorSet> descriptorWrites;
-  vk::DescriptorBufferInfo storageBufferInfoCurrentFrame;
-  storageBufferInfoCurrentFrame.buffer = *vertexBuffer;
-  storageBufferInfoCurrentFrame.offset = 0;
-  storageBufferInfoCurrentFrame.range = sizeof(Vertex) * MAX_VERTEX_COUNT;
-
-  vk::WriteDescriptorSet descriptorWrite{};
-  descriptorWrite.dstSet = *computeDescriptorSet;
-  descriptorWrite.dstBinding = 0;
-  descriptorWrite.dstArrayElement = 0;
-  descriptorWrite.descriptorType = vk::DescriptorType::eStorageBuffer;
-  descriptorWrite.descriptorCount = 1;
-  descriptorWrite.pBufferInfo = &storageBufferInfoCurrentFrame;
-  descriptorWrites.push_back(descriptorWrite);
+  descriptorWrites.push_back(vertexBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 0));
 
   vk::DescriptorBufferInfo storageBufferInfoCurrentFrame2;
   storageBufferInfoCurrentFrame2.buffer = *indexBuffer;
@@ -119,7 +107,7 @@ void Renderer::recordComputeCommandBuffer(vk::CommandBuffer commandBuffer) {
 
 void Renderer::drawCommand(vk::CommandBuffer commandBuffer) const {
   std::vector<vk::DeviceSize> offsets = {0};
-  commandBuffer.bindVertexBuffers(0, *vertexBuffer, offsets);
+  commandBuffer.bindVertexBuffers(0, vertexBuffer->getBuffer(), offsets);
   commandBuffer.bindIndexBuffer(*indexBuffer, 0, vk::IndexType::eUint32);
 
   commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *pipelineLayout, 0,
@@ -141,8 +129,8 @@ void Renderer::createVertexBuffer() {
   using enum vk::BufferUsageFlagBits;
   vk::DeviceSize bufferSize = sizeof(Vertex) * MAX_VERTEX_COUNT;
 
-  createBuffer(bufferSize, eStorageBuffer | eVertexBuffer, eDeviceLocal, vertexBuffer,
-               vertexBufferMemory);
+  vertexBuffer.emplace(device, physicalDevice, bufferSize, eStorageBuffer | eVertexBuffer,
+                       eDeviceLocal);
 }
 
 void Renderer::createIndexBuffer() {
