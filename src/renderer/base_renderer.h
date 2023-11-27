@@ -48,53 +48,6 @@ const uint32_t MAX_INDEX_COUNT = 8192;
 const int MAX_FRAMES_IN_FLIGHT = 2;
 const uint64_t FENCE_TIMEOUT = 100000000;
 
-static VKAPI_ATTR VkBool32 VKAPI_CALL
-debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-              VkDebugUtilsMessageTypeFlagsEXT messageTypes,
-              VkDebugUtilsMessengerCallbackDataEXT const *pCallbackData, void * /*pUserData*/) {
-  std::ostringstream message;
-
-  message << vk::to_string(static_cast<vk::DebugUtilsMessageSeverityFlagBitsEXT>(messageSeverity))
-          << ": " << vk::to_string(static_cast<vk::DebugUtilsMessageTypeFlagsEXT>(messageTypes))
-          << ":\n";
-  message << std::string("\t") << "messageIDName   = <" << pCallbackData->pMessageIdName << ">\n";
-  message << std::string("\t") << "messageIdNumber = " << pCallbackData->messageIdNumber << "\n";
-  message << std::string("\t") << "message         = <" << pCallbackData->pMessage << ">\n";
-  if (0 < pCallbackData->queueLabelCount) {
-    message << std::string("\t") << "Queue Labels:\n";
-    for (uint32_t i = 0; i < pCallbackData->queueLabelCount; i++) {
-      message << std::string("\t\t") << "labelName = <" << pCallbackData->pQueueLabels[i].pLabelName
-              << ">\n";
-    }
-  }
-  if (0 < pCallbackData->cmdBufLabelCount) {
-    message << std::string("\t") << "CommandBuffer Labels:\n";
-    for (uint32_t i = 0; i < pCallbackData->cmdBufLabelCount; i++) {
-      message << std::string("\t\t") << "labelName = <"
-              << pCallbackData->pCmdBufLabels[i].pLabelName << ">\n";
-    }
-  }
-  if (0 < pCallbackData->objectCount) {
-    message << std::string("\t") << "Objects:\n";
-    for (uint32_t i = 0; i < pCallbackData->objectCount; i++) {
-      message << std::string("\t\t") << "Object " << i << "\n";
-      message << std::string("\t\t\t") << "objectType   = "
-              << vk::to_string(static_cast<vk::ObjectType>(pCallbackData->pObjects[i].objectType))
-              << "\n";
-      message << std::string("\t\t\t")
-              << "objectHandle = " << pCallbackData->pObjects[i].objectHandle << "\n";
-      if (pCallbackData->pObjects[i].pObjectName) {
-        message << std::string("\t\t\t") << "objectName   = <"
-                << pCallbackData->pObjects[i].pObjectName << ">\n";
-      }
-    }
-  }
-
-  std::cout << message.str() << std::endl;
-
-  return false;
-}
-
 class VulkanInitializationError : public std::runtime_error {
 public:
   using runtime_error::runtime_error;
@@ -110,31 +63,13 @@ public:
   using runtime_error::runtime_error;
 };
 
-static std::vector<char> readFile(const std::string &filename) {
-  std::ifstream file(filename, std::ios::ate | std::ios::binary);
-
-  if (!file.is_open()) {
-    throw VulkanInitializationError("failed to open file!");
-  }
-
-  auto fileSize = (size_t)file.tellg();
-  std::vector<char> buffer(fileSize);
-
-  file.seekg(0);
-  file.read(buffer.data(), fileSize);
-
-  file.close();
-
-  return buffer;
-};
 
 class BaseRenderer {
 public:
-  BaseRenderer();
+  BaseRenderer() = default;
   virtual ~BaseRenderer() = default;
 
   constexpr static std::string_view WINDOW_TITLE = "Plaxel";
-  bool fullscreen = false;
 
   void closeWindow();
   bool shouldClose();
@@ -153,7 +88,8 @@ protected:
 
   vk::Extent2D windowSize{1280, 720};
 
-  [[maybe_unused]] void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
+  [[maybe_unused]] void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer,
+                                   vk::DeviceSize size) const;
   [[nodiscard]] virtual vk::PipelineLayoutCreateInfo getPipelineLayoutInfo() const;
   [[nodiscard]] virtual vk::PipelineLayoutCreateInfo getComputePipelineLayoutInfo() const;
   virtual void initCustomDescriptorSetLayout();
@@ -163,7 +99,7 @@ protected:
   vk::raii::ImageView createImageView(vk::Image image, vk::Format format,
                                       vk::ImageAspectFlags aspectFlags);
   vk::raii::CommandBuffer beginSingleTimeCommands();
-  void endSingleTimeCommands(vk::CommandBuffer commandBuffer);
+  void endSingleTimeCommands(vk::CommandBuffer commandBuffer) const;
   void transitionImageLayout(vk::Image image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
 
   uint32_t currentFrame = 0;
@@ -183,7 +119,12 @@ protected:
 
 private:
   GLFWwindow *window{};
-  const bool enableValidationLayers;
+  bool fullscreen = false;
+#ifdef NDEBUG
+  bool enableValidationLayers = false;
+#else
+  bool enableValidationLayers = true;
+#endif
   vk::raii::DebugUtilsMessengerEXT debugMessenger = nullptr;
   vk::raii::SurfaceKHR surface = nullptr;
 
@@ -218,7 +159,7 @@ private:
 
   double lastFpsCountTime = 0.0f;
   int fpsCount = 0;
-  glm::vec2 mousePos;
+  glm::vec2 mousePos{};
   Camera camera;
   MouseButtons mouseButtons;
 
@@ -226,7 +167,8 @@ private:
   static void framebufferResizeCallback(GLFWwindow *window, [[maybe_unused]] int width,
                                         [[maybe_unused]] int height);
   static void mouseMoveHandler(GLFWwindow *window, double posx, double posy);
-  static void keyboardHandler(GLFWwindow *window, int key, int scancode, int action, int mods);
+  static void keyboardHandler(GLFWwindow *window, int key, [[maybe_unused]] int scancode,
+                              int action, [[maybe_unused]] int mods);
   static void mouseHandler(GLFWwindow *window, int button, int action, int mods);
 
   void createInstance();
@@ -236,10 +178,12 @@ private:
   void setupDebugMessenger() const;
   void createSurface();
   void pickPhysicalDevice();
-  bool isDeviceSuitable(vk::PhysicalDevice physicalDeviceCandidate) const;
-  QueueFamilyIndices findQueueFamilies(vk::PhysicalDevice physicalDeviceCandidate) const;
+  [[nodiscard]] bool isDeviceSuitable(vk::PhysicalDevice physicalDeviceCandidate) const;
+  [[nodiscard]] QueueFamilyIndices
+  findQueueFamilies(vk::PhysicalDevice physicalDeviceCandidate) const;
   static bool checkDeviceExtensionSupport(vk::PhysicalDevice physicalDevice);
-  SwapChainSupportDetails querySwapChainSupport(vk::PhysicalDevice physicalDeviceCandidate) const;
+  [[nodiscard]] SwapChainSupportDetails
+  querySwapChainSupport(vk::PhysicalDevice physicalDeviceCandidate) const;
   void createLogicalDevice();
   void createSwapChain();
   static vk::SurfaceFormatKHR
@@ -271,11 +215,12 @@ private:
   [[nodiscard]] virtual std::vector<vk::VertexInputAttributeDescription>
   getVertexAttributeDescription() const = 0;
   void createDepthResources();
-  vk::Format findDepthFormat() const;
-  vk::Format findSupportedFormat(const std::vector<vk::Format> &candidates, vk::ImageTiling tiling,
-                                 vk::FormatFeatureFlags features) const;
+  [[nodiscard]] vk::Format findDepthFormat() const;
+  [[nodiscard]] vk::Format findSupportedFormat(const std::vector<vk::Format> &candidates,
+                                               vk::ImageTiling tiling,
+                                               vk::FormatFeatureFlags features) const;
   void createImage(const vk::ImageCreateInfo &imageInfo, const vk::MemoryPropertyFlags &properties,
-                   vk::raii::Image &image, vk::raii::DeviceMemory &imageMemory);
+                   vk::raii::Image &image, vk::raii::DeviceMemory &imageMemory) const;
   static vk::AccessFlags accessFlagsForLayout(vk::ImageLayout layout);
   static vk::PipelineStageFlags pipelineStageForLayout(vk::ImageLayout layout);
   void mouseMoved(const glm::vec2 &newPos);
@@ -283,6 +228,12 @@ private:
   void keyReleased(int key);
   void mouseAction(int button, int action, int mods);
   void handleCameraKeys(int key, bool pressed);
+
+  static std::vector<char> readFile(const std::string &filename);
+  static VKAPI_ATTR VkBool32 VKAPI_CALL
+  debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+                VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+                VkDebugUtilsMessengerCallbackDataEXT const *pCallbackData, void * /*pUserData*/);
 };
 
 } // namespace plaxel

@@ -2,22 +2,11 @@
 #include <chrono>
 #include <fstream>
 #include <glm/ext/matrix_clip_space.hpp>
-#include <glm/ext/matrix_transform.hpp>
 #include <limits>
 #include <random>
 #include <set>
 
 using namespace plaxel;
-
-BaseRenderer::BaseRenderer()
-    :
-#ifdef NDEBUG
-      enableValidationLayers(false)
-#else
-      enableValidationLayers(true)
-#endif
-{
-}
 
 /**
  * Setup the bare minimum to open a new window
@@ -38,15 +27,12 @@ void BaseRenderer::createWindow() {
   glfwInit();
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-  auto monitor = glfwGetPrimaryMonitor();
-
+  GLFWmonitor *monitor = nullptr;
   if (fullscreen) {
-    window = glfwCreateWindow(windowSize.width, windowSize.height, WINDOW_TITLE.data(), monitor,
-                              nullptr);
-  } else {
-    window = glfwCreateWindow(windowSize.width, windowSize.height, WINDOW_TITLE.data(), nullptr,
-                              nullptr);
+    monitor = glfwGetPrimaryMonitor();
   }
+  window = glfwCreateWindow(static_cast<int>(windowSize.width), static_cast<int>(windowSize.height),
+                            WINDOW_TITLE.data(), monitor, nullptr);
 
   glfwSetWindowUserPointer(window, this);
   glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
@@ -644,7 +630,7 @@ void BaseRenderer::createCommandPool() {
 }
 
 [[maybe_unused]] void BaseRenderer::copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer,
-                                               vk::DeviceSize size) {
+                                               vk::DeviceSize size) const {
   vk::CommandBufferAllocateInfo allocInfo;
   allocInfo.commandPool = *commandPool;
   allocInfo.commandBufferCount = 1;
@@ -783,7 +769,7 @@ void BaseRenderer::drawFrame() {
       vk::PipelineStageFlagBits::eVertexInput, vk::PipelineStageFlagBits::eColorAttachmentOutput};
   submitInfo = vk::SubmitInfo{};
 
-  submitInfo.waitSemaphoreCount = waitSemaphores.size();
+  submitInfo.waitSemaphoreCount = static_cast<int32_t>(waitSemaphores.size());
   submitInfo.pWaitSemaphores = waitSemaphores.data();
   submitInfo.pWaitDstStageMask = waitStages.data();
   submitInfo.commandBufferCount = 1;
@@ -929,10 +915,10 @@ vk::Format BaseRenderer::findSupportedFormat(const std::vector<vk::Format> &cand
   for (vk::Format format : candidates) {
     vk::FormatProperties props = physicalDevice.getFormatProperties(format);
 
-    if (tiling == vk::ImageTiling::eLinear && (props.linearTilingFeatures & features) == features) {
-      return format;
-    } else if (tiling == vk::ImageTiling::eOptimal &&
-               (props.optimalTilingFeatures & features) == features) {
+    if ((tiling == vk::ImageTiling::eLinear &&
+         (props.linearTilingFeatures & features) == features) ||
+        (tiling == vk::ImageTiling::eOptimal &&
+         (props.optimalTilingFeatures & features) == features)) {
       return format;
     }
   }
@@ -960,7 +946,7 @@ void BaseRenderer::createImage(uint32_t width, uint32_t height, vk::Format forma
 
 void BaseRenderer::createImage(const vk::ImageCreateInfo &imageInfo,
                                const vk::MemoryPropertyFlags &properties, vk::raii::Image &image,
-                               vk::raii::DeviceMemory &imageMemory) {
+                               vk::raii::DeviceMemory &imageMemory) const {
   image = vk::raii::Image(device, imageInfo);
 
   vk::MemoryRequirements memRequirements = image.getMemoryRequirements();
@@ -1036,7 +1022,7 @@ vk::raii::CommandBuffer BaseRenderer::beginSingleTimeCommands() {
   return commandBuffer;
 }
 
-void BaseRenderer::endSingleTimeCommands(vk::CommandBuffer commandBuffer) {
+void BaseRenderer::endSingleTimeCommands(vk::CommandBuffer commandBuffer) const {
   commandBuffer.end();
 
   vk::SubmitInfo submitInfo;
@@ -1107,8 +1093,8 @@ void BaseRenderer::saveScreenshot(const char *filename) {
   if (supportsBlit) {
     // Define the region to blit (we will blit the whole swapchain image)
     vk::Offset3D blitSize;
-    blitSize.x = windowSize.width;
-    blitSize.y = windowSize.height;
+    blitSize.x = static_cast<int32_t>(windowSize.width);
+    blitSize.y = static_cast<int32_t>(windowSize.height);
     blitSize.z = 1;
     vk::ImageBlit imageBlitRegion;
     imageBlitRegion.srcSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
@@ -1221,8 +1207,8 @@ void BaseRenderer::mouseMoved(const glm::vec2 &newPos) {
   }
 }
 
-void BaseRenderer::keyboardHandler(GLFWwindow *window, int key, int scancode, int action,
-                                   int mods) {
+void BaseRenderer::keyboardHandler(GLFWwindow *window, int key, [[maybe_unused]] int scancode,
+                                   int action, [[maybe_unused]] int mods) {
   auto renderer = (BaseRenderer *)glfwGetWindowUserPointer(window);
   switch (action) {
   case GLFW_PRESS:
@@ -1265,6 +1251,8 @@ void BaseRenderer::handleCameraKeys(int key, bool pressed) {
   case GLFW_KEY_LEFT_CONTROL:
     camera.keys.down = pressed;
     break;
+  default:
+    break;
   }
 }
 
@@ -1273,10 +1261,73 @@ void BaseRenderer::mouseHandler(GLFWwindow *window, int button, int action, int 
   renderer->mouseAction(button, action, mods);
 }
 
-void BaseRenderer::mouseAction(int button, int action, int mods) {
-  switch (button) {
-  case GLFW_MOUSE_BUTTON_LEFT:
+void BaseRenderer::mouseAction(int button, int action, int) {
+  if (button == GLFW_MOUSE_BUTTON_LEFT) {
     mouseButtons.left = action == GLFW_PRESS;
-    break;
   }
+}
+
+std::vector<char> BaseRenderer::readFile(const std::string &filename) {
+  std::ifstream file(filename, std::ios::ate | std::ios::binary);
+
+  if (!file.is_open()) {
+    throw VulkanInitializationError("failed to open file!");
+  }
+
+  auto fileSize = (size_t)file.tellg();
+  std::vector<char> buffer(fileSize);
+
+  file.seekg(0);
+  file.read(buffer.data(), static_cast<std::streamsize>(fileSize));
+
+  file.close();
+
+  return buffer;
+}
+
+VkBool32 BaseRenderer::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+                                     VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+                                     const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
+                                     void *) {
+  std::ostringstream message;
+
+  message << vk::to_string(static_cast<vk::DebugUtilsMessageSeverityFlagBitsEXT>(messageSeverity))
+          << ": " << vk::to_string(static_cast<vk::DebugUtilsMessageTypeFlagsEXT>(messageTypes))
+          << ":\n";
+  message << std::string("\t") << "messageIDName   = <" << pCallbackData->pMessageIdName << ">\n";
+  message << std::string("\t") << "messageIdNumber = " << pCallbackData->messageIdNumber << "\n";
+  message << std::string("\t") << "message         = <" << pCallbackData->pMessage << ">\n";
+  if (0 < pCallbackData->queueLabelCount) {
+    message << std::string("\t") << "Queue Labels:\n";
+    for (uint32_t i = 0; i < pCallbackData->queueLabelCount; i++) {
+      message << std::string("\t\t") << "labelName = <" << pCallbackData->pQueueLabels[i].pLabelName
+              << ">\n";
+    }
+  }
+  if (0 < pCallbackData->cmdBufLabelCount) {
+    message << std::string("\t") << "CommandBuffer Labels:\n";
+    for (uint32_t i = 0; i < pCallbackData->cmdBufLabelCount; i++) {
+      message << std::string("\t\t") << "labelName = <"
+              << pCallbackData->pCmdBufLabels[i].pLabelName << ">\n";
+    }
+  }
+  if (0 < pCallbackData->objectCount) {
+    message << std::string("\t") << "Objects:\n";
+    for (uint32_t i = 0; i < pCallbackData->objectCount; i++) {
+      message << std::string("\t\t") << "Object " << i << "\n";
+      message << std::string("\t\t\t") << "objectType   = "
+              << vk::to_string(static_cast<vk::ObjectType>(pCallbackData->pObjects[i].objectType))
+              << "\n";
+      message << std::string("\t\t\t")
+              << "objectHandle = " << pCallbackData->pObjects[i].objectHandle << "\n";
+      if (pCallbackData->pObjects[i].pObjectName) {
+        message << std::string("\t\t\t") << "objectName   = <"
+                << pCallbackData->pObjects[i].pObjectName << ">\n";
+      }
+    }
+  }
+
+  std::cout << message.str() << std::endl;
+
+  return false;
 }

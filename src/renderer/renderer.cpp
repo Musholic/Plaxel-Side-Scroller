@@ -4,7 +4,6 @@
 
 #include "renderer.h"
 #include <glm/geometric.hpp>
-#include <glm/vec3.hpp>
 #include <random>
 
 #define STB_IMAGE_IMPLEMENTATION
