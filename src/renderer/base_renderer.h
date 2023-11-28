@@ -48,6 +48,8 @@ const uint32_t MAX_VERTEX_COUNT = 8192;
 const uint32_t MAX_INDEX_COUNT = 8192;
 const int MAX_FRAMES_IN_FLIGHT = 2;
 const uint64_t FENCE_TIMEOUT = 100000000;
+const int TARGET_FPS = 60;
+const double FRAME_TIME_S = 1.0 / TARGET_FPS;
 
 class VulkanInitializationError : public std::runtime_error {
 public:
@@ -158,8 +160,6 @@ private:
 
   bool framebufferResized = false;
 
-  double lastFpsCountTime = 0.0f;
-  int fpsCount = 0;
   glm::vec2 mousePos{};
   Camera camera;
   MouseButtons mouseButtons;
@@ -235,6 +235,8 @@ private:
   debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                 VkDebugUtilsMessageTypeFlagsEXT messageTypes,
                 VkDebugUtilsMessengerCallbackDataEXT const *pCallbackData, void * /*pUserData*/);
+  static void manageFps();
+  static void printFps();
 };
 
 } // namespace plaxel

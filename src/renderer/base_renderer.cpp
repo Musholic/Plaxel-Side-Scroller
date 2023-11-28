@@ -5,6 +5,7 @@
 #include <limits>
 #include <random>
 #include <set>
+#include <thread>
 
 using namespace plaxel;
 
@@ -630,7 +631,7 @@ void BaseRenderer::createCommandPool() {
 }
 
 void BaseRenderer::copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer,
-                                               vk::DeviceSize size) const {
+                              vk::DeviceSize size) const {
   vk::raii::CommandBuffer commandBuffer = beginSingleTimeCommands();
 
   vk::BufferCopy copyRegion;
@@ -692,8 +693,25 @@ void BaseRenderer::createSyncObjects() {
 void BaseRenderer::draw() {
   glfwPollEvents();
   drawFrame();
-  // We want to animate the particle system using the last frames time to get smooth, frame-rate
-  // independent animation
+  manageFps();
+  printFps();
+}
+
+void BaseRenderer::manageFps() {
+  static double frameStartTime = 0;
+
+  double frameEndTime = glfwGetTime();
+  double frameTime = frameEndTime - frameStartTime;
+  frameStartTime = frameEndTime;
+
+  if (frameTime < FRAME_TIME_S) {
+    std::this_thread::sleep_for(std::chrono::duration<double>(FRAME_TIME_S - frameTime));
+  }
+}
+
+void BaseRenderer::printFps() {
+  static double lastFpsCountTime = 0.0f;
+  static int fpsCount = 0;
   double currentTime = glfwGetTime();
 
   fpsCount++;
