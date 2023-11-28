@@ -25,12 +25,6 @@ foreach (GLSL ${GLSL_SOURCE_FILES})
     list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 endforeach (GLSL)
 
-add_custom_target(
-        Shaders
-        DEPENDS ${SPIRV_BINARY_FILES}
-)
-
-
 add_custom_command(TARGET plaxel POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:plaxel>/shaders/"
         COMMAND ${CMAKE_COMMAND} -E copy_directory

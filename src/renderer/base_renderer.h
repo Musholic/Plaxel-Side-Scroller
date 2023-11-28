@@ -5,6 +5,9 @@
 
 #include "Buffer.h"
 #include "camera.h"
+#include "file_utils.h"
+
+#include "cmrc/cmrc.hpp"
 #include <GLFW/glfw3.h>
 #include <fstream>
 #include <glm/detail/type_mat4x4.hpp>
@@ -195,7 +198,7 @@ private:
   void createImageViews();
   void createRenderPass();
   void createGraphicsPipeline();
-  vk::raii::ShaderModule createShaderModule(const std::vector<char> &code);
+  vk::raii::ShaderModule createShaderModule(cmrc::file &code);
   void createComputePipeline();
   void createFramebuffers();
   void createCommandPool();
@@ -230,7 +233,6 @@ private:
   void mouseAction(int button, int action, int mods);
   void handleCameraKeys(int key, bool pressed);
 
-  static std::vector<char> readFile(const std::string &filename);
   static VKAPI_ATTR VkBool32 VKAPI_CALL
   debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                 VkDebugUtilsMessageTypeFlagsEXT messageTypes,

@@ -27,6 +27,10 @@
     {
       "name": "boost-iostreams",
       "version>=": "1.83.0#1"
+    },
+    {
+      "name": "cmakerc",
+      "version>=": "2023-07-24"
     }
   ]
 }

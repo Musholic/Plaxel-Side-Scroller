@@ -1,8 +1,6 @@
-//
-// Created by musholic on 11/3/23.
-//
-
 #include "renderer.h"
+#include "file_utils.h"
+#include <cmrc/cmrc.hpp>
 #include <glm/geometric.hpp>
 #include <random>
 
@@ -115,16 +113,14 @@ void Renderer::createComputeBuffers() {
 }
 
 Buffer Renderer::createBufferWithInitialData(vk::BufferUsageFlags usage, const void *src,
-                                           vk::DeviceSize size) {
+                                             vk::DeviceSize size) {
   using enum vk::MemoryPropertyFlagBits;
   using enum vk::BufferUsageFlagBits;
-  Buffer stagingBuffer(device, physicalDevice, size, eTransferSrc,
-                       eHostVisible | eHostCoherent);
+  Buffer stagingBuffer(device, physicalDevice, size, eTransferSrc, eHostVisible | eHostCoherent);
   stagingBuffer.copyToMemory(src);
   Buffer buffer(device, physicalDevice, size, usage | eTransferDst, eDeviceLocal);
   copyBuffer(stagingBuffer.getBuffer(), buffer.getBuffer(), size);
   return buffer;
-
 }
 
 void Renderer::createTextureImage() {
@@ -133,8 +129,10 @@ void Renderer::createTextureImage() {
   int texWidth;
   int texHeight;
   int texChannels;
+  auto texture = files::readFile("textures/texture.jpg");
   stbi_uc *pixels =
-      stbi_load("textures/texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+      stbi_load_from_memory(std::bit_cast<const stbi_uc *>(texture.begin()), (int)texture.size(),
+                            &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
   vk::DeviceSize imageSize = texWidth * texHeight * 4;
 
   if (!pixels) {

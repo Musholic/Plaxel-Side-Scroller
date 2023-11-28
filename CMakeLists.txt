@@ -11,6 +11,7 @@ find_package(Vulkan REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(Stb REQUIRED)
+find_package(CMakeRC CONFIG REQUIRED)
 
 # plaxel_lib setup
 set(SOURCES
@@ -23,11 +24,11 @@ set(SOURCES
         src/renderer/camera.cpp
         src/renderer/camera.h
         src/renderer/Buffer.cpp
-        src/renderer/Buffer.h)
+        src/renderer/Buffer.h
+        src/renderer/file_utils.cpp
+        src/renderer/file_utils.h)
 
 add_library(plaxel_lib STATIC ${SOURCES})
-
-configure_file(textures/texture.jpg textures/texture.jpg COPYONLY)
 
 target_link_libraries(plaxel_lib PRIVATE glm::glm)
 target_link_libraries(plaxel_lib PRIVATE glfw)
@@ -40,12 +41,8 @@ target_include_directories(plaxel_lib PRIVATE ${Stb_INCLUDE_DIR})
 # plaxel main executable
 add_executable(plaxel main.cpp)
 
-
 target_link_libraries(plaxel PRIVATE plaxel_lib)
 target_link_libraries(plaxel PRIVATE gcov)
-
-include(shaderCompiling-CMakeLists.txt)
-add_dependencies(plaxel_lib Shaders)
 
 # plaxel_test setup
 find_package(GTest CONFIG REQUIRED)
@@ -71,3 +68,12 @@ add_test(AllTestsInMain plaxel_test)
 target_compile_options(plaxel PRIVATE -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic --coverage -O0 -g)
 target_compile_options(plaxel_lib PRIVATE -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic --coverage -O0 -g)
 target_compile_options(plaxel_test PRIVATE -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic --coverage -O0 -g)
+
+# Add all necessary resources embedded into the executable
+include(shaderCompiling-CMakeLists.txt)
+
+cmrc_add_resource_library(plaxel-resources ALIAS plaxel::rc NAMESPACE plaxel textures/texture.jpg)
+cmrc_add_resources(plaxel-resources WHENCE ${PROJECT_BINARY_DIR} ${SPIRV_BINARY_FILES})
+target_link_libraries(plaxel_lib PRIVATE plaxel-resources)
+
+

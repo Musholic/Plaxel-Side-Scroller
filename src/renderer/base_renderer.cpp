@@ -462,8 +462,8 @@ void BaseRenderer::createRenderPass() {
 }
 
 void BaseRenderer::createGraphicsPipeline() {
-  auto vertShaderCode = readFile("shaders/shader.vert.spv");
-  auto fragShaderCode = readFile("shaders/shader.frag.spv");
+  auto vertShaderCode = files::readFile("shaders/shader.vert.spv");
+  auto fragShaderCode = files::readFile("shaders/shader.frag.spv");
 
   vk::raii::ShaderModule vertShaderModule = createShaderModule(vertShaderCode);
   vk::raii::ShaderModule fragShaderModule = createShaderModule(fragShaderCode);
@@ -575,16 +575,16 @@ vk::PipelineLayoutCreateInfo BaseRenderer::getComputePipelineLayoutInfo() const 
   return pipelineLayoutInfo;
 }
 
-vk::raii::ShaderModule BaseRenderer::createShaderModule(const std::vector<char> &code) {
+vk::raii::ShaderModule BaseRenderer::createShaderModule(cmrc::file &code) {
   vk::ShaderModuleCreateInfo createInfo;
   createInfo.codeSize = code.size();
-  createInfo.pCode = std::bit_cast<const uint32_t *>(code.data());
+  createInfo.pCode = std::bit_cast<const uint32_t *>(code.begin());
 
   return {device, createInfo};
 }
 
 void BaseRenderer::createComputePipeline() {
-  auto computeShaderCode = readFile("shaders/shader.comp.spv");
+  auto computeShaderCode = files::readFile("shaders/shader.comp.spv");
 
   vk::raii::ShaderModule computeShaderModule = createShaderModule(computeShaderCode);
 
@@ -1266,23 +1266,6 @@ void BaseRenderer::mouseAction(int button, int action, int) {
   }
 }
 
-std::vector<char> BaseRenderer::readFile(const std::string &filename) {
-  std::ifstream file(filename, std::ios::ate | std::ios::binary);
-
-  if (!file.is_open()) {
-    throw VulkanInitializationError("failed to open file!");
-  }
-
-  auto fileSize = (size_t)file.tellg();
-  std::vector<char> buffer(fileSize);
-
-  file.seekg(0);
-  file.read(buffer.data(), static_cast<std::streamsize>(fileSize));
-
-  file.close();
-
-  return buffer;
-}
 
 VkBool32 BaseRenderer::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                                      VkDebugUtilsMessageTypeFlagsEXT messageTypes,
