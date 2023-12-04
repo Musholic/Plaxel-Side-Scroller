@@ -9,8 +9,6 @@ jobs:
   publish:
     name: Publish
     runs-on: ubuntu-latest
-    env:
-      BUILD_WRAPPER_OUT_DIR: build_wrapper_output_directory # Directory where build-wrapper output will be placed
     steps:
       - uses: actions/checkout@v3
         with:
@@ -36,8 +34,6 @@ jobs:
         uses: lukka/run-cmake@v10
         with:
           workflowPreset: 'publish'
-      - name: Make package
-        run: make package
       - uses: actions/upload-artifact@v3
         with:
           name: Package
