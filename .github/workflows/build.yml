@@ -64,10 +64,3 @@ jobs:
           name: test_report
           path: build/test_report
           retention-days: 30
-      - name: Make package
-        run: make package
-      - uses: actions/upload-artifact@v3
-        with:
-          name: Package
-          path: build/Plaxel-*.tar.gz
-          retention-days: 30

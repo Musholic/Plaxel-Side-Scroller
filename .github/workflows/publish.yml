@@ -1,0 +1,61 @@
+name: Publish
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+jobs:
+  #  matrix:
+  #    os: [ ubuntu-latest, windows-latest ]
+  #    build_type: [ Release ]
+  #    c_compiler: [ gcc, clang, cl ]
+  #    include:
+  #      - os: windows-latest
+  #        c_compiler: cl
+  #        cpp_compiler: cl
+  #      - os: ubuntu-latest
+  #        c_compiler: gcc
+  #        cpp_compiler: g++
+  #      - os: ubuntu-latest
+  #        c_compiler: clang
+  #        cpp_compiler: clang++
+  #    exclude:
+  #      - os: windows-latest
+  #        c_compiler: gcc
+  #      - os: windows-latest
+  #        c_compiler: clang
+  #      - os: ubuntu-latest
+  #        c_compiler: cl
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    env:
+      BUILD_WRAPPER_OUT_DIR: build_wrapper_output_directory # Directory where build-wrapper output will be placed
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - uses: actions/checkout@v3
+      - uses: lukka/get-cmake@latest
+      - name: Restore from cache and setup vcpkg executable and data files.
+        uses: lukka/run-vcpkg@v11
+        with:
+          doNotCache: false
+      - name: Prepare Vulkan SDK
+        uses: humbletim/setup-vulkan-sdk@v1.2.0
+        with:
+          vulkan-query-version: latest
+          vulkan-components: Vulkan-Headers, Vulkan-Loader, Glslang, SPIRV-Tools
+          vulkan-use-cache: true
+      - name: Run CMake
+        uses: lukka/run-cmake@v10
+        with:
+          workflowPreset: 'default'
+      - name: Make package
+        run: make package
+      - uses: actions/upload-artifact@v3
+        with:
+          name: Package
+          path: build/default/Plaxel-*.tar.gz
+          retention-days: 30
