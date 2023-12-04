@@ -10,19 +10,35 @@
       "name": "default",
       "displayName": "Default Config",
       "toolchainFile": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
-      "binaryDir": "${sourceDir}/build"
+      "binaryDir": "${sourceDir}/build/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "release",
+      "inherits": "default",
+      "displayName": "Release config",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      },
+      "binaryDir": "${sourceDir}/build/release"
     }
   ],
   "buildPresets": [
     {
       "name": "default",
       "configurePreset": "default"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release"
     }
   ],
   "packagePresets": [
     {
-      "name": "default",
-      "configurePreset": "default",
+      "name": "release",
+      "configurePreset": "release",
       "generators": [
         "TGZ"
       ]
@@ -34,15 +50,15 @@
       "steps": [
         {
           "type": "configure",
-          "name": "default"
+          "name": "release"
         },
         {
           "type": "build",
-          "name": "default"
+          "name": "release"
         },
         {
           "type": "package",
-          "name": "default"
+          "name": "release"
         }
       ]
     },

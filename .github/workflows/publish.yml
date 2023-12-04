@@ -37,5 +37,5 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: Package
-          path: build/Plaxel-*.tar.gz
+          path: build/release/Plaxel-*.tar.gz
           retention-days: 30

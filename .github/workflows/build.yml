@@ -42,10 +42,10 @@ jobs:
         with:
           workflowPreset: 'build'
       - name: Run build-wrapper
-        run: build-wrapper-linux-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} cmake --build build/ --config Release
+        run: build-wrapper-linux-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} cmake --workflow --preset build
       - name: Run tests to generate coverage statistics
         run: |
-          cd build
+          cd build/debug
           DISPLAY=:100.0 ./plaxel_test
       - name: Collect coverage into one XML report
         if: always()
@@ -63,5 +63,5 @@ jobs:
         if: always()
         with:
           name: test_report
-          path: build/test_report
+          path: build/debug/test_report
           retention-days: 30

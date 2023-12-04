@@ -31,7 +31,6 @@ target_link_libraries(plaxel_lib PRIVATE glm::glm)
 target_link_libraries(plaxel_lib PRIVATE glfw)
 # Public seems required for compilation of test binaries...
 target_link_libraries(plaxel_lib PUBLIC Vulkan::Vulkan)
-target_link_libraries(plaxel_lib PRIVATE gcov)
 
 target_include_directories(plaxel_lib PRIVATE ${Stb_INCLUDE_DIR})
 
@@ -39,7 +38,6 @@ target_include_directories(plaxel_lib PRIVATE ${Stb_INCLUDE_DIR})
 add_executable(plaxel main.cpp)
 
 target_link_libraries(plaxel PRIVATE plaxel_lib)
-target_link_libraries(plaxel PRIVATE gcov)
 
 # plaxel_test setup
 find_package(GTest CONFIG REQUIRED)
@@ -58,13 +56,17 @@ target_link_libraries(plaxel_test PRIVATE GTest::gtest GTest::gtest_main GTest::
 target_link_libraries(plaxel_test PRIVATE OpenImageIO::OpenImageIO)
 target_link_libraries(plaxel_test PRIVATE Boost::boost Boost::thread Boost::filesystem Boost::iostreams)
 target_link_libraries(plaxel_lib PRIVATE ZLIB::ZLIB)
-target_link_libraries(plaxel_test PRIVATE gcov)
 
 add_test(AllTestsInMain plaxel_test)
 
-target_compile_options(plaxel PRIVATE -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic --coverage -O0 -g)
-target_compile_options(plaxel_lib PRIVATE -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic --coverage -O0 -g)
-target_compile_options(plaxel_test PRIVATE -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic --coverage -O0 -g)
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_link_libraries(plaxel_lib PRIVATE gcov)
+    target_link_libraries(plaxel PRIVATE gcov)
+    target_link_libraries(plaxel_test PRIVATE gcov)
+    target_compile_options(plaxel PRIVATE -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic --coverage -O0 -g)
+    target_compile_options(plaxel_lib PRIVATE -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic --coverage -O0 -g)
+    target_compile_options(plaxel_test PRIVATE -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic --coverage -O0 -g)
+endif ()
 
 # Add all necessary resources embedded into the executable
 include(shaderCompiling-CMakeLists.txt)
