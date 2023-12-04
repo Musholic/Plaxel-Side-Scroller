@@ -16,9 +16,8 @@ RUN --mount=type=cache,target=/app/vcpkg/buildtrees \
     --mount=type=cache,target=/app/vcpkg/packages \
     ./vcpkg/vcpkg install
 ADD . /app/
-RUN cmake -S . -B build
-WORKDIR /app/build
-RUN make
+RUN cmake --workflow --preset build
+WORKDIR /app/build/debug
 ENV DISPLAY :100.0
 CMD xpra start :100 && sleep 2 && ./plaxel_test
 
