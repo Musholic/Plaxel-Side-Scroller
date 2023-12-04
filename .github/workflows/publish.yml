@@ -28,14 +28,18 @@ jobs:
           vulkan-query-version: latest
           vulkan-components: Vulkan-Headers, Vulkan-Loader, Glslang, SPIRV-Tools
           vulkan-use-cache: true
+      - name: Install deps
+        run: |
+          sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends libxinerama-dev libxcursor-dev \
+          xorg-dev libglu1-mesa-dev pkg-config
       - name: Run CMake
         uses: lukka/run-cmake@v10
         with:
-          workflowPreset: 'default'
+          workflowPreset: 'publish'
       - name: Make package
         run: make package
       - uses: actions/upload-artifact@v3
         with:
           name: Package
-          path: build/default/Plaxel-*.tar.gz
+          path: build/Plaxel-*.tar.gz
           retention-days: 30

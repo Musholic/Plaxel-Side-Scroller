@@ -10,7 +10,7 @@
       "name": "default",
       "displayName": "Default Config",
       "toolchainFile": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
-      "binaryDir": "${sourceDir}/build/default"
+      "binaryDir": "${sourceDir}/build"
     }
   ],
   "buildPresets": [
@@ -30,7 +30,7 @@
   ],
   "workflowPresets": [
     {
-      "name": "default",
+      "name": "publish",
       "steps": [
         {
           "type": "configure",
@@ -42,6 +42,19 @@
         },
         {
           "type": "package",
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "name": "build",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "default"
+        },
+        {
+          "type": "build",
           "name": "default"
         }
       ]
