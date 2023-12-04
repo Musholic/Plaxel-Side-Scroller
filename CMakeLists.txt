@@ -79,8 +79,10 @@ set(CPACK_PACKAGE_NAME "Plaxel")
 set(CPACK_PACKAGE_VENDOR "Tiny Blocks Games")
 set(CPACK_BINARY_STGZ "OFF")
 set(CPACK_BINARY_TZ "OFF")
-# Only TGZ
+set(CPACK_BINARY_NSIS "OFF")
+# Only TGZ or ZIP
 set(CPACK_BINARY_TGZ "ON")
+set(CPACK_BINARY_ZIP "ON")
 
 install(TARGETS plaxel RUNTIME DESTINATION bin)
 include(CPack)
