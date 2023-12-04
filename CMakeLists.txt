@@ -74,6 +74,16 @@ include(shaderCompiling-CMakeLists.txt)
 
 cmrc_add_resource_library(plaxel-resources ALIAS plaxel::rc NAMESPACE plaxel textures/texture.jpg)
 cmrc_add_resources(plaxel-resources WHENCE ${PROJECT_BINARY_DIR} ${SPIRV_BINARY_FILES})
-target_link_libraries(plaxel_lib PRIVATE plaxel-resources)
+target_link_libraries(plaxel_lib PUBLIC plaxel-resources)
+
+set(CPACK_PACKAGE_NAME "Plaxel")
+set(CPACK_PACKAGE_VENDOR "Tiny Blocks Games")
+set(CPACK_BINARY_STGZ "OFF")
+set(CPACK_BINARY_TZ "OFF")
+# Only TGZ
+set(CPACK_BINARY_TGZ "ON")
+
+install(TARGETS plaxel RUNTIME DESTINATION bin)
+include(CPack)
 
 

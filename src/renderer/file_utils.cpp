@@ -1,5 +1,4 @@
 #include "file_utils.h"
-#include "cmrc/cmrc.hpp"
 
 CMRC_DECLARE(plaxel);
 
