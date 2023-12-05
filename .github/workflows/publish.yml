@@ -8,13 +8,15 @@ on:
 jobs:
   publish:
     name: Publish
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, windows-latest ]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: true
           fetch-depth: 0
-      - uses: actions/checkout@v3
       - uses: lukka/get-cmake@latest
       - name: Restore from cache and setup vcpkg executable and data files.
         uses: lukka/run-vcpkg@v11
@@ -30,6 +32,7 @@ jobs:
         run: |
           sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends libxinerama-dev libxcursor-dev \
           xorg-dev libglu1-mesa-dev pkg-config
+        if: runner.os == 'Linux'
       - name: Run CMake
         uses: lukka/run-cmake@v10
         with:
@@ -37,5 +40,5 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: Package
-          path: build/release/Plaxel-*.tar.gz
+          path: build/release/Plaxel-*.{tar.gz,zip}
           retention-days: 30

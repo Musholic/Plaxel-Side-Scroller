@@ -77,12 +77,17 @@ target_link_libraries(plaxel_lib PUBLIC plaxel-resources)
 
 set(CPACK_PACKAGE_NAME "Plaxel")
 set(CPACK_PACKAGE_VENDOR "Tiny Blocks Games")
-set(CPACK_BINARY_STGZ "OFF")
-set(CPACK_BINARY_TZ "OFF")
-# Only TGZ
-set(CPACK_BINARY_TGZ "ON")
 
-install(TARGETS plaxel RUNTIME DESTINATION bin)
+if (WIN32)
+    set(CPACK_GENERATOR "ZIP")
+    # Prevent console window from showing up
+    target_link_options(plaxel PRIVATE /SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup)
+    install(FILES ${PROJECT_BINARY_DIR}/Release/glfw3.dll DESTINATION .)
+else ()
+    set(CPACK_GENERATOR "TGZ")
+endif ()
+
+install(TARGETS plaxel RUNTIME DESTINATION .)
 include(CPack)
 
 

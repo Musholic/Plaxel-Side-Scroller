@@ -20,7 +20,8 @@
       "inherits": "default",
       "displayName": "Release config",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "VCPKG_BUILD_TYPE": "release"
       },
       "binaryDir": "${sourceDir}/build/release"
     }
@@ -32,16 +33,27 @@
     },
     {
       "name": "release",
-      "configurePreset": "release"
+      "configurePreset": "release",
+      "configuration": "release"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": true
+      }
     }
   ],
   "packagePresets": [
     {
       "name": "release",
-      "configurePreset": "release",
-      "generators": [
-        "TGZ"
-      ]
+      "configurePreset": "release"
     }
   ],
   "workflowPresets": [
@@ -54,6 +66,10 @@
         },
         {
           "type": "build",
+          "name": "release"
+        },
+        {
+          "type": "test",
           "name": "release"
         },
         {
