@@ -34,6 +34,7 @@ jobs:
         run: |
           wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
           sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list http://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
+          sudo add-apt-repository ppa:oibaf/graphics-drivers -y
           sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq libxinerama-dev libxcursor-dev \
           xorg-dev libglu1-mesa-dev pkg-config xpra mesa-vulkan-drivers vulkan-sdk
         if: runner.os == 'Linux'
