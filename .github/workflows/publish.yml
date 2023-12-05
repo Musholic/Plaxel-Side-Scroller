@@ -31,10 +31,16 @@ jobs:
       - name: Install deps
         run: |
           sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends libxinerama-dev libxcursor-dev \
-          xorg-dev libglu1-mesa-dev pkg-config
+          xorg-dev libglu1-mesa-dev pkg-config mesa-vulkan-drivers xpra
+        if: runner.os == 'Linux'
+      # Start the display early on or it may not be ready when we need it
+      - name: Start xpra display
+        run: xpra start :100
         if: runner.os == 'Linux'
       - name: Run CMake
         uses: lukka/run-cmake@v10
+        env:
+          DISPLAY: ':100.0'
         with:
           workflowPreset: 'publish'
       - uses: actions/upload-artifact@v3
