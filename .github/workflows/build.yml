@@ -24,8 +24,10 @@ jobs:
           doNotCache: false
       - name: Install deps
         run: |
-          sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends libxinerama-dev libxcursor-dev \
-          xorg-dev libglu1-mesa-dev pkg-config mesa-vulkan-drivers vulkan-validationlayers-dev xpra gcovr
+          wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
+          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list http://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
+          sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq libxinerama-dev libxcursor-dev \
+          xorg-dev libglu1-mesa-dev pkg-config xpra vulkan-sdk vulkan-validationlayers-dev gcovr
       # Start the display early on or it may not be ready when we need it
       - name: Start xpra display
         run: xpra start :100
