@@ -33,7 +33,8 @@
     },
     {
       "name": "release",
-      "configurePreset": "release"
+      "configurePreset": "release",
+      "configuration": "release"
     }
   ],
   "packagePresets": [
@@ -41,7 +42,7 @@
       "name": "release",
       "configurePreset": "release",
       "generators": [
-        "TGZ"
+        "ZIP"
       ]
     }
   ],

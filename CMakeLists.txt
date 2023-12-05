@@ -77,14 +77,9 @@ target_link_libraries(plaxel_lib PUBLIC plaxel-resources)
 
 set(CPACK_PACKAGE_NAME "Plaxel")
 set(CPACK_PACKAGE_VENDOR "Tiny Blocks Games")
-set(CPACK_BINARY_STGZ "OFF")
-set(CPACK_BINARY_TZ "OFF")
-set(CPACK_BINARY_NSIS "OFF")
-# Only TGZ or ZIP
-set(CPACK_BINARY_TGZ "ON")
-set(CPACK_BINARY_ZIP "ON")
 
-install(TARGETS plaxel RUNTIME DESTINATION bin)
+install(FILES ${PROJECT_BINARY_DIR}/Release/glfw3.dll DESTINATION .)
+install(TARGETS plaxel RUNTIME DESTINATION .)
 include(CPack)
 
 
