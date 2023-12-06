@@ -25,6 +25,7 @@ jobs:
         run: |
           wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
           sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list http://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
+          # We need a more recent version of mesa to avoid a segfault issue (c.f. https://gitlab.freedesktop.org/mesa/mesa/-/issues/9692)
           sudo add-apt-repository ppa:oibaf/graphics-drivers -y
           sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq libxinerama-dev libxcursor-dev \
           xorg-dev libglu1-mesa-dev pkg-config xpra mesa-vulkan-drivers vulkan-sdk vulkan-validationlayers-dev gcovr
@@ -33,10 +34,6 @@ jobs:
         run: xpra start :100
       - name: Install sonar-scanner and build-wrapper
         uses: SonarSource/sonarcloud-github-c-cpp@v1
-      - name: Run CMake
-        uses: lukka/run-cmake@v10
-        with:
-          workflowPreset: 'build'
       - name: Run build-wrapper
         run: build-wrapper-linux-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} cmake --workflow --preset build
       - name: Run tests to generate coverage statistics
