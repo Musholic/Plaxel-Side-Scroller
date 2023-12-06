@@ -24,7 +24,9 @@ set(SOURCES
         src/renderer/Buffer.cpp
         src/renderer/Buffer.h
         src/renderer/file_utils.cpp
-        src/renderer/file_utils.h)
+        src/renderer/file_utils.h
+        test/test_utils.cpp
+        test/test_utils.h)
 
 add_library(plaxel_lib STATIC ${SOURCES})
 
