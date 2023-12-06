@@ -1,7 +1,6 @@
 #include "renderer.h"
 #include "file_utils.h"
 #include <cmrc/cmrc.hpp>
-#include <glm/geometric.hpp>
 #include <random>
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -43,7 +42,7 @@ void Renderer::createComputeDescriptorSetLayout() {
 }
 
 void Renderer::createComputeDescriptorSets() {
-  std::vector<vk::DescriptorSetLayout> layouts(1, *computeDescriptorSetLayout);
+  const std::vector layouts(1, *computeDescriptorSetLayout);
   vk::DescriptorSetAllocateInfo allocInfo;
   allocInfo.descriptorPool = *computeDescriptorPool;
   allocInfo.descriptorSetCount = 1;
@@ -64,7 +63,7 @@ void Renderer::createComputeDescriptorSets() {
 }
 
 void Renderer::recordComputeCommandBuffer(vk::CommandBuffer commandBuffer) {
-  vk::CommandBufferBeginInfo beginInfo;
+  constexpr vk::CommandBufferBeginInfo beginInfo;
 
   commandBuffer.begin(beginInfo);
 
@@ -78,7 +77,7 @@ void Renderer::recordComputeCommandBuffer(vk::CommandBuffer commandBuffer) {
 }
 
 void Renderer::drawCommand(vk::CommandBuffer commandBuffer) const {
-  std::vector<vk::DeviceSize> offsets = {0};
+  const std::vector<vk::DeviceSize> offsets = {0};
   commandBuffer.bindVertexBuffers(0, vertexBuffer->getBuffer(), offsets);
   commandBuffer.bindIndexBuffer(indexBuffer->getBuffer(), 0, vk::IndexType::eUint32);
 
@@ -108,12 +107,13 @@ void Renderer::createComputeBuffers() {
 
   drawCommandBuffer.emplace(device, physicalDevice, sizeof(VkDrawIndexedIndirectCommand),
                             eStorageBuffer | eIndirectBuffer, eDeviceLocal);
-  TestData src = {0};
+  constexpr TestData src = {0};
   testDataBuffer = createBufferWithInitialData(eStorageBuffer, &src, sizeof(src));
 }
 
-Buffer Renderer::createBufferWithInitialData(vk::BufferUsageFlags usage, const void *src,
-                                             vk::DeviceSize size) {
+Buffer Renderer::createBufferWithInitialData(const vk::BufferUsageFlags usage, const void *src,
+                                             // ReSharper disable once CppDFAConstantParameter
+                                             const vk::DeviceSize size) const {
   using enum vk::MemoryPropertyFlagBits;
   using enum vk::BufferUsageFlagBits;
   Buffer stagingBuffer(device, physicalDevice, size, eTransferSrc, eHostVisible | eHostCoherent);
@@ -129,11 +129,11 @@ void Renderer::createTextureImage() {
   int texWidth;
   int texHeight;
   int texChannels;
-  auto texture = files::readFile("textures/texture.jpg");
-  stbi_uc *pixels =
-      stbi_load_from_memory(std::bit_cast<const stbi_uc *>(texture.begin()), (int)texture.size(),
-                            &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-  vk::DeviceSize imageSize = texWidth * texHeight * 4;
+  const auto texture = files::readFile("textures/texture.jpg");
+  stbi_uc *pixels = stbi_load_from_memory(reinterpret_cast<const stbi_uc *>(texture.begin()),
+                                          static_cast<int>(texture.size()), &texWidth, &texHeight,
+                                          &texChannels, STBI_rgb_alpha);
+  const vk::DeviceSize imageSize = texWidth * texHeight * 4;
 
   if (!pixels) {
     throw VulkanInitializationError("failed to load texture image!");
@@ -164,7 +164,7 @@ void Renderer::createTextureImageView() {
 }
 
 void Renderer::createTextureSampler() {
-  vk::PhysicalDeviceProperties properties = physicalDevice.getProperties();
+  const vk::PhysicalDeviceProperties properties = physicalDevice.getProperties();
 
   vk::SamplerCreateInfo samplerInfo;
   samplerInfo.magFilter = vk::Filter::eLinear;
@@ -200,7 +200,7 @@ void Renderer::createDescriptorSetLayout() {
   samplerLayoutBinding.pImmutableSamplers = nullptr;
   samplerLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eFragment;
 
-  std::array<vk::DescriptorSetLayoutBinding, 2> bindings = {uboLayoutBinding, samplerLayoutBinding};
+  const std::array bindings = {uboLayoutBinding, samplerLayoutBinding};
   vk::DescriptorSetLayoutCreateInfo layoutInfo;
   layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
   layoutInfo.pBindings = bindings.data();
@@ -223,7 +223,7 @@ void Renderer::createComputeDescriptorPool() {
 }
 
 void Renderer::createDescriptorSets() {
-  std::vector<vk::DescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, *descriptorSetLayout);
+  const std::vector layouts(MAX_FRAMES_IN_FLIGHT, *descriptorSetLayout);
   vk::DescriptorSetAllocateInfo allocInfo;
   allocInfo.descriptorPool = *descriptorPool;
   allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
@@ -264,9 +264,9 @@ void Renderer::createDescriptorSets() {
   }
 }
 
-void Renderer::copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width,
-                                 uint32_t height) {
-  vk::raii::CommandBuffer commandBuffer = beginSingleTimeCommands();
+void Renderer::copyBufferToImage(const vk::Buffer buffer, const vk::Image image,
+                                 const uint32_t width, const uint32_t height) const {
+  const vk::raii::CommandBuffer commandBuffer = beginSingleTimeCommands();
 
   vk::BufferImageCopy region;
   region.bufferOffset = 0;

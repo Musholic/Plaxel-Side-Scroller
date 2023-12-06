@@ -1,11 +1,10 @@
 #include "Buffer.h"
-// TODO: Remove dependency with base renderer
-#include "base_renderer.h"
 
 namespace plaxel {
 
 Buffer::Buffer(const vk::raii::Device &device, const vk::raii::PhysicalDevice &physicalDevice,
-               vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties)
+               const vk::DeviceSize size, const vk::BufferUsageFlags usage,
+               const vk::MemoryPropertyFlags properties)
     : buffer(initBuffer(device, size, usage)),
       bufferMemory(initBufferMemory(device, physicalDevice, properties)), bufferSize(size) {
 
@@ -23,8 +22,8 @@ vk::raii::Buffer Buffer::initBuffer(const vk::raii::Device &device, unsigned lon
 }
 vk::raii::DeviceMemory Buffer::initBufferMemory(const vk::raii::Device &device,
                                                 const vk::raii::PhysicalDevice &physicalDevice,
-                                                const vk::MemoryPropertyFlags &properties) {
-  vk::MemoryRequirements memRequirements = buffer.getMemoryRequirements();
+                                                const vk::MemoryPropertyFlags &properties) const {
+  const vk::MemoryRequirements memRequirements = buffer.getMemoryRequirements();
 
   vk::MemoryAllocateInfo allocInfo;
   allocInfo.allocationSize = memRequirements.size;
@@ -36,9 +35,9 @@ vk::raii::DeviceMemory Buffer::initBufferMemory(const vk::raii::Device &device,
 
 vk::Buffer Buffer::getBuffer() const { return *buffer; }
 
-uint32_t Buffer::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties,
+uint32_t Buffer::findMemoryType(const uint32_t typeFilter, const vk::MemoryPropertyFlags properties,
                                 const vk::raii::PhysicalDevice &physicalDevice) {
-  vk::PhysicalDeviceMemoryProperties memProperties = physicalDevice.getMemoryProperties();
+  const vk::PhysicalDeviceMemoryProperties memProperties = physicalDevice.getMemoryProperties();
 
   for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
     if ((typeFilter & (1 << i)) &&
@@ -47,7 +46,7 @@ uint32_t Buffer::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags pro
     }
   }
 
-  throw VulkanInitializationError("failed to find suitable memory type!");
+  throw BufferInitializationError("failed to find suitable memory type!");
 }
 
 vk::WriteDescriptorSet &Buffer::getDescriptorWriteForCompute(vk::DescriptorSet computeDescriptorSet,

@@ -59,15 +59,15 @@ TEST(RendererTest, Test) {
   compressFile("workTmp/test_result.ppm", "test_report/test_result.ppm.gz");
   decompressFile("test/renderer/simple_drawing_test.ppm.gz", "workTmp/expected.ppm");
 
-  OIIO::ImageBuf refTestImage("workTmp/expected.ppm");
-  OIIO::ImageBuf testResultImage("workTmp/test_result.ppm");
+  const OIIO::ImageBuf refTestImage("workTmp/expected.ppm");
+  const OIIO::ImageBuf testResultImage("workTmp/test_result.ppm");
 
   const OIIO::ImageSpec &spec = testResultImage.spec();
-  int xres = spec.width;
-  int yres = spec.height;
+  const int xres = spec.width;
+  const int yres = spec.height;
   std::cout << "Spec: " << xres << "x" << yres << std::endl;
 
-  auto comp = OIIO::ImageBufAlgo::compare(testResultImage, refTestImage, 3.0f / 255.0f, 0.0f);
+  const auto comp = OIIO::ImageBufAlgo::compare(testResultImage, refTestImage, 3.0f / 255.0f, 0.0f);
 
   if (comp.nwarn == 0 && comp.nfail == 0) {
     std::cout << "Images match within tolerance\n";

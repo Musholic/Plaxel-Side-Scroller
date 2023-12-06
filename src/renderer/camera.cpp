@@ -9,14 +9,13 @@
 namespace plaxel {
 
 glm::mat4 Camera::getViewMatrix() const {
-  glm::mat4 rotM = glm::mat4(1.0f);
-  glm::mat4 transM;
+  auto rotM = glm::mat4(1.0f);
 
   rotM = glm::rotate(rotM, glm::radians(rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
   rotM = glm::rotate(rotM, glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
   rotM = glm::rotate(rotM, glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
 
-  transM = glm::translate(glm::mat4(1.0f), position);
+  const auto transM = glm::translate(glm::mat4(1.0f), position);
   return rotM * transM;
 }
 
@@ -26,46 +25,47 @@ void Camera::rotate(const float &dx, const float &dy) {
 
 glm::vec3 Camera::getFront() const {
   glm::vec3 camFront;
-  camFront.x = -cos(glm::radians(rotation.x)) * sin(glm::radians(rotation.y));
-  camFront.y = sin(glm::radians(rotation.x));
-  camFront.z = cos(glm::radians(rotation.x)) * cos(glm::radians(rotation.y));
-  camFront = glm::normalize(camFront);
+  camFront.x = static_cast<float>(-cos(glm::radians(rotation.x)) * sin(glm::radians(rotation.y)));
+  camFront.y = static_cast<float>(sin(glm::radians(rotation.x)));
+  camFront.z = static_cast<float>(cos(glm::radians(rotation.x)) * cos(glm::radians(rotation.y)));
+  camFront = normalize(camFront);
   return camFront;
 }
 
 void Camera::translate(const glm::vec3 &delta) {
-  glm::vec3 camFront = getFront();
-  const glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
-  glm::vec3 camUp = up;
-  glm::vec3 camLeft = glm::cross(camFront, camUp);
-  glm::vec3 result = camLeft * delta.x + camUp * delta.y + camFront * delta.z;
+  const glm::vec3 camFront = getFront();
+  constexpr auto camUp = glm::vec3(0.0f, 1.0f, 0.0f);
+  const glm::vec3 camLeft = cross(camFront, camUp);
+  const glm::vec3 result = camLeft * delta.x + camUp * delta.y + camFront * delta.z;
   position += result;
 }
 
 void Camera::update() {
-  double startTime = glfwGetTime();
-  auto deltaTime = static_cast<float>(startTime - lastUpdateTime);
+  static double lastUpdateTime = glfwGetTime();
+
+  const double startTime = glfwGetTime();
+  const auto deltaTime = static_cast<float>(startTime - lastUpdateTime);
   lastUpdateTime = startTime;
 
   if (moving()) {
     glm::vec3 direction{0.f, 0.f, 0.f};
-    if (keys.forward ^ keys.backward) {
+    if (keys.forward != keys.backward) {
       direction.z = keys.forward ? 1.0f : -1.0f;
     }
-    if (keys.left ^ keys.right) {
+    if (keys.left != keys.right) {
       direction.x = keys.left ? -1.0f : 1.0f;
     }
-    if (keys.up ^ keys.down) {
+    if (keys.up != keys.down) {
       direction.y = keys.up ? 1.0f : -1.0f;
     }
     translate(direction * deltaTime * movementSpeed);
   }
 }
 
-bool Camera::moving() {
+bool Camera::moving() const {
   return keys.left || keys.right || keys.up || keys.down || keys.forward || keys.backward;
 }
-void Camera::printDebug() {
+void Camera::printDebug() const {
   std::cout << "Camera debug info:\n";
   std::cout << "Rotation:{" << rotation.x << ";" << rotation.y << ";" << rotation.z << "}\n";
   std::cout << "Position:{" << position.x << ";" << position.y << ";" << position.z << "}"

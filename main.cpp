@@ -2,7 +2,4 @@
 
 using namespace plaxel;
 
-int main() {
-    Plaxel app;
-    app.start();
-}
+int main() { Plaxel::start(); }

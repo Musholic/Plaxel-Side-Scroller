@@ -4,6 +4,11 @@
 #include <vulkan/vulkan_raii.hpp>
 namespace plaxel {
 
+class BufferInitializationError final : public std::runtime_error {
+public:
+  using runtime_error::runtime_error;
+};
+
 class Buffer {
 public:
   Buffer(const vk::raii::Device &device, const vk::raii::PhysicalDevice &physicalDevice,
@@ -28,9 +33,9 @@ private:
 
   static vk::raii::Buffer initBuffer(const vk::raii::Device &device, unsigned long size,
                                      const vk::BufferUsageFlags &usage);
-  vk::raii::DeviceMemory initBufferMemory(const vk::raii::Device &device,
+  [[nodiscard]] vk::raii::DeviceMemory initBufferMemory(const vk::raii::Device &device,
                                           const vk::raii::PhysicalDevice &physicalDevice,
-                                          const vk::MemoryPropertyFlags &properties);
+                                          const vk::MemoryPropertyFlags &properties) const;
 };
 
 } // namespace plaxel

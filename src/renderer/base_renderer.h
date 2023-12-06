@@ -17,7 +17,7 @@
 #include <iostream>
 #include <optional>
 
-static const int NB_COMPUTE_BUFFERS = 4;
+static constexpr int NB_COMPUTE_BUFFERS = 4;
 namespace plaxel {
 
 struct MouseButtons {
@@ -47,12 +47,12 @@ struct SwapChainSupportDetails {
 
 const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
 const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-const uint32_t MAX_VERTEX_COUNT = 8192;
-const uint32_t MAX_INDEX_COUNT = 8192;
-const int MAX_FRAMES_IN_FLIGHT = 2;
-const uint64_t FENCE_TIMEOUT = 100000000;
-const int TARGET_FPS = 60;
-const double FRAME_TIME_S = 1.0 / TARGET_FPS;
+constexpr uint32_t MAX_VERTEX_COUNT = 8192;
+constexpr uint32_t MAX_INDEX_COUNT = 8192;
+constexpr int MAX_FRAMES_IN_FLIGHT = 2;
+constexpr uint64_t FENCE_TIMEOUT = 100000000;
+constexpr int TARGET_FPS = 60;
+constexpr double FRAME_TIME_S = 1.0 / TARGET_FPS;
 
 class VulkanInitializationError : public std::runtime_error {
 public:
@@ -77,12 +77,12 @@ public:
 
   constexpr static std::string_view WINDOW_TITLE = "Plaxel";
 
-  void closeWindow();
-  bool shouldClose();
+  void closeWindow() const;
+  [[nodiscard]] bool shouldClose() const;
   void draw();
   void showWindow();
 
-  void saveScreenshot(const char *filename);
+  void saveScreenshot(const char *filename) const;
 
 private:
   // These objects needs to be destructed last
@@ -101,12 +101,12 @@ protected:
   virtual void initCustomDescriptorSetLayout();
   void createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling,
                    vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
-                   vk::raii::Image &image, vk::raii::DeviceMemory &imageMemory);
+                   vk::raii::Image &image, vk::raii::DeviceMemory &imageMemory) const;
   vk::raii::ImageView createImageView(vk::Image image, vk::Format format,
                                       vk::ImageAspectFlags aspectFlags);
   [[nodiscard]] vk::raii::CommandBuffer beginSingleTimeCommands() const;
   void endSingleTimeCommands(vk::CommandBuffer commandBuffer) const;
-  void transitionImageLayout(vk::Image image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
+  void transitionImageLayout(vk::Image image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout) const;
 
   uint32_t currentFrame = 0;
 
@@ -194,11 +194,11 @@ private:
   chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &availableFormats);
   static vk::PresentModeKHR
   chooseSwapPresentMode(const std::vector<vk::PresentModeKHR> &availablePresentModes);
-  vk::Extent2D chooseSwapExtent(const vk::SurfaceCapabilitiesKHR &capabilities);
+  [[nodiscard]] vk::Extent2D chooseSwapExtent(const vk::SurfaceCapabilitiesKHR &capabilities) const;
   void createImageViews();
   void createRenderPass();
   void createGraphicsPipeline();
-  vk::raii::ShaderModule createShaderModule(cmrc::file &code);
+  vk::raii::ShaderModule createShaderModule(const cmrc::file &code);
   void createComputePipeline();
   void createFramebuffers();
   void createCommandPool();
@@ -211,7 +211,7 @@ private:
   virtual void recordComputeCommandBuffer(vk::CommandBuffer commandBuffer) = 0;
   void waitForFence(vk::Fence fence) const;
   void recreateSwapChain();
-  void recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t imageIndex);
+  void recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t imageIndex) const;
 
   void drawFrame();
   virtual void drawCommand(vk::CommandBuffer commandBuffer) const = 0;

@@ -75,11 +75,11 @@ private:
   void createTextureImageView();
   void createTextureSampler();
   void createTextureImage();
-  void copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height);
+  void copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height) const;
   [[nodiscard]] vk::PipelineLayoutCreateInfo getPipelineLayoutInfo() const override;
   [[nodiscard]] vk::PipelineLayoutCreateInfo getComputePipelineLayoutInfo() const override;
   Buffer createBufferWithInitialData(vk::BufferUsageFlags usage, const void *src,
-                                   vk::DeviceSize size);
+                                   vk::DeviceSize size) const;
 };
 
 } // namespace plaxel

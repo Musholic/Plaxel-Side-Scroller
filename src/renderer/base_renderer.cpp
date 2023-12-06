@@ -17,7 +17,7 @@ void BaseRenderer::showWindow() {
   initVulkan();
 }
 
-void BaseRenderer::closeWindow() {
+void BaseRenderer::closeWindow() const {
   device.waitIdle();
 
   glfwDestroyWindow(window);
@@ -47,11 +47,11 @@ void BaseRenderer::createWindow() {
 
 void BaseRenderer::framebufferResizeCallback(GLFWwindow *window, [[maybe_unused]] int width,
                                              [[maybe_unused]] int height) {
-  auto pRenderer = std::bit_cast<BaseRenderer *>(glfwGetWindowUserPointer(window));
+  const auto pRenderer = static_cast<BaseRenderer *>(glfwGetWindowUserPointer(window));
   pRenderer->framebufferResized = true;
 }
 
-bool BaseRenderer::shouldClose() { return glfwWindowShouldClose(window); }
+bool BaseRenderer::shouldClose() const { return glfwWindowShouldClose(window); }
 
 void BaseRenderer::initVulkan() {
   createInstance();
@@ -96,7 +96,7 @@ void BaseRenderer::createInstance() {
   vk::InstanceCreateInfo createInfo{};
   createInfo.pApplicationInfo = &appInfo;
 
-  auto extensions = getRequiredExtensions();
+  const auto extensions = getRequiredExtensions();
   createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
   createInfo.ppEnabledExtensionNames = extensions.data();
 
@@ -108,7 +108,7 @@ void BaseRenderer::createInstance() {
     createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
     createInfo.ppEnabledLayerNames = validationLayers.data();
 
-    createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT *)&debugCreateInfo;
+    createInfo.pNext = reinterpret_cast<VkDebugUtilsMessengerCreateInfoEXT *>(&debugCreateInfo);
   } else {
     createInfo.enabledLayerCount = 0;
 
@@ -119,7 +119,7 @@ void BaseRenderer::createInstance() {
 }
 
 bool BaseRenderer::checkValidationLayerSupport() {
-  auto availableLayers = vk::enumerateInstanceLayerProperties();
+  const auto availableLayers = vk::enumerateInstanceLayerProperties();
 
   for (const char *layerName : validationLayers) {
     bool layerFound = false;
@@ -141,8 +141,7 @@ bool BaseRenderer::checkValidationLayerSupport() {
 
 std::vector<const char *> BaseRenderer::getRequiredExtensions() const {
   uint32_t glfwExtensionCount = 0;
-  const char **glfwExtensions;
-  glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+  const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
   std::vector<const char *> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
 
@@ -171,7 +170,7 @@ void BaseRenderer::setupDebugMessenger() const {
   if (!enableValidationLayers)
     return;
 
-  vk::DebugUtilsMessengerCreateInfoEXT debugCreateInfo = createDebugMessengerCreateInfo();
+  const vk::DebugUtilsMessengerCreateInfoEXT debugCreateInfo = createDebugMessengerCreateInfo();
   vk::raii::DebugUtilsMessengerEXT(instance, debugCreateInfo);
 }
 
@@ -197,13 +196,13 @@ void BaseRenderer::pickPhysicalDevice() {
 }
 
 bool BaseRenderer::isDeviceSuitable(vk::PhysicalDevice physicalDeviceCandidate) const {
-  QueueFamilyIndices indices = findQueueFamilies(physicalDeviceCandidate);
+  const QueueFamilyIndices indices = findQueueFamilies(physicalDeviceCandidate);
 
-  bool extensionsSupported = checkDeviceExtensionSupport(physicalDeviceCandidate);
+  const bool extensionsSupported = checkDeviceExtensionSupport(physicalDeviceCandidate);
 
   bool swapChainAdequate = false;
   if (extensionsSupported) {
-    SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDeviceCandidate);
+    const SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDeviceCandidate);
     swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
   }
 
@@ -214,7 +213,7 @@ QueueFamilyIndices
 BaseRenderer::findQueueFamilies(vk::PhysicalDevice physicalDeviceCandidate) const {
   QueueFamilyIndices indices;
 
-  std::vector<vk::QueueFamilyProperties> queueFamilies =
+  const std::vector<vk::QueueFamilyProperties> queueFamilies =
       physicalDeviceCandidate.getQueueFamilyProperties();
 
   int i = 0;
@@ -239,7 +238,7 @@ BaseRenderer::findQueueFamilies(vk::PhysicalDevice physicalDeviceCandidate) cons
 }
 
 bool BaseRenderer::checkDeviceExtensionSupport(vk::PhysicalDevice physicalDevice) {
-  std::vector<vk::ExtensionProperties> availableExtensions =
+  const std::vector<vk::ExtensionProperties> availableExtensions =
       physicalDevice.enumerateDeviceExtensionProperties();
 
   std::set<std::string, std::less<>> requiredExtensions(deviceExtensions.begin(),
@@ -306,11 +305,11 @@ void BaseRenderer::createLogicalDevice() {
 }
 
 void BaseRenderer::createSwapChain() {
-  SwapChainSupportDetails swapChainSupport = querySwapChainSupport(*physicalDevice);
+  const SwapChainSupportDetails swapChainSupport = querySwapChainSupport(*physicalDevice);
 
-  vk::SurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
-  vk::PresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
-  vk::Extent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
+  const vk::SurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
+  const vk::PresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
+  const vk::Extent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
 
   uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
   if (swapChainSupport.capabilities.maxImageCount > 0 &&
@@ -329,9 +328,9 @@ void BaseRenderer::createSwapChain() {
   createInfo.imageUsage =
       vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc;
 
-  QueueFamilyIndices indices = findQueueFamilies(*physicalDevice);
-  std::vector<uint32_t> queueFamilyIndices = {indices.graphicsAndComputeFamily.value(),
-                                              indices.presentFamily.value()};
+  const QueueFamilyIndices indices = findQueueFamilies(*physicalDevice);
+  const std::vector<uint32_t> queueFamilyIndices = {indices.graphicsAndComputeFamily.value(),
+                                                    indices.presentFamily.value()};
 
   if (indices.graphicsAndComputeFamily != indices.presentFamily) {
     createInfo.imageSharingMode = vk::SharingMode::eConcurrent;
@@ -377,7 +376,7 @@ BaseRenderer::chooseSwapPresentMode(const std::vector<vk::PresentModeKHR> &avail
   return vk::PresentModeKHR::eFifo;
 }
 
-vk::Extent2D BaseRenderer::chooseSwapExtent(const vk::SurfaceCapabilitiesKHR &capabilities) {
+vk::Extent2D BaseRenderer::chooseSwapExtent(const vk::SurfaceCapabilitiesKHR &capabilities) const {
   if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
     return capabilities.currentExtent;
   } else {
@@ -397,7 +396,7 @@ vk::Extent2D BaseRenderer::chooseSwapExtent(const vk::SurfaceCapabilitiesKHR &ca
 }
 
 void BaseRenderer::createImageViews() {
-  for (auto swapChainImage : swapChainImages) {
+  for (const auto swapChainImage : swapChainImages) {
     vk::ImageViewCreateInfo createInfo;
     createInfo.image = swapChainImage;
     createInfo.viewType = vk::ImageViewType::e2D;
@@ -449,7 +448,7 @@ void BaseRenderer::createRenderPass() {
   dependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
   dependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
 
-  std::array<vk::AttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
+  const std::array attachments = {colorAttachment, depthAttachment};
   vk::RenderPassCreateInfo renderPassInfo;
   renderPassInfo.attachmentCount = attachments.size();
   renderPassInfo.pAttachments = attachments.data();
@@ -575,25 +574,25 @@ vk::PipelineLayoutCreateInfo BaseRenderer::getComputePipelineLayoutInfo() const 
   return pipelineLayoutInfo;
 }
 
-vk::raii::ShaderModule BaseRenderer::createShaderModule(cmrc::file &code) {
+vk::raii::ShaderModule BaseRenderer::createShaderModule(const cmrc::file &code) {
   vk::ShaderModuleCreateInfo createInfo;
   createInfo.codeSize = code.size();
-  createInfo.pCode = std::bit_cast<const uint32_t *>(code.begin());
+  createInfo.pCode = reinterpret_cast<const uint32_t *>(code.begin());
 
   return {device, createInfo};
 }
 
 void BaseRenderer::createComputePipeline() {
-  auto computeShaderCode = files::readFile("shaders/shader.comp.spv");
+  const auto computeShaderCode = files::readFile("shaders/shader.comp.spv");
 
-  vk::raii::ShaderModule computeShaderModule = createShaderModule(computeShaderCode);
+  const vk::raii::ShaderModule computeShaderModule = createShaderModule(computeShaderCode);
 
   vk::PipelineShaderStageCreateInfo computeShaderStageInfo;
   computeShaderStageInfo.stage = vk::ShaderStageFlagBits::eCompute;
   computeShaderStageInfo.module = *computeShaderModule;
   computeShaderStageInfo.pName = "main";
 
-  vk::PipelineLayoutCreateInfo pipelineLayoutInfo = getComputePipelineLayoutInfo();
+  const vk::PipelineLayoutCreateInfo pipelineLayoutInfo = getComputePipelineLayoutInfo();
 
   computePipelineLayout = vk::raii::PipelineLayout(device, pipelineLayoutInfo);
 
@@ -621,7 +620,7 @@ void BaseRenderer::createFramebuffers() {
 }
 
 void BaseRenderer::createCommandPool() {
-  QueueFamilyIndices queueFamilyIndices = findQueueFamilies(*physicalDevice);
+  const QueueFamilyIndices queueFamilyIndices = findQueueFamilies(*physicalDevice);
 
   vk::CommandPoolCreateInfo poolInfo;
   poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
@@ -632,7 +631,7 @@ void BaseRenderer::createCommandPool() {
 
 void BaseRenderer::copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer,
                               vk::DeviceSize size) const {
-  vk::raii::CommandBuffer commandBuffer = beginSingleTimeCommands();
+  const vk::raii::CommandBuffer commandBuffer = beginSingleTimeCommands();
 
   vk::BufferCopy copyRegion;
   copyRegion.size = size;
@@ -676,7 +675,7 @@ void BaseRenderer::createComputeCommandBuffers() {
 }
 
 void BaseRenderer::createSyncObjects() {
-  vk::SemaphoreCreateInfo semaphoreInfo;
+  constexpr vk::SemaphoreCreateInfo semaphoreInfo;
 
   vk::FenceCreateInfo fenceInfo;
   fenceInfo.flags = vk::FenceCreateFlagBits::eSignaled;
@@ -700,8 +699,8 @@ void BaseRenderer::draw() {
 void BaseRenderer::manageFps() {
   static double frameStartTime = 0;
 
-  double frameEndTime = glfwGetTime();
-  double frameTime = frameEndTime - frameStartTime;
+  const double frameEndTime = glfwGetTime();
+  const double frameTime = frameEndTime - frameStartTime;
   frameStartTime = frameEndTime;
 
   if (frameTime < FRAME_TIME_S) {
@@ -712,7 +711,7 @@ void BaseRenderer::manageFps() {
 void BaseRenderer::printFps() {
   static double lastFpsCountTime = 0.0f;
   static int fpsCount = 0;
-  double currentTime = glfwGetTime();
+  const double currentTime = glfwGetTime();
 
   fpsCount++;
   if (currentTime - lastFpsCountTime >= 1.0) {
@@ -746,9 +745,7 @@ void BaseRenderer::drawFrame() {
   // Graphics submission
   waitForFence(*inFlightFences[currentFrame]);
 
-  uint32_t imageIndex;
-  vk::Result result;
-  std::tie(result, imageIndex) =
+  auto [result, imageIndex] =
       swapChain.acquireNextImage(FENCE_TIMEOUT, *imageAvailableSemaphores[currentFrame]);
   if (result == vk::Result::eErrorOutOfDateKHR) {
     recreateSwapChain();
@@ -762,9 +759,9 @@ void BaseRenderer::drawFrame() {
   mainCommandBuffers[currentFrame].reset();
   recordCommandBuffer(*mainCommandBuffers[currentFrame], imageIndex);
 
-  std::vector<vk::Semaphore> waitSemaphores = {*computeFinishedSemaphore,
-                                               *imageAvailableSemaphores[currentFrame]};
-  std::vector<vk::PipelineStageFlags> waitStages = {
+  const std::vector waitSemaphores = {*computeFinishedSemaphore,
+                                      *imageAvailableSemaphores[currentFrame]};
+  const std::vector<vk::PipelineStageFlags> waitStages = {
       vk::PipelineStageFlagBits::eVertexInput, vk::PipelineStageFlagBits::eColorAttachmentOutput};
   submitInfo = vk::SubmitInfo{};
 
@@ -783,7 +780,7 @@ void BaseRenderer::drawFrame() {
   presentInfo.waitSemaphoreCount = 1;
   presentInfo.pWaitSemaphores = &*renderFinishedSemaphores[currentFrame];
 
-  std::vector<vk::SwapchainKHR> swapChains = {*swapChain};
+  const std::vector swapChains = {*swapChain};
   presentInfo.swapchainCount = 1;
   presentInfo.pSwapchains = swapChains.data();
 
@@ -825,8 +822,9 @@ void BaseRenderer::recreateSwapChain() {
   createFramebuffers();
 }
 
-void BaseRenderer::recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t imageIndex) {
-  vk::CommandBufferBeginInfo beginInfo;
+void BaseRenderer::recordCommandBuffer(const vk::CommandBuffer commandBuffer,
+                                       const uint32_t imageIndex) const {
+  constexpr vk::CommandBufferBeginInfo beginInfo;
 
   commandBuffer.begin(beginInfo);
 
@@ -850,8 +848,8 @@ void BaseRenderer::recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t
   vk::Viewport viewport;
   viewport.x = 0.0f;
   viewport.y = 0.0f;
-  viewport.width = (float)swapChainExtent.width;
-  viewport.height = (float)swapChainExtent.height;
+  viewport.width = static_cast<float>(swapChainExtent.width);
+  viewport.height = static_cast<float>(swapChainExtent.height);
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
   commandBuffer.setViewport(0, viewport);
@@ -886,14 +884,15 @@ void BaseRenderer::updateUniformBuffer(uint32_t currentImage) {
   ubo.view = camera.getViewMatrix();
 
   ubo.proj = glm::perspective(glm::radians(45.0f),
-                              (float)swapChainExtent.width / (float)swapChainExtent.height, 0.001f,
-                              256.0f);
+                              static_cast<float>(swapChainExtent.width) /
+                                  static_cast<float>(swapChainExtent.height),
+                              0.001f, 256.0f);
 
   uniformBuffers[currentImage].copyToMemory(&ubo);
 }
 
 void BaseRenderer::createDepthResources() {
-  vk::Format depthFormat = findDepthFormat();
+  const vk::Format depthFormat = findDepthFormat();
 
   createImage(swapChainExtent.width, swapChainExtent.height, depthFormat, vk::ImageTiling::eOptimal,
               vk::ImageUsageFlagBits::eDepthStencilAttachment,
@@ -911,7 +910,7 @@ vk::Format BaseRenderer::findDepthFormat() const {
 vk::Format BaseRenderer::findSupportedFormat(const std::vector<vk::Format> &candidates,
                                              vk::ImageTiling tiling,
                                              vk::FormatFeatureFlags features) const {
-  for (vk::Format format : candidates) {
+  for (const vk::Format format : candidates) {
     vk::FormatProperties props = physicalDevice.getFormatProperties(format);
 
     if ((tiling == vk::ImageTiling::eLinear &&
@@ -928,7 +927,7 @@ vk::Format BaseRenderer::findSupportedFormat(const std::vector<vk::Format> &cand
 void BaseRenderer::createImage(uint32_t width, uint32_t height, vk::Format format,
                                vk::ImageTiling tiling, vk::ImageUsageFlags usage,
                                vk::MemoryPropertyFlags properties, vk::raii::Image &image,
-                               vk::raii::DeviceMemory &imageMemory) {
+                               vk::raii::DeviceMemory &imageMemory) const {
   vk::ImageCreateInfo imageInfo;
   imageInfo.imageType = vk::ImageType::e2D;
   imageInfo.extent.width = width;
@@ -948,7 +947,7 @@ void BaseRenderer::createImage(const vk::ImageCreateInfo &imageInfo,
                                vk::raii::DeviceMemory &imageMemory) const {
   image = vk::raii::Image(device, imageInfo);
 
-  vk::MemoryRequirements memRequirements = image.getMemoryRequirements();
+  const vk::MemoryRequirements memRequirements = image.getMemoryRequirements();
 
   vk::MemoryAllocateInfo allocInfo;
   allocInfo.allocationSize = memRequirements.size;
@@ -975,8 +974,8 @@ vk::raii::ImageView BaseRenderer::createImageView(vk::Image image, vk::Format fo
 }
 
 void BaseRenderer::transitionImageLayout(vk::Image image, vk::ImageLayout oldLayout,
-                                         vk::ImageLayout newLayout) {
-  vk::raii::CommandBuffer commandBuffer = beginSingleTimeCommands();
+                                         vk::ImageLayout newLayout) const {
+  const vk::raii::CommandBuffer commandBuffer = beginSingleTimeCommands();
 
   vk::ImageMemoryBarrier barrier;
   barrier.oldLayout = oldLayout;
@@ -990,13 +989,10 @@ void BaseRenderer::transitionImageLayout(vk::Image image, vk::ImageLayout oldLay
   barrier.subresourceRange.baseArrayLayer = 0;
   barrier.subresourceRange.layerCount = 1;
 
-  vk::PipelineStageFlags sourceStage;
-  vk::PipelineStageFlags destinationStage;
-
   barrier.srcAccessMask = accessFlagsForLayout(oldLayout);
   barrier.dstAccessMask = accessFlagsForLayout(newLayout);
-  sourceStage = pipelineStageForLayout(oldLayout);
-  destinationStage = pipelineStageForLayout(newLayout);
+  const vk::PipelineStageFlags sourceStage = pipelineStageForLayout(oldLayout);
+  const vk::PipelineStageFlags destinationStage = pipelineStageForLayout(newLayout);
 
   commandBuffer.pipelineBarrier(sourceStage, destinationStage, vk::DependencyFlagBits::eByRegion,
                                 nullptr, nullptr, barrier);
@@ -1032,7 +1028,7 @@ void BaseRenderer::endSingleTimeCommands(vk::CommandBuffer commandBuffer) const 
   graphicsQueue.waitIdle();
 }
 
-void BaseRenderer::saveScreenshot(const char *filename) {
+void BaseRenderer::saveScreenshot(const char *filename) const {
   bool supportsBlit = true;
 
   // Check blit support for source and destination
@@ -1124,7 +1120,7 @@ void BaseRenderer::saveScreenshot(const char *filename) {
       dstImage.getSubresourceLayout({vk::ImageAspectFlagBits::eColor});
 
   // Map image memory so we can start copying from it
-  auto *data = (char *)dstImageMemory.mapMemory(0, vk::WholeSize);
+  auto *data = static_cast<char *>(dstImageMemory.mapMemory(0, vk::WholeSize));
   data += subResourceLayout.offset;
 
   std::ofstream file(filename, std::ios::out | std::ios::binary);
@@ -1134,9 +1130,9 @@ void BaseRenderer::saveScreenshot(const char *filename) {
 
   // ppm binary pixel data
   for (uint32_t y = 0; y < windowSize.height; y++) {
-    auto *row = (unsigned int *)data;
+    auto *row = reinterpret_cast<unsigned int *>(data);
     for (uint32_t x = 0; x < windowSize.width; x++) {
-      file.write((char *)row, 3);
+      file.write(reinterpret_cast<char *>(row), 3);
       row++;
     }
     data += subResourceLayout.rowPitch;
@@ -1190,12 +1186,12 @@ inline vk::PipelineStageFlags BaseRenderer::pipelineStageForLayout(vk::ImageLayo
 }
 
 void BaseRenderer::mouseMoveHandler(GLFWwindow *window, double posx, double posy) {
-  auto renderer = (BaseRenderer *)glfwGetWindowUserPointer(window);
+  const auto renderer = static_cast<BaseRenderer *>(glfwGetWindowUserPointer(window));
   renderer->mouseMoved(glm::vec2(posx, posy));
 }
 
 void BaseRenderer::mouseMoved(const glm::vec2 &newPos) {
-  glm::vec2 deltaPos = mousePos - newPos;
+  const glm::vec2 deltaPos = mousePos - newPos;
   mousePos = newPos;
   if (mouseButtons.left) {
     if (deltaPos == glm::vec2()) {
@@ -1208,7 +1204,7 @@ void BaseRenderer::mouseMoved(const glm::vec2 &newPos) {
 
 void BaseRenderer::keyboardHandler(GLFWwindow *window, int key, [[maybe_unused]] int scancode,
                                    int action, [[maybe_unused]] int mods) {
-  auto renderer = (BaseRenderer *)glfwGetWindowUserPointer(window);
+  const auto renderer = static_cast<BaseRenderer *>(glfwGetWindowUserPointer(window));
   switch (action) {
   case GLFW_PRESS:
     renderer->keyPressed(key);
@@ -1256,7 +1252,7 @@ void BaseRenderer::handleCameraKeys(int key, bool pressed) {
 }
 
 void BaseRenderer::mouseHandler(GLFWwindow *window, int button, int action, int mods) {
-  auto renderer = (BaseRenderer *)glfwGetWindowUserPointer(window);
+  const auto renderer = static_cast<BaseRenderer *>(glfwGetWindowUserPointer(window));
   renderer->mouseAction(button, action, mods);
 }
 
@@ -1265,7 +1261,6 @@ void BaseRenderer::mouseAction(int button, int action, int) {
     mouseButtons.left = action == GLFW_PRESS;
   }
 }
-
 
 VkBool32 BaseRenderer::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                                      VkDebugUtilsMessageTypeFlagsEXT messageTypes,

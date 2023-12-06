@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.22)
 project(plaxel)
 
 set(CMAKE_CXX_STANDARD 20)
+set(Boost_NO_WARN_NEW_VERSIONS 1)
 
 find_package(Vulkan REQUIRED)
 find_package(glm CONFIG REQUIRED)
@@ -44,8 +45,7 @@ find_package(GTest CONFIG REQUIRED)
 find_package(OpenImageIO CONFIG REQUIRED)
 find_package(Boost REQUIRED COMPONENTS thread filesystem iostreams)
 
-add_executable(plaxel_test test/plaxel.cpp
-        test/renderer/renderer.cpp)
+add_executable(plaxel_test test/renderer/renderer.cpp)
 
 enable_testing()
 
