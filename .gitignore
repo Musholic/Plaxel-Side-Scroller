@@ -79,3 +79,5 @@ fabric.properties
 
 
 build/
+# Ignore formatting defined in the IDE since they come from .clang-format
+/.idea/editor.xml
