@@ -172,9 +172,13 @@ void Renderer::createTextureSampler() {
   samplerInfo.addressModeU = vk::SamplerAddressMode::eRepeat;
   samplerInfo.addressModeV = vk::SamplerAddressMode::eRepeat;
   samplerInfo.addressModeW = vk::SamplerAddressMode::eRepeat;
-  // TODO:anisotropy filtering can be very slow with lavapipe in some cases, we need to disable it
-  // automatically when using lavapipe
-  samplerInfo.anisotropyEnable = vk::False;
+  if (const auto deviceName = std::string(properties.deviceName.data());
+      deviceName.starts_with("llvmpipe")) {
+    // anisotropy filtering can be very slow with lavapipe in some cases, we need to disable it
+    samplerInfo.anisotropyEnable = vk::False;
+  } else {
+    samplerInfo.anisotropyEnable = vk::True;
+  }
   samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
   samplerInfo.borderColor = vk::BorderColor::eIntOpaqueBlack;
   samplerInfo.unnormalizedCoordinates = vk::False;
