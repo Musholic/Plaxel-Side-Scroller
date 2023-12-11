@@ -887,6 +887,7 @@ void BaseRenderer::updateUniformBuffer(uint32_t currentImage) {
                               static_cast<float>(swapChainExtent.width) /
                                   static_cast<float>(swapChainExtent.height),
                               0.001f, 256.0f);
+  ubo.proj[1][1] *= -1;
 
   uniformBuffers[currentImage].copyToMemory(&ubo);
 }

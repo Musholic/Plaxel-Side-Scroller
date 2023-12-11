@@ -30,8 +30,8 @@ private:
 
   const float rotationSpeed = .3f;
   const float movementSpeed = 3.f;
-  glm::vec3 rotation{-30.f, -210.f, 0.f};
-  glm::vec3 position{1.8f, 1.9f, 2.8f};
+  glm::vec3 rotation{20.f, 20.f, 0.f};
+  glm::vec3 position{-1.3f, 2.5f, 4.6f};
 };
 
 } // namespace plaxel
