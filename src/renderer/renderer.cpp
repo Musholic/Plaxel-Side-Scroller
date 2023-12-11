@@ -302,4 +302,22 @@ vk::PipelineLayoutCreateInfo Renderer::getComputePipelineLayoutInfo() const {
   return pipelineLayoutInfo;
 }
 
+std::string Vertex::toString(const float x) {
+  std::ostringstream out;
+  out.precision(8);
+  out << std::noshowpoint << x;
+  return std::move(out).str();
+}
+
+std::string Vertex::toString() const {
+  std::string result;
+  result += toString(pos.x) + ";";
+  result += toString(pos.y) + ";";
+  result += toString(pos.z) + "(";
+  result += toString(texCoord.x) + ";";
+  result += toString(texCoord.y) + ")";
+
+  return result;
+}
+
 } // namespace plaxel

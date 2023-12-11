@@ -47,7 +47,9 @@ find_package(GTest CONFIG REQUIRED)
 find_package(OpenImageIO CONFIG REQUIRED)
 find_package(Boost REQUIRED COMPONENTS thread filesystem iostreams)
 
-add_executable(plaxel_test test/renderer/renderer.cpp)
+add_executable(plaxel_test test/renderer/renderer.cpp
+        test/renderer/TestRenderer.cpp
+        test/renderer/TestRenderer.h)
 
 enable_testing()
 

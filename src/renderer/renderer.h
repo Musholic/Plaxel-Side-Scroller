@@ -36,10 +36,12 @@ struct Vertex {
 
     return attributeDescriptions;
   }
+  [[nodiscard]] static std::string toString(float x);
+  [[nodiscard]] std::string toString() const;
 };
 
 class Renderer : public BaseRenderer {
-private:
+protected:
   void initVulkan() override;
   void initCustomDescriptorSetLayout() override;
   vk::raii::CommandBuffers computeCommandBuffers = nullptr;
@@ -79,7 +81,7 @@ private:
   [[nodiscard]] vk::PipelineLayoutCreateInfo getPipelineLayoutInfo() const override;
   [[nodiscard]] vk::PipelineLayoutCreateInfo getComputePipelineLayoutInfo() const override;
   Buffer createBufferWithInitialData(vk::BufferUsageFlags usage, const void *src,
-                                   vk::DeviceSize size) const;
+                                     vk::DeviceSize size) const;
 };
 
 } // namespace plaxel

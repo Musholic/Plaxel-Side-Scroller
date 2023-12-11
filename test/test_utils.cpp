@@ -1,5 +1,6 @@
 #include "test_utils.h"
 #include "../src/renderer/renderer.h"
+#include "renderer/TestRenderer.h"
 
 #include <GLFW/glfw3.h>
 #include <OpenImageIO/imagebuf.h>
@@ -9,6 +10,7 @@
 #include <boost/iostreams/filtering_streambuf.hpp>
 #include <filesystem>
 #include <fstream>
+#include <numeric>
 
 using namespace plaxel::test;
 
@@ -58,6 +60,22 @@ void plaxel::test::drawAndSaveScreenshot(const char *testName) {
   r.closeWindow();
 }
 
+std::vector<Triangle> plaxel::test::drawAndGetTriangles() {
+  hideWindowsByDefault();
+
+  TestRenderer r;
+  r.showWindow();
+
+  // We need to draw 2 frames, to free up one of the swapChainImage so we can use it to save our
+  // screenshot
+  r.draw();
+  auto indexBufferData = r.getTriangles();
+
+  r.closeWindow();
+
+  return indexBufferData;
+}
+
 int plaxel::test::compareImages(const char *testName) {
   std::filesystem::create_directory("test_report");
 
@@ -105,4 +123,14 @@ int plaxel::test::compareImages(const char *testName) {
   }
 
   return static_cast<int>(comp.nfail);
+}
+
+std::string plaxel::test::toString(std::vector<Triangle> const &vec) {
+  if (vec.empty()) {
+    return {};
+  }
+
+  return std::accumulate(
+      vec.begin() + 1, vec.end(), vec[0].toString(),
+      [](const std::string &a, const Triangle &b) { return a + ", " + b.toString(); });
 }
