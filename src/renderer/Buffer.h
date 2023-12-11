@@ -43,13 +43,10 @@ public:
       mappedMemory = bufferMemory.mapMemory(0, bufferSize);
     }
     const size_t size = bufferSize / sizeof(T);
-    T mem[size];
-    memcpy(mem, mappedMemory, bufferSize);
-    std::vector<T> result;
-    for (int i = 0; i < size; ++i) {
-      result.push_back(mem[i]);
-    }
-    return result;
+    std::vector<T> mem;
+    mem.reserve(size);
+    memcpy(mem.data(), mappedMemory, bufferSize);
+    return mem;
   }
 };
 
