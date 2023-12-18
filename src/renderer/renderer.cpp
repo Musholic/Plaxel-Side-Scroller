@@ -129,7 +129,7 @@ void Renderer::createTextureImage() {
   int texWidth;
   int texHeight;
   int texChannels;
-  const auto texture = files::readFile("textures/texture.jpg");
+  const auto texture = files::readFile("textures/forest_ground_04_diff_4k.png");
   stbi_uc *pixels = stbi_load_from_memory(reinterpret_cast<const stbi_uc *>(texture.begin()),
                                           static_cast<int>(texture.size()), &texWidth, &texHeight,
                                           &texChannels, STBI_rgb_alpha);
