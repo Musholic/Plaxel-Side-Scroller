@@ -1,5 +1,8 @@
 #version 450
 
+#define W 8
+#define MAX_B W*W*W
+
 struct Vertex {
     vec3 position;
     vec2 texCoord;
@@ -21,8 +24,8 @@ layout(std430, binding = 2) buffer DrawCommand {
     uint    firstInstance;
 };
 
-layout(std430, binding = 3) buffer TestData {
-    int testData;
+layout(std430, binding = 3) buffer VoxelTreeNode {
+    uint blocks[MAX_B];
 };
 
 layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
@@ -35,55 +38,23 @@ uint iInd = 0;
 uint addVertex(vec3 pos, vec2 texCoord);
 void addSquare(uint a, uint b, uint c, uint d);
 void setupDrawCommand();
+void drawCube(int x, int y, int z);
+uint getBlock(int x, int y, int z);
+uint getBlockInd(int x, int y, int z);
 
 void main()
 {
     uint index = gl_GlobalInvocationID.x;
-    // Test modification each frame in compute shader
-    testData++;
-    float dec = testData * 0.001f;
 
-    // Back side
-    uint a = addVertex(vec3(1, 0, 0), vec2(0, 1));
-    uint b = addVertex(vec3(0, 0, 0), vec2(1, 1));
-    uint c = addVertex(vec3(0, 1, 0), vec2(1, 0));
-    uint d = addVertex(vec3(1, 1, 0), vec2(0, 0));
-    addSquare(a, b, c, d);
-
-    // Front side
-    a = addVertex(vec3(0, 0, 1), vec2(0, 1));
-    b = addVertex(vec3(1, 0, 1), vec2(1, 1));
-    c = addVertex(vec3(1, 1, 1), vec2(1, 0));
-    d = addVertex(vec3(0, 1, 1), vec2(0, 0));
-    addSquare(a, b, c, d);
-
-    // Left side
-    a = addVertex(vec3(0, 0, 0), vec2(0, 1));
-    b = addVertex(vec3(0, 0, 1), vec2(1, 1));
-    c = addVertex(vec3(0, 1, 1), vec2(1, 0));
-    d = addVertex(vec3(0, 1, 0), vec2(0, 0));
-    addSquare(a, b, c, d);
-
-    // Right side
-    a = addVertex(vec3(1, 0, 1), vec2(0, 1));
-    b = addVertex(vec3(1, 0, 0), vec2(1, 1));
-    c = addVertex(vec3(1, 1, 0), vec2(1, 0));
-    d = addVertex(vec3(1, 1, 1), vec2(0, 0));
-    addSquare(a, b, c, d);
-
-    // Bottom side
-    a = addVertex(vec3(0, 0, 1), vec2(0, 1));
-    b = addVertex(vec3(0, 0, 0), vec2(1, 1));
-    c = addVertex(vec3(1, 0, 0), vec2(1, 0));
-    d = addVertex(vec3(1, 0, 1), vec2(0, 0));
-    addSquare(a, b, c, d);
-
-    // Top side
-    a = addVertex(vec3(0, 1, 0), vec2(0, 1));
-    b = addVertex(vec3(0, 1, 1), vec2(1, 1));
-    c = addVertex(vec3(1, 1, 1), vec2(1, 0));
-    d = addVertex(vec3(1, 1, 0), vec2(0, 0));
-    addSquare(a, b, c, d);
+    for (int x = 0; x < W; x ++) {
+        for (int y = 0; y < W; y ++) {
+            for (int z = 0; z < W; z ++) {
+                if (blocks[getBlockInd(x, y, z)] > 0) {
+                    drawCube(x, y, z);
+                }
+            }
+        }
+    }
 
     setupDrawCommand();
 }
@@ -110,4 +81,67 @@ void setupDrawCommand() {
     firstIndex = 0;
     vertexOffset = 0;
     firstInstance = 0;
+}
+
+void drawCube(int x, int y, int z) {
+    // Back side
+    uint a = addVertex(vec3(x + 1, y, z), vec2(0, 1));
+    uint b = addVertex(vec3(x, y, z), vec2(1, 1));
+    uint c = addVertex(vec3(x, y + 1, z), vec2(1, 0));
+    uint d = addVertex(vec3(x + 1, y + 1, z), vec2(0, 0));
+    addSquare(a, b, c, d);
+
+    // Front side
+    a = addVertex(vec3(x, y, z + 1), vec2(0, 1));
+    b = addVertex(vec3(x + 1, y, z + 1), vec2(1, 1));
+    c = addVertex(vec3(x + 1, y + 1, z + 1), vec2(1, 0));
+    d = addVertex(vec3(x, y+ 1, z + 1), vec2(0, 0));
+    addSquare(a, b, c, d);
+
+    // Left side
+    if (getBlock(x - 1, y, z) == 0) {
+        a = addVertex(vec3(x, y, z), vec2(0, 1));
+        b = addVertex(vec3(x, y, z + 1), vec2(1, 1));
+        c = addVertex(vec3(x, y + 1, z + 1), vec2(1, 0));
+        d = addVertex(vec3(x, y + 1, z), vec2(0, 0));
+        addSquare(a, b, c, d);
+    }
+
+    // Right side
+    if (getBlock(x + 1, y, z) == 0) {
+        a = addVertex(vec3(x + 1, y, z + 1), vec2(0, 1));
+        b = addVertex(vec3(x + 1, y, z), vec2(1, 1));
+        c = addVertex(vec3(x + 1, y + 1, z), vec2(1, 0));
+        d = addVertex(vec3(x + 1, y + 1, z + 1), vec2(0, 0));
+        addSquare(a, b, c, d);
+    }
+
+    // Bottom side
+    a = addVertex(vec3(x, y, z + 1), vec2(0, 1));
+    b = addVertex(vec3(x, y, z), vec2(1, 1));
+    c = addVertex(vec3(x + 1, y, z), vec2(1, 0));
+    d = addVertex(vec3(x + 1, y, z + 1), vec2(0, 0));
+    addSquare(a, b, c, d);
+
+    // Top side
+    a = addVertex(vec3(x, y + 1, z), vec2(0, 1));
+    b = addVertex(vec3(x, y + 1, z + 1), vec2(1, 1));
+    c = addVertex(vec3(x + 1, y + 1, z + 1), vec2(1, 0));
+    d = addVertex(vec3(x + 1, y + 1, z), vec2(0, 0));
+    addSquare(a, b, c, d);
+    // TODO: Test removing the other faces
+}
+
+uint getBlock(int x, int y, int z) {
+    if (
+    x < 0 || x >= W ||
+    y < 0 || y >= W ||
+    z < 0 || z >= W) {
+        return 0;
+    }
+    return blocks[getBlockInd(x, y, z)];
+}
+
+uint getBlockInd(int x, int y, int z) {
+    return x + W * y + W * W * z;
 }

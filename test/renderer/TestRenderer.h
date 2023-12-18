@@ -11,6 +11,7 @@ struct Triangle {
 class TestRenderer : public Renderer {
 public:
   std::vector<Triangle> getTriangles();
+  void setVoxelTreeNode(const VoxelTreeNode &newNode);
 };
 
 } // namespace plaxel::test

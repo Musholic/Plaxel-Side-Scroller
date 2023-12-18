@@ -10,7 +10,7 @@ void hideWindowsByDefault();
 void compressFile(const std::string &fileName, const std::string &outputFileName);
 void decompressFile(const std::string &fileName, const std::string &outputFileName);
 void drawAndSaveScreenshot(const char *testName);
-[[nodiscard]] std::vector<Triangle> drawAndGetTriangles();
+[[nodiscard]] std::vector<Triangle> drawAndGetTriangles(TestRenderer &renderer);
 /**
  * \return the number of comparison failures
  */

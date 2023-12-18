@@ -12,8 +12,10 @@
 #include <glm/fwd.hpp>
 namespace plaxel {
 
-struct TestData {
-  int32_t testData;
+constexpr int BLOCK_W = 8;
+
+struct VoxelTreeNode {
+  alignas(16) uint32_t blocks[BLOCK_W * BLOCK_W * BLOCK_W];
 };
 
 struct Vertex {
@@ -61,7 +63,8 @@ protected:
   std::optional<Buffer> vertexBuffer;
   std::optional<Buffer> indexBuffer;
   std::optional<Buffer> drawCommandBuffer;
-  std::optional<Buffer> testDataBuffer;
+  std::optional<Buffer> voxelTreeNodesBuffer;
+  VoxelTreeNode voxelTreeNode = {{1, 1}};
 
   void createComputeDescriptorSetLayout();
   void createComputeDescriptorSets();

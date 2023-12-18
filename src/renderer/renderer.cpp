@@ -57,7 +57,7 @@ void Renderer::createComputeDescriptorSets() {
   descriptorWrites.push_back(
       drawCommandBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 2));
   descriptorWrites.push_back(
-      testDataBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 3));
+      voxelTreeNodesBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 3));
 
   device.updateDescriptorSets(descriptorWrites, nullptr);
 }
@@ -107,8 +107,7 @@ void Renderer::createComputeBuffers() {
 
   drawCommandBuffer.emplace(device, physicalDevice, sizeof(VkDrawIndexedIndirectCommand),
                             eStorageBuffer | eIndirectBuffer, eDeviceLocal);
-  constexpr TestData src = {0};
-  testDataBuffer = createBufferWithInitialData(eStorageBuffer, &src, sizeof(src));
+  voxelTreeNodesBuffer = createBufferWithInitialData(eStorageBuffer, &voxelTreeNode, sizeof(voxelTreeNode));
 }
 
 Buffer Renderer::createBufferWithInitialData(const vk::BufferUsageFlags usage, const void *src,
