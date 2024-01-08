@@ -62,6 +62,8 @@ target_link_libraries(plaxel_test PRIVATE Boost::boost Boost::thread Boost::file
 target_link_libraries(plaxel_lib PRIVATE ZLIB::ZLIB)
 
 add_test(AllTestsInMain plaxel_test)
+# Add plaxel as dependencies to ensure executable is always up to date after compiling tests
+add_dependencies(plaxel_test plaxel)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_link_libraries(plaxel_lib PRIVATE gcov)
