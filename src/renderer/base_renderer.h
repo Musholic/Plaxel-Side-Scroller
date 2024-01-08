@@ -18,6 +18,7 @@
 #include <optional>
 
 static constexpr int NB_COMPUTE_BUFFERS = 4;
+static constexpr int NB_ADD_BLOCK_COMPUTE_BUFFERS = 2;
 namespace plaxel {
 
 struct MouseButtons {
@@ -52,7 +53,6 @@ constexpr uint32_t MAX_INDEX_COUNT = 8192;
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 constexpr uint64_t FENCE_TIMEOUT = 100000000;
 constexpr int TARGET_FPS = 60;
-constexpr double FRAME_TIME_S = 1.0 / TARGET_FPS;
 
 class VulkanInitializationError : public std::runtime_error {
 public:
@@ -69,10 +69,9 @@ public:
   using runtime_error::runtime_error;
 };
 
-
 class BaseRenderer {
 public:
-  BaseRenderer() = default;
+  explicit BaseRenderer(int targetFps);
   virtual ~BaseRenderer() = default;
 
   constexpr static std::string_view WINDOW_TITLE = "Plaxel";
@@ -94,8 +93,7 @@ protected:
 
   vk::Extent2D windowSize{1280, 720};
 
-  void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer,
-                                   vk::DeviceSize size) const;
+  void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size) const;
   [[nodiscard]] virtual vk::PipelineLayoutCreateInfo getPipelineLayoutInfo() const;
   [[nodiscard]] virtual vk::PipelineLayoutCreateInfo getComputePipelineLayoutInfo() const;
   virtual void initCustomDescriptorSetLayout();
@@ -106,9 +104,12 @@ protected:
                                       vk::ImageAspectFlags aspectFlags);
   [[nodiscard]] vk::raii::CommandBuffer beginSingleTimeCommands() const;
   void endSingleTimeCommands(vk::CommandBuffer commandBuffer) const;
-  void transitionImageLayout(vk::Image image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout) const;
+  void transitionImageLayout(vk::Image image, vk::ImageLayout oldLayout,
+                             vk::ImageLayout newLayout) const;
+  vk::raii::ShaderModule createShaderModule(const cmrc::file &code);
 
   uint32_t currentFrame = 0;
+  const double frameTimeS;
 
   vk::raii::Device device = nullptr;
 
@@ -121,7 +122,9 @@ protected:
   vk::raii::Queue graphicsQueue = nullptr;
   vk::raii::PhysicalDevice physicalDevice = nullptr;
   vk::raii::PipelineLayout pipelineLayout = nullptr;
-  std::vector<plaxel::Buffer> uniformBuffers{};
+  std::vector<Buffer> uniformBuffers{};
+  vk::raii::CommandBuffer computeCommandBuffer = nullptr;
+  vk::raii::Queue computeQueue = nullptr;
 
 private:
   GLFWwindow *window{};
@@ -134,7 +137,6 @@ private:
   vk::raii::DebugUtilsMessengerEXT debugMessenger = nullptr;
   vk::raii::SurfaceKHR surface = nullptr;
 
-  vk::raii::Queue computeQueue = nullptr;
   vk::raii::Queue presentQueue = nullptr;
 
   vk::raii::SwapchainKHR swapChain = nullptr;
@@ -153,7 +155,6 @@ private:
   vk::raii::Pipeline graphicsPipeline = nullptr;
 
   vk::raii::CommandBuffers mainCommandBuffers = nullptr;
-  vk::raii::CommandBuffer computeCommandBuffer = nullptr;
 
   std::array<vk::raii::Semaphore, MAX_FRAMES_IN_FLIGHT> imageAvailableSemaphores{nullptr, nullptr};
   std::array<vk::raii::Semaphore, MAX_FRAMES_IN_FLIGHT> renderFinishedSemaphores{nullptr, nullptr};
@@ -198,7 +199,6 @@ private:
   void createImageViews();
   void createRenderPass();
   void createGraphicsPipeline();
-  vk::raii::ShaderModule createShaderModule(const cmrc::file &code);
   void createComputePipeline();
   void createFramebuffers();
   void createCommandPool();
@@ -237,7 +237,7 @@ private:
   debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                 VkDebugUtilsMessageTypeFlagsEXT messageTypes,
                 VkDebugUtilsMessengerCallbackDataEXT const *pCallbackData, void * /*pUserData*/);
-  static void manageFps();
+  void manageFps() const;
   static void printFps();
 };
 

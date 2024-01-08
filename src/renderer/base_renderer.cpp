@@ -9,6 +9,8 @@
 
 using namespace plaxel;
 
+BaseRenderer::BaseRenderer(const int targetFps) : frameTimeS(1.0 / targetFps) {}
+
 /**
  * Setup the bare minimum to open a new window
  */
@@ -696,16 +698,18 @@ void BaseRenderer::draw() {
   printFps();
 }
 
-void BaseRenderer::manageFps() {
+void BaseRenderer::manageFps() const {
   static double frameStartTime = 0;
 
-  const double frameEndTime = glfwGetTime();
+  double frameEndTime = glfwGetTime();
   const double frameTime = frameEndTime - frameStartTime;
-  frameStartTime = frameEndTime;
 
-  if (frameTime < FRAME_TIME_S) {
-    std::this_thread::sleep_for(std::chrono::duration<double>(FRAME_TIME_S - frameTime));
+  if (frameTime < frameTimeS) {
+    std::this_thread::sleep_for(std::chrono::duration<double>(frameTimeS - frameTime));
+    frameEndTime = glfwGetTime();
   }
+
+  frameStartTime = frameEndTime;
 }
 
 void BaseRenderer::printFps() {
@@ -723,7 +727,6 @@ void BaseRenderer::printFps() {
 }
 
 void BaseRenderer::drawFrame() {
-  vk::SubmitInfo submitInfo;
 
   updateUniformBuffer(currentFrame);
 
@@ -735,6 +738,7 @@ void BaseRenderer::drawFrame() {
   computeCommandBuffer.reset();
   recordComputeCommandBuffer(*computeCommandBuffer);
 
+  vk::SubmitInfo submitInfo;
   submitInfo.commandBufferCount = 1;
   submitInfo.pCommandBuffers = &*computeCommandBuffer;
   submitInfo.signalSemaphoreCount = 1;
@@ -887,6 +891,7 @@ void BaseRenderer::updateUniformBuffer(uint32_t currentImage) {
                               static_cast<float>(swapChainExtent.width) /
                                   static_cast<float>(swapChainExtent.height),
                               0.001f, 256.0f);
+  ubo.proj[1][1] *= -1;
 
   uniformBuffers[currentImage].copyToMemory(&ubo);
 }

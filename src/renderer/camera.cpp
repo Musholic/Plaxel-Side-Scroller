@@ -15,12 +15,12 @@ glm::mat4 Camera::getViewMatrix() const {
   rotM = glm::rotate(rotM, glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
   rotM = glm::rotate(rotM, glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
 
-  const auto transM = glm::translate(glm::mat4(1.0f), position);
+  const auto transM = glm::translate(glm::mat4(1.0f), -position);
   return rotM * transM;
 }
 
 void Camera::rotate(const float &dx, const float &dy) {
-  rotation += glm::vec3(dy * rotationSpeed, -dx * rotationSpeed, 0.0f);
+  rotation += glm::vec3(-dy * rotationSpeed, -dx * rotationSpeed, 0.0f);
 }
 
 glm::vec3 Camera::getFront() const {
@@ -50,10 +50,10 @@ void Camera::update() {
   if (moving()) {
     glm::vec3 direction{0.f, 0.f, 0.f};
     if (keys.forward != keys.backward) {
-      direction.z = keys.forward ? 1.0f : -1.0f;
+      direction.z = keys.forward ? -1.0f : 1.0f;
     }
     if (keys.left != keys.right) {
-      direction.x = keys.left ? -1.0f : 1.0f;
+      direction.x = keys.left ? 1.0f : -1.0f;
     }
     if (keys.up != keys.down) {
       direction.y = keys.up ? 1.0f : -1.0f;

@@ -12,8 +12,14 @@
 #include <glm/fwd.hpp>
 namespace plaxel {
 
-struct TestData {
-  int32_t testData;
+constexpr int BLOCK_W = 8;
+
+struct VoxelTreeNode {
+  alignas(16) uint32_t blocks[BLOCK_W * BLOCK_W * BLOCK_W];
+};
+
+struct AddedBlock {
+  int32_t x, y, z;
 };
 
 struct Vertex {
@@ -36,10 +42,18 @@ struct Vertex {
 
     return attributeDescriptions;
   }
+  [[nodiscard]] static std::string toString(float x);
+  [[nodiscard]] std::string toString() const;
 };
 
 class Renderer : public BaseRenderer {
+public:
+  Renderer();
+
 private:
+  static int getTargetFps();
+
+protected:
   void initVulkan() override;
   void initCustomDescriptorSetLayout() override;
   vk::raii::CommandBuffers computeCommandBuffers = nullptr;
@@ -59,7 +73,14 @@ private:
   std::optional<Buffer> vertexBuffer;
   std::optional<Buffer> indexBuffer;
   std::optional<Buffer> drawCommandBuffer;
-  std::optional<Buffer> testDataBuffer;
+  std::optional<Buffer> voxelTreeNodesBuffer;
+  std::optional<Buffer> addedBlockBuffer;
+
+  vk::raii::DescriptorSetLayout addBlockComputeDescriptorSetLayout = nullptr;
+  vk::raii::DescriptorSet addBlockComputeDescriptorSet = nullptr;
+
+  vk::raii::PipelineLayout addBlockComputePipelineLayout = nullptr;
+  vk::raii::Pipeline addBlockComputePipeline = nullptr;
 
   void createComputeDescriptorSetLayout();
   void createComputeDescriptorSets();
@@ -79,7 +100,11 @@ private:
   [[nodiscard]] vk::PipelineLayoutCreateInfo getPipelineLayoutInfo() const override;
   [[nodiscard]] vk::PipelineLayoutCreateInfo getComputePipelineLayoutInfo() const override;
   Buffer createBufferWithInitialData(vk::BufferUsageFlags usage, const void *src,
-                                   vk::DeviceSize size) const;
+                                     vk::DeviceSize size) const;
+  void createAddBlockComputePipeline();
+  void createAddBlockComputeDescriptorSetLayout();
+  void addBlock(int x, int y, int z);
+  virtual void initWorld();
 };
 
 } // namespace plaxel

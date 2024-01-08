@@ -24,7 +24,9 @@ set(SOURCES
         src/renderer/Buffer.cpp
         src/renderer/Buffer.h
         src/renderer/file_utils.cpp
-        src/renderer/file_utils.h)
+        src/renderer/file_utils.h
+        test/test_utils.cpp
+        test/test_utils.h)
 
 add_library(plaxel_lib STATIC ${SOURCES})
 
@@ -45,7 +47,9 @@ find_package(GTest CONFIG REQUIRED)
 find_package(OpenImageIO CONFIG REQUIRED)
 find_package(Boost REQUIRED COMPONENTS thread filesystem iostreams)
 
-add_executable(plaxel_test test/renderer/renderer.cpp)
+add_executable(plaxel_test test/renderer/renderer.cpp
+        test/renderer/TestRenderer.cpp
+        test/renderer/TestRenderer.h)
 
 enable_testing()
 
@@ -58,6 +62,8 @@ target_link_libraries(plaxel_test PRIVATE Boost::boost Boost::thread Boost::file
 target_link_libraries(plaxel_lib PRIVATE ZLIB::ZLIB)
 
 add_test(AllTestsInMain plaxel_test)
+# Add plaxel as dependencies to ensure executable is always up to date after compiling tests
+add_dependencies(plaxel_test plaxel)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_link_libraries(plaxel_lib PRIVATE gcov)
@@ -71,7 +77,7 @@ endif ()
 # Add all necessary resources embedded into the executable
 include(shaderCompiling-CMakeLists.txt)
 
-cmrc_add_resource_library(plaxel-resources ALIAS plaxel::rc NAMESPACE plaxel textures/texture.jpg)
+cmrc_add_resource_library(plaxel-resources ALIAS plaxel::rc NAMESPACE plaxel textures/forest_ground_04_diff_4k.png)
 cmrc_add_resources(plaxel-resources WHENCE ${PROJECT_BINARY_DIR} ${SPIRV_BINARY_FILES})
 target_link_libraries(plaxel_lib PUBLIC plaxel-resources)
 
