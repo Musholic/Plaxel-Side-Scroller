@@ -43,6 +43,12 @@ struct Vertex {
 };
 
 class Renderer : public BaseRenderer {
+public:
+  Renderer();
+
+private:
+  static int getTargetFps();
+
 protected:
   void initVulkan() override;
   void initCustomDescriptorSetLayout() override;

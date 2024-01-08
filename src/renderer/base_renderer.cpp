@@ -9,6 +9,8 @@
 
 using namespace plaxel;
 
+BaseRenderer::BaseRenderer(const int targetFps) : frameTimeS(1.0 / targetFps) {}
+
 /**
  * Setup the bare minimum to open a new window
  */
@@ -702,8 +704,8 @@ void BaseRenderer::manageFps() {
   double frameEndTime = glfwGetTime();
   const double frameTime = frameEndTime - frameStartTime;
 
-  if (frameTime < FRAME_TIME_S) {
-    std::this_thread::sleep_for(std::chrono::duration<double>(FRAME_TIME_S - frameTime));
+  if (frameTime < frameTimeS) {
+    std::this_thread::sleep_for(std::chrono::duration<double>(frameTimeS - frameTime));
     frameEndTime = glfwGetTime();
   }
 

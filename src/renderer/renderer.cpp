@@ -8,6 +8,18 @@
 #include <stb_image.h>
 
 namespace plaxel {
+Renderer::Renderer() : BaseRenderer(getTargetFps()) {}
+
+int Renderer::getTargetFps() {
+  const char *targetFpsChar = std::getenv("TARGET_FPS");
+  if (targetFpsChar) {
+    const int targetFps = std::atoi(targetFpsChar);
+    if (targetFps > 0) {
+      return targetFps;
+    }
+  }
+  return TARGET_FPS;
+}
 
 void Renderer::initVulkan() {
   BaseRenderer::initVulkan();

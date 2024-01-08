@@ -52,7 +52,6 @@ constexpr uint32_t MAX_INDEX_COUNT = 8192;
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 constexpr uint64_t FENCE_TIMEOUT = 100000000;
 constexpr int TARGET_FPS = 60;
-constexpr double FRAME_TIME_S = 1.0 / TARGET_FPS;
 
 class VulkanInitializationError : public std::runtime_error {
 public:
@@ -69,10 +68,9 @@ public:
   using runtime_error::runtime_error;
 };
 
-
 class BaseRenderer {
 public:
-  BaseRenderer() = default;
+  explicit BaseRenderer(int targetFps);
   virtual ~BaseRenderer() = default;
 
   constexpr static std::string_view WINDOW_TITLE = "Plaxel";
@@ -94,8 +92,7 @@ protected:
 
   vk::Extent2D windowSize{1280, 720};
 
-  void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer,
-                                   vk::DeviceSize size) const;
+  void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size) const;
   [[nodiscard]] virtual vk::PipelineLayoutCreateInfo getPipelineLayoutInfo() const;
   [[nodiscard]] virtual vk::PipelineLayoutCreateInfo getComputePipelineLayoutInfo() const;
   virtual void initCustomDescriptorSetLayout();
@@ -106,9 +103,11 @@ protected:
                                       vk::ImageAspectFlags aspectFlags);
   [[nodiscard]] vk::raii::CommandBuffer beginSingleTimeCommands() const;
   void endSingleTimeCommands(vk::CommandBuffer commandBuffer) const;
-  void transitionImageLayout(vk::Image image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout) const;
+  void transitionImageLayout(vk::Image image, vk::ImageLayout oldLayout,
+                             vk::ImageLayout newLayout) const;
 
   uint32_t currentFrame = 0;
+  const double frameTimeS;
 
   vk::raii::Device device = nullptr;
 
@@ -237,7 +236,7 @@ private:
   debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                 VkDebugUtilsMessageTypeFlagsEXT messageTypes,
                 VkDebugUtilsMessengerCallbackDataEXT const *pCallbackData, void * /*pUserData*/);
-  static void manageFps();
+  void manageFps();
   static void printFps();
 };
 
