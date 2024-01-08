@@ -699,13 +699,15 @@ void BaseRenderer::draw() {
 void BaseRenderer::manageFps() {
   static double frameStartTime = 0;
 
-  const double frameEndTime = glfwGetTime();
+  double frameEndTime = glfwGetTime();
   const double frameTime = frameEndTime - frameStartTime;
-  frameStartTime = frameEndTime;
 
   if (frameTime < FRAME_TIME_S) {
     std::this_thread::sleep_for(std::chrono::duration<double>(FRAME_TIME_S - frameTime));
+    frameEndTime = glfwGetTime();
   }
+
+  frameStartTime = frameEndTime;
 }
 
 void BaseRenderer::printFps() {
