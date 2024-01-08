@@ -19,9 +19,7 @@ std::vector<Triangle> TestRenderer::getTriangles() {
   return triangles;
 }
 
-void TestRenderer::setVoxelTreeNode(const VoxelTreeNode &newNode) {
-  voxelTreeNode = newNode;
-}
+void TestRenderer::setVoxelTreeNode(const VoxelTreeNode &newNode) { voxelTreeNode = newNode; }
 
 std::string Triangle::toString() const {
   std::string result = "{";

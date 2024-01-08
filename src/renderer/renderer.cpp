@@ -4,6 +4,7 @@
 #include <random>
 
 #define STB_IMAGE_IMPLEMENTATION
+#include <sstream>
 #include <stb_image.h>
 
 namespace plaxel {
@@ -107,7 +108,8 @@ void Renderer::createComputeBuffers() {
 
   drawCommandBuffer.emplace(device, physicalDevice, sizeof(VkDrawIndexedIndirectCommand),
                             eStorageBuffer | eIndirectBuffer, eDeviceLocal);
-  voxelTreeNodesBuffer = createBufferWithInitialData(eStorageBuffer, &voxelTreeNode, sizeof(voxelTreeNode));
+  voxelTreeNodesBuffer =
+      createBufferWithInitialData(eStorageBuffer, &voxelTreeNode, sizeof(voxelTreeNode));
 }
 
 Buffer Renderer::createBufferWithInitialData(const vk::BufferUsageFlags usage, const void *src,

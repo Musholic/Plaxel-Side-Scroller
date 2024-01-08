@@ -85,18 +85,23 @@ void setupDrawCommand() {
 
 void drawCube(int x, int y, int z) {
     // Back side
-    uint a = addVertex(vec3(x + 1, y, z), vec2(0, 1));
-    uint b = addVertex(vec3(x, y, z), vec2(1, 1));
-    uint c = addVertex(vec3(x, y + 1, z), vec2(1, 0));
-    uint d = addVertex(vec3(x + 1, y + 1, z), vec2(0, 0));
-    addSquare(a, b, c, d);
+    uint a, b, c, d;
+    if (getBlock(x, y, z - 1) == 0) {
+        a = addVertex(vec3(x + 1, y, z), vec2(0, 1));
+        b = addVertex(vec3(x, y, z), vec2(1, 1));
+        c = addVertex(vec3(x, y + 1, z), vec2(1, 0));
+        d = addVertex(vec3(x + 1, y + 1, z), vec2(0, 0));
+        addSquare(a, b, c, d);
+    }
 
     // Front side
-    a = addVertex(vec3(x, y, z + 1), vec2(0, 1));
-    b = addVertex(vec3(x + 1, y, z + 1), vec2(1, 1));
-    c = addVertex(vec3(x + 1, y + 1, z + 1), vec2(1, 0));
-    d = addVertex(vec3(x, y+ 1, z + 1), vec2(0, 0));
-    addSquare(a, b, c, d);
+    if (getBlock(x, y, z + 1) == 0) {
+        a = addVertex(vec3(x, y, z + 1), vec2(0, 1));
+        b = addVertex(vec3(x + 1, y, z + 1), vec2(1, 1));
+        c = addVertex(vec3(x + 1, y + 1, z + 1), vec2(1, 0));
+        d = addVertex(vec3(x, y+ 1, z + 1), vec2(0, 0));
+        addSquare(a, b, c, d);
+    }
 
     // Left side
     if (getBlock(x - 1, y, z) == 0) {
@@ -117,19 +122,22 @@ void drawCube(int x, int y, int z) {
     }
 
     // Bottom side
-    a = addVertex(vec3(x, y, z + 1), vec2(0, 1));
-    b = addVertex(vec3(x, y, z), vec2(1, 1));
-    c = addVertex(vec3(x + 1, y, z), vec2(1, 0));
-    d = addVertex(vec3(x + 1, y, z + 1), vec2(0, 0));
-    addSquare(a, b, c, d);
+    if (getBlock(x, y - 1, z) == 0) {
+        a = addVertex(vec3(x, y, z + 1), vec2(0, 1));
+        b = addVertex(vec3(x, y, z), vec2(1, 1));
+        c = addVertex(vec3(x + 1, y, z), vec2(1, 0));
+        d = addVertex(vec3(x + 1, y, z + 1), vec2(0, 0));
+        addSquare(a, b, c, d);
+    }
 
     // Top side
-    a = addVertex(vec3(x, y + 1, z), vec2(0, 1));
-    b = addVertex(vec3(x, y + 1, z + 1), vec2(1, 1));
-    c = addVertex(vec3(x + 1, y + 1, z + 1), vec2(1, 0));
-    d = addVertex(vec3(x + 1, y + 1, z), vec2(0, 0));
-    addSquare(a, b, c, d);
-    // TODO: Test removing the other faces
+    if (getBlock(x, y + 1, z) == 0) {
+        a = addVertex(vec3(x, y + 1, z), vec2(0, 1));
+        b = addVertex(vec3(x, y + 1, z + 1), vec2(1, 1));
+        c = addVertex(vec3(x + 1, y + 1, z + 1), vec2(1, 0));
+        d = addVertex(vec3(x + 1, y + 1, z), vec2(0, 0));
+        addSquare(a, b, c, d);
+    }
 }
 
 uint getBlock(int x, int y, int z) {

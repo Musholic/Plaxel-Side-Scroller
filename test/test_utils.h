@@ -6,6 +6,8 @@
 
 namespace plaxel::test {
 
+const bool SHOW_WINDOW = std::getenv("SHOW_WINDOW");
+
 void hideWindowsByDefault();
 void compressFile(const std::string &fileName, const std::string &outputFileName);
 void decompressFile(const std::string &fileName, const std::string &outputFileName);
