@@ -32,7 +32,12 @@ void Renderer::initVulkan() {
 
   createComputeDescriptorPool();
   createDescriptorSets();
+  createAddBlockComputeDescriptorSetLayout();
   createComputeDescriptorSets();
+
+  createAddBlockComputePipeline();
+
+  initWorld();
 }
 
 void Renderer::initCustomDescriptorSetLayout() {
@@ -55,22 +60,28 @@ void Renderer::createComputeDescriptorSetLayout() {
 }
 
 void Renderer::createComputeDescriptorSets() {
-  const std::vector layouts(1, *computeDescriptorSetLayout);
+  const std::vector layouts = {*computeDescriptorSetLayout, *addBlockComputeDescriptorSetLayout};
   vk::DescriptorSetAllocateInfo allocInfo;
   allocInfo.descriptorPool = *computeDescriptorPool;
-  allocInfo.descriptorSetCount = 1;
+  allocInfo.descriptorSetCount = 2;
   allocInfo.pSetLayouts = layouts.data();
 
   auto computeDescriptorSets = vk::raii::DescriptorSets(device, allocInfo);
-  computeDescriptorSet = std::move(computeDescriptorSets[0]);
-
   std::vector<vk::WriteDescriptorSet> descriptorWrites;
+
+  computeDescriptorSet = std::move(computeDescriptorSets[0]);
   descriptorWrites.push_back(vertexBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 0));
   descriptorWrites.push_back(indexBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 1));
   descriptorWrites.push_back(
       drawCommandBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 2));
   descriptorWrites.push_back(
       voxelTreeNodesBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 3));
+
+  addBlockComputeDescriptorSet = std::move(computeDescriptorSets[1]);
+  descriptorWrites.push_back(
+      voxelTreeNodesBuffer->getDescriptorWriteForCompute(*addBlockComputeDescriptorSet, 0));
+  descriptorWrites.push_back(
+      addedBlockBuffer->getDescriptorWriteForCompute(*addBlockComputeDescriptorSet, 1));
 
   device.updateDescriptorSets(descriptorWrites, nullptr);
 }
@@ -120,8 +131,11 @@ void Renderer::createComputeBuffers() {
 
   drawCommandBuffer.emplace(device, physicalDevice, sizeof(VkDrawIndexedIndirectCommand),
                             eStorageBuffer | eIndirectBuffer, eDeviceLocal);
+  constexpr VoxelTreeNode voxelTreeNode{};
   voxelTreeNodesBuffer =
       createBufferWithInitialData(eStorageBuffer, &voxelTreeNode, sizeof(voxelTreeNode));
+  addedBlockBuffer.emplace(device, physicalDevice, sizeof(AddedBlock), eStorageBuffer,
+                           eHostVisible | eHostCoherent);
 }
 
 Buffer Renderer::createBufferWithInitialData(const vk::BufferUsageFlags usage, const void *src,
@@ -226,14 +240,16 @@ void Renderer::createDescriptorSetLayout() {
 }
 
 void Renderer::createComputeDescriptorPool() {
-  std::array<vk::DescriptorPoolSize, 1> poolSizes;
+  std::array<vk::DescriptorPoolSize, 2> poolSizes;
   poolSizes[0].type = vk::DescriptorType::eStorageBuffer;
   poolSizes[0].descriptorCount = NB_COMPUTE_BUFFERS;
+  poolSizes[1].type = vk::DescriptorType::eStorageBuffer;
+  poolSizes[1].descriptorCount = NB_ADD_BLOCK_COMPUTE_BUFFERS;
 
   vk::DescriptorPoolCreateInfo poolInfo;
   poolInfo.poolSizeCount = poolSizes.size();
   poolInfo.pPoolSizes = poolSizes.data();
-  poolInfo.maxSets = 1;
+  poolInfo.maxSets = 2;
   poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 
   computeDescriptorPool = vk::raii::DescriptorPool(device, poolInfo);
@@ -331,6 +347,71 @@ std::string Vertex::toString() const {
   result += toString(texCoord.y) + ")";
 
   return result;
+}
+
+void Renderer::createAddBlockComputePipeline() {
+  const auto computeShaderCode = files::readFile("shaders/add_block.comp.spv");
+
+  const vk::raii::ShaderModule computeShaderModule = createShaderModule(computeShaderCode);
+
+  vk::PipelineShaderStageCreateInfo computeShaderStageInfo;
+  computeShaderStageInfo.stage = vk::ShaderStageFlagBits::eCompute;
+  computeShaderStageInfo.module = *computeShaderModule;
+  computeShaderStageInfo.pName = "main";
+
+  vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
+  pipelineLayoutInfo.setLayoutCount = 1;
+  pipelineLayoutInfo.pSetLayouts = &*addBlockComputeDescriptorSetLayout;
+
+  addBlockComputePipelineLayout = vk::raii::PipelineLayout(device, pipelineLayoutInfo);
+
+  vk::ComputePipelineCreateInfo pipelineInfo;
+  pipelineInfo.layout = *addBlockComputePipelineLayout;
+  pipelineInfo.stage = computeShaderStageInfo;
+
+  addBlockComputePipeline = vk::raii::Pipeline(device, nullptr, pipelineInfo);
+}
+
+void Renderer::createAddBlockComputeDescriptorSetLayout() {
+  std::vector<vk::DescriptorSetLayoutBinding> layoutBindings;
+  for (int i = 0; i < NB_ADD_BLOCK_COMPUTE_BUFFERS; ++i) {
+    layoutBindings.emplace_back(i, vk::DescriptorType::eStorageBuffer, 1,
+                                vk::ShaderStageFlagBits::eCompute);
+  }
+
+  vk::DescriptorSetLayoutCreateInfo layoutInfo{};
+  layoutInfo.bindingCount = static_cast<uint32_t>(layoutBindings.size());
+  layoutInfo.pBindings = layoutBindings.data();
+
+  addBlockComputeDescriptorSetLayout = vk::raii::DescriptorSetLayout(device, layoutInfo);
+}
+
+void Renderer::addBlock(int x, int y, int z) {
+  const AddedBlock addedBlock{x, y, z};
+  addedBlockBuffer->copyToMemory(&addedBlock);
+
+  // Compute submission
+  computeCommandBuffer.reset();
+  constexpr vk::CommandBufferBeginInfo beginInfo;
+  computeCommandBuffer.begin(beginInfo);
+  computeCommandBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, *addBlockComputePipeline);
+  computeCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
+                                          *addBlockComputePipelineLayout, 0,
+                                          *addBlockComputeDescriptorSet, nullptr);
+  computeCommandBuffer.dispatch(1, 1, 1);
+  computeCommandBuffer.end();
+
+  vk::SubmitInfo submitInfo;
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &*computeCommandBuffer;
+
+  computeQueue.submit(submitInfo);
+  device.waitIdle();
+}
+
+void Renderer::initWorld() {
+  addBlock(0, 0, 0);
+  addBlock(1, 0, 0);
 }
 
 } // namespace plaxel

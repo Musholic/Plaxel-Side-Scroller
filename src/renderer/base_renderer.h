@@ -18,6 +18,7 @@
 #include <optional>
 
 static constexpr int NB_COMPUTE_BUFFERS = 4;
+static constexpr int NB_ADD_BLOCK_COMPUTE_BUFFERS = 2;
 namespace plaxel {
 
 struct MouseButtons {
@@ -105,6 +106,7 @@ protected:
   void endSingleTimeCommands(vk::CommandBuffer commandBuffer) const;
   void transitionImageLayout(vk::Image image, vk::ImageLayout oldLayout,
                              vk::ImageLayout newLayout) const;
+  vk::raii::ShaderModule createShaderModule(const cmrc::file &code);
 
   uint32_t currentFrame = 0;
   const double frameTimeS;
@@ -120,7 +122,9 @@ protected:
   vk::raii::Queue graphicsQueue = nullptr;
   vk::raii::PhysicalDevice physicalDevice = nullptr;
   vk::raii::PipelineLayout pipelineLayout = nullptr;
-  std::vector<plaxel::Buffer> uniformBuffers{};
+  std::vector<Buffer> uniformBuffers{};
+  vk::raii::CommandBuffer computeCommandBuffer = nullptr;
+  vk::raii::Queue computeQueue = nullptr;
 
 private:
   GLFWwindow *window{};
@@ -133,7 +137,6 @@ private:
   vk::raii::DebugUtilsMessengerEXT debugMessenger = nullptr;
   vk::raii::SurfaceKHR surface = nullptr;
 
-  vk::raii::Queue computeQueue = nullptr;
   vk::raii::Queue presentQueue = nullptr;
 
   vk::raii::SwapchainKHR swapChain = nullptr;
@@ -152,7 +155,6 @@ private:
   vk::raii::Pipeline graphicsPipeline = nullptr;
 
   vk::raii::CommandBuffers mainCommandBuffers = nullptr;
-  vk::raii::CommandBuffer computeCommandBuffer = nullptr;
 
   std::array<vk::raii::Semaphore, MAX_FRAMES_IN_FLIGHT> imageAvailableSemaphores{nullptr, nullptr};
   std::array<vk::raii::Semaphore, MAX_FRAMES_IN_FLIGHT> renderFinishedSemaphores{nullptr, nullptr};
@@ -197,7 +199,6 @@ private:
   void createImageViews();
   void createRenderPass();
   void createGraphicsPipeline();
-  vk::raii::ShaderModule createShaderModule(const cmrc::file &code);
   void createComputePipeline();
   void createFramebuffers();
   void createCommandPool();
@@ -236,7 +237,7 @@ private:
   debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                 VkDebugUtilsMessageTypeFlagsEXT messageTypes,
                 VkDebugUtilsMessengerCallbackDataEXT const *pCallbackData, void * /*pUserData*/);
-  void manageFps();
+  void manageFps() const;
   static void printFps();
 };
 

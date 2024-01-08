@@ -18,6 +18,10 @@ struct VoxelTreeNode {
   alignas(16) uint32_t blocks[BLOCK_W * BLOCK_W * BLOCK_W];
 };
 
+struct AddedBlock {
+  int32_t x, y, z;
+};
+
 struct Vertex {
   alignas(16) glm::vec3 pos;
   alignas(16) glm::vec2 texCoord;
@@ -70,7 +74,13 @@ protected:
   std::optional<Buffer> indexBuffer;
   std::optional<Buffer> drawCommandBuffer;
   std::optional<Buffer> voxelTreeNodesBuffer;
-  VoxelTreeNode voxelTreeNode = {{1, 1}};
+  std::optional<Buffer> addedBlockBuffer;
+
+  vk::raii::DescriptorSetLayout addBlockComputeDescriptorSetLayout = nullptr;
+  vk::raii::DescriptorSet addBlockComputeDescriptorSet = nullptr;
+
+  vk::raii::PipelineLayout addBlockComputePipelineLayout = nullptr;
+  vk::raii::Pipeline addBlockComputePipeline = nullptr;
 
   void createComputeDescriptorSetLayout();
   void createComputeDescriptorSets();
@@ -91,6 +101,10 @@ protected:
   [[nodiscard]] vk::PipelineLayoutCreateInfo getComputePipelineLayoutInfo() const override;
   Buffer createBufferWithInitialData(vk::BufferUsageFlags usage, const void *src,
                                      vk::DeviceSize size) const;
+  void createAddBlockComputePipeline();
+  void createAddBlockComputeDescriptorSetLayout();
+  void addBlock(int x, int y, int z);
+  virtual void initWorld();
 };
 
 } // namespace plaxel

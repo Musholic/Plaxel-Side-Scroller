@@ -41,12 +41,7 @@ void plaxel::test::decompressFile(const std::string &fileName, const std::string
   fileOut.close();
 }
 
-void plaxel::test::drawAndSaveScreenshot(const char *testName) {
-  hideWindowsByDefault();
-
-  Renderer r;
-  r.showWindow();
-
+void plaxel::test::drawAndSaveScreenshot(TestRenderer &r, const char *testName) {
   // We need to draw 2 frames, to free up one of the swapChainImage so we can use it to save our
   // screenshot
   r.draw();
@@ -61,10 +56,6 @@ void plaxel::test::drawAndSaveScreenshot(const char *testName) {
 }
 
 std::vector<Triangle> plaxel::test::drawAndGetTriangles(TestRenderer &renderer) {
-  if (!SHOW_WINDOW) {
-    hideWindowsByDefault();
-  }
-  renderer.showWindow();
 
   // We need to draw 2 frames, to free up one of the swapChainImage so we can use it to save our
   // screenshot

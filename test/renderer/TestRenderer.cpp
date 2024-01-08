@@ -18,8 +18,8 @@ std::vector<Triangle> TestRenderer::getTriangles() {
   }
   return triangles;
 }
-
-void TestRenderer::setVoxelTreeNode(const VoxelTreeNode &newNode) { voxelTreeNode = newNode; }
+void TestRenderer::addBlock(int x, int y, int z) { Renderer::addBlock(x, y, z); }
+void TestRenderer::initWorld() {}
 
 std::string Triangle::toString() const {
   std::string result = "{";

@@ -698,7 +698,7 @@ void BaseRenderer::draw() {
   printFps();
 }
 
-void BaseRenderer::manageFps() {
+void BaseRenderer::manageFps() const {
   static double frameStartTime = 0;
 
   double frameEndTime = glfwGetTime();
@@ -727,7 +727,6 @@ void BaseRenderer::printFps() {
 }
 
 void BaseRenderer::drawFrame() {
-  vk::SubmitInfo submitInfo;
 
   updateUniformBuffer(currentFrame);
 
@@ -739,6 +738,7 @@ void BaseRenderer::drawFrame() {
   computeCommandBuffer.reset();
   recordComputeCommandBuffer(*computeCommandBuffer);
 
+  vk::SubmitInfo submitInfo;
   submitInfo.commandBufferCount = 1;
   submitInfo.pCommandBuffers = &*computeCommandBuffer;
   submitInfo.signalSemaphoreCount = 1;

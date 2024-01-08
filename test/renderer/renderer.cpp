@@ -10,6 +10,10 @@ class RendererTest : public ::testing::Test {
 protected:
   TestRenderer renderer;
   void SetUp() override {
+    if (!SHOW_WINDOW) {
+      hideWindowsByDefault();
+    }
+    renderer.showWindow();
   }
   void TearDown() override {
     if (SHOW_WINDOW) {
@@ -24,9 +28,10 @@ protected:
 TEST_F(RendererTest, SimpleDrawing) {
   // Arrange
   const auto testName = "simple_drawing_test";
+  renderer.addBlock(0, 0, 0);
 
   // Act
-  drawAndSaveScreenshot(testName);
+  drawAndSaveScreenshot(renderer, testName);
 
   // Assert
   EXPECT_EQ(compareImages(testName), 0);
@@ -34,7 +39,7 @@ TEST_F(RendererTest, SimpleDrawing) {
 
 TEST_F(RendererTest, OneCube) {
   // Arrange
-  renderer.setVoxelTreeNode({1});
+  renderer.addBlock(0, 0, 0);
 
   // Act
   const auto data = drawAndGetTriangles(renderer);
@@ -52,7 +57,8 @@ TEST_F(RendererTest, OneCube) {
 
 TEST_F(RendererTest, TwoCubes) {
   // Arrange
-  renderer.setVoxelTreeNode({1, 1});
+  renderer.addBlock(0, 0, 0);
+  renderer.addBlock(1, 0, 0);
 
   // Act
   const auto data = drawAndGetTriangles(renderer);
@@ -75,15 +81,13 @@ TEST_F(RendererTest, TwoCubes) {
 
 TEST_F(RendererTest, OneBigCube) {
   // Arrange
-  VoxelTreeNode node = {};
   for (int x = 0; x < 2; ++x) {
     for (int y = 0; y < 2; ++y) {
       for (int z = 0; z < 2; ++z) {
-        node.blocks[x + BLOCK_W * y + BLOCK_W * BLOCK_W * z] = 1;
+        renderer.addBlock(x, y, z);
       }
     }
   }
-  renderer.setVoxelTreeNode(node);
 
   // Act
   const auto data = drawAndGetTriangles(renderer);
@@ -121,5 +125,18 @@ TEST_F(RendererTest, OneBigCube) {
       "{1;1;2(0;1),2;1;2(1;1),2;2;2(1;0)}, {2;2;2(1;0),1;2;2(0;0),1;1;2(0;1)}, "
       "{2;1;2(0;1),2;1;1(1;1),2;2;1(1;0)}, {2;2;1(1;0),2;2;2(0;0),2;1;2(0;1)}, "
       "{1;2;1(0;1),1;2;2(1;1),2;2;2(1;0)}, {2;2;2(1;0),2;2;1(0;0),1;2;1(0;1)}";
+  EXPECT_EQ(toString(data), expected);
+}
+
+TEST_F(RendererTest, TwoFarAwayCubes) {
+  // Arrange
+  renderer.addBlock(0, 0, 0);
+  renderer.addBlock(16 * BLOCK_W, 0, 0);
+
+  // Act
+  const auto data = drawAndGetTriangles(renderer);
+
+  // Assert
+  const std::string expected = "TODO";
   EXPECT_EQ(toString(data), expected);
 }
