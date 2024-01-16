@@ -76,12 +76,18 @@ void Renderer::createComputeDescriptorSets() {
       drawCommandBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 2));
   descriptorWrites.push_back(
       voxelTreeNodesBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 3));
+  descriptorWrites.push_back(
+      voxelTreeLeavesBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 4));
 
   addBlockComputeDescriptorSet = std::move(computeDescriptorSets[1]);
   descriptorWrites.push_back(
       voxelTreeNodesBuffer->getDescriptorWriteForCompute(*addBlockComputeDescriptorSet, 0));
   descriptorWrites.push_back(
-      addedBlockBuffer->getDescriptorWriteForCompute(*addBlockComputeDescriptorSet, 1));
+      voxelTreeLeavesBuffer->getDescriptorWriteForCompute(*addBlockComputeDescriptorSet, 1));
+  descriptorWrites.push_back(
+      addedBlockBuffer->getDescriptorWriteForCompute(*addBlockComputeDescriptorSet, 2));
+  descriptorWrites.push_back(
+      debugValuesBuffer->getDescriptorWriteForCompute(*addBlockComputeDescriptorSet, 3));
 
   device.updateDescriptorSets(descriptorWrites, nullptr);
 }
@@ -131,11 +137,17 @@ void Renderer::createComputeBuffers() {
 
   drawCommandBuffer.emplace(device, physicalDevice, sizeof(VkDrawIndexedIndirectCommand),
                             eStorageBuffer | eIndirectBuffer, eDeviceLocal);
-  constexpr VoxelTreeNode voxelTreeNode{};
+  constexpr VoxelTreeNodes voxelTreeNodes{};
   voxelTreeNodesBuffer =
-      createBufferWithInitialData(eStorageBuffer, &voxelTreeNode, sizeof(voxelTreeNode));
+      createBufferWithInitialData(eStorageBuffer, &voxelTreeNodes, sizeof(voxelTreeNodes));
+  constexpr VoxelTreeLeaves voxelTreeLeaves{};
+  voxelTreeLeavesBuffer =
+      createBufferWithInitialData(eStorageBuffer, &voxelTreeLeaves, sizeof(voxelTreeLeaves));
   addedBlockBuffer.emplace(device, physicalDevice, sizeof(AddedBlock), eStorageBuffer,
                            eHostVisible | eHostCoherent);
+  const DebugValues debugValues{};
+  debugValuesBuffer =
+      createBufferWithInitialData(eStorageBuffer, &debugValues, sizeof(debugValues));
 }
 
 Buffer Renderer::createBufferWithInitialData(const vk::BufferUsageFlags usage, const void *src,
@@ -386,6 +398,17 @@ void Renderer::createAddBlockComputeDescriptorSetLayout() {
   addBlockComputeDescriptorSetLayout = vk::raii::DescriptorSetLayout(device, layoutInfo);
 }
 
+void Renderer::printDebugValues() {
+  const auto debugValues = debugValuesBuffer->getData<DebugValues>();
+  std::string debugData;
+  for (int i = 0; i < debugValues.lastIndex; ++i) {
+    const auto debugValue = debugValues.values[i];
+    debugData += "\n\t" + std::to_string(debugValue.key) + ": " + std::to_string(debugValue.value);
+  }
+
+  std::cout << "Debug data: " << debugData << std::endl;
+}
+
 void Renderer::addBlock(int x, int y, int z) {
   const AddedBlock addedBlock{x, y, z};
   addedBlockBuffer->copyToMemory(&addedBlock);
@@ -407,6 +430,7 @@ void Renderer::addBlock(int x, int y, int z) {
 
   computeQueue.submit(submitInfo);
   device.waitIdle();
+  printDebugValues();
 }
 
 void Renderer::initWorld() {

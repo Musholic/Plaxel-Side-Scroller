@@ -62,6 +62,8 @@ std::vector<Triangle> plaxel::test::drawAndGetTriangles(TestRenderer &renderer) 
   renderer.draw();
   auto indexBufferData = renderer.getTriangles();
 
+  renderer.getVoxelTree();
+
   if (!SHOW_WINDOW) {
     renderer.closeWindow();
   }

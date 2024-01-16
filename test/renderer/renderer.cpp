@@ -131,7 +131,7 @@ TEST_F(RendererTest, OneBigCube) {
 TEST_F(RendererTest, TwoFarAwayCubes) {
   // Arrange
   renderer.addBlock(0, 0, 0);
-  renderer.addBlock(16 * BLOCK_W, 0, 0);
+  renderer.addBlock(17 * BLOCK_W, 0, 0);
 
   // Act
   const auto data = drawAndGetTriangles(renderer);

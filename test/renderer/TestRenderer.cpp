@@ -4,10 +4,11 @@
 namespace plaxel::test {
 
 std::vector<Triangle> TestRenderer::getTriangles() {
-  const auto indexBufferData = indexBuffer->getData<uint32_t>();
-  const auto vertexBufferData = vertexBuffer->getData<Vertex>();
-  const auto drawCommandBufferData = drawCommandBuffer->getData<VkDrawIndexedIndirectCommand>();
-  const uint indexCount = drawCommandBufferData[0].indexCount;
+  const auto indexBufferData = indexBuffer->getVectorData<uint32_t>();
+  const auto vertexBufferData = vertexBuffer->getVectorData<Vertex>();
+  const auto drawCommandBufferData =
+      drawCommandBuffer->getData<VkDrawIndexedIndirectCommand>();
+  const uint indexCount = drawCommandBufferData.indexCount;
   std::vector<Triangle> triangles;
   for (uint i = 0; i < indexCount / 3; ++i) {
     const uint index = indexBufferData[i * 3];
@@ -19,6 +20,14 @@ std::vector<Triangle> TestRenderer::getTriangles() {
   return triangles;
 }
 void TestRenderer::addBlock(int x, int y, int z) { Renderer::addBlock(x, y, z); }
+
+void TestRenderer::getVoxelTree() {
+  auto voxelTreeNodes = voxelTreeNodesBuffer->getData<VoxelTreeNodes>();
+  auto voxelTreeLeaves = voxelTreeLeavesBuffer->getData<VoxelTreeLeaves>();
+  auto rootVoxelTreeNode = voxelTreeNodes.nodes[voxelTreeNodes.rootIndex];
+  VoxelTreeNode voxelTree{rootVoxelTreeNode, voxelTreeNodes.nodes, voxelTreeLeaves.leaves};
+}
+
 void TestRenderer::initWorld() {}
 
 std::string Triangle::toString() const {

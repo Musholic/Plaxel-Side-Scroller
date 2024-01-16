@@ -13,13 +13,46 @@
 namespace plaxel {
 
 constexpr int BLOCK_W = 8;
+constexpr int NB_BLOCKS = BLOCK_W * BLOCK_W * BLOCK_W;
+constexpr int MAX_NODES = 100;
+constexpr int MAX_LEAVES = MAX_NODES;
+constexpr int MAX_DEBUG_VALUES = 1000;
 
 struct VoxelTreeNode {
-  alignas(16) uint32_t blocks[BLOCK_W * BLOCK_W * BLOCK_W];
+  uint32_t height;
+  uint32_t children[4];
+  uint32_t leaf;
+  int32_t x;
+  int32_t y;
+};
+
+struct VoxelTreeNodes {
+  uint32_t rootIndex;
+  uint32_t lastIndex;
+  VoxelTreeNode nodes[MAX_NODES];
+};
+
+struct VoxelTreeLeaf {
+  uint32_t blocks[NB_BLOCKS];
+};
+
+struct VoxelTreeLeaves {
+  uint32_t lastIndex;
+  VoxelTreeLeaf leaves[MAX_LEAVES];
 };
 
 struct AddedBlock {
   int32_t x, y, z;
+};
+
+struct DebugValue {
+  int32_t key;
+  int32_t value;
+};
+
+struct DebugValues {
+  uint32_t lastIndex;
+  DebugValue values[MAX_DEBUG_VALUES];
 };
 
 struct Vertex {
@@ -74,7 +107,9 @@ protected:
   std::optional<Buffer> indexBuffer;
   std::optional<Buffer> drawCommandBuffer;
   std::optional<Buffer> voxelTreeNodesBuffer;
+  std::optional<Buffer> voxelTreeLeavesBuffer;
   std::optional<Buffer> addedBlockBuffer;
+  std::optional<Buffer> debugValuesBuffer;
 
   vk::raii::DescriptorSetLayout addBlockComputeDescriptorSetLayout = nullptr;
   vk::raii::DescriptorSet addBlockComputeDescriptorSet = nullptr;
@@ -103,6 +138,7 @@ protected:
                                      vk::DeviceSize size) const;
   void createAddBlockComputePipeline();
   void createAddBlockComputeDescriptorSetLayout();
+  void printDebugValues();
   void addBlock(int x, int y, int z);
   virtual void initWorld();
 };

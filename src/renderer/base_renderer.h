@@ -17,8 +17,8 @@
 #include <iostream>
 #include <optional>
 
-static constexpr int NB_COMPUTE_BUFFERS = 4;
-static constexpr int NB_ADD_BLOCK_COMPUTE_BUFFERS = 2;
+static constexpr int NB_COMPUTE_BUFFERS = 5;
+static constexpr int NB_ADD_BLOCK_COMPUTE_BUFFERS = 4;
 namespace plaxel {
 
 struct MouseButtons {
@@ -47,7 +47,8 @@ struct SwapChainSupportDetails {
 };
 
 const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
-const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+                                                    VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME};
 constexpr uint32_t MAX_VERTEX_COUNT = 8192;
 constexpr uint32_t MAX_INDEX_COUNT = 8192;
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;

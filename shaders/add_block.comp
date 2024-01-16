@@ -1,16 +1,47 @@
 #version 450
+#extension GL_EXT_debug_printf : enable
 
 #define W 8
 #define MAX_B W*W*W
 
-
-layout(std430, binding = 0) buffer VoxelTreeNode {
+struct VoxelTreeLeaf {
     uint blocks[MAX_B];
 };
 
-layout(std430, binding = 1) buffer AddedBlock { int addedX, addedY, addedZ; };
+struct VoxelTreeNode {
+    uint height;
+    uint children[4];
+    uint leaf;
+    int x;
+    int y;
+};
+
+layout(std430, binding = 0) buffer VoxelTreeNodes {
+    uint rootNodeIndex;
+    uint lastNodeIndex;
+    VoxelTreeNode nodes[];
+};
+
+layout(std430, binding = 1) buffer VoxelTreeLeaves {
+    uint lastLeafIndex;
+    VoxelTreeLeaf leaves[];
+};
+
+layout(std430, binding = 2) buffer AddedBlock { int addedX, addedY, addedZ; };
+
+struct DebugValue { int key; int value; };
+layout(std430, binding = 3) buffer DebugData { uint debugInd; DebugValue debugValues[]; };
+#define debug(K, V) debugValues[atomicAdd(debugInd, 1)] = DebugValue(int(K), int(V))
 
 layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+uint createNode();
+void checkCurrentRootCoverage(int x, int y);
+bool isNotCoveredByRoot(int x, int y);
+void addBlock(int x, int y, int z);
+uint createParentNode(uint child, int x, int y);
+uint createChildNode(uint parent, uint childIndex);
+uint createLeaf();
 
 // TODO:refactor
 uint getBlockInd(int x, int y, int z) {
@@ -19,5 +50,131 @@ uint getBlockInd(int x, int y, int z) {
 
 void main()
 {
-    blocks[getBlockInd(addedX, addedY, addedZ)] = 1;
+    debugInd = 0;
+    if (lastNodeIndex == 0) {
+        rootNodeIndex = createNode();
+    }
+
+    addBlock(addedX, addedY, addedZ);
 }
+
+void addBlock(int x, int y, int z) {
+    checkCurrentRootCoverage(x, y);
+
+    uint index = rootNodeIndex;
+    uint height = nodes[index].height;
+
+    int startX = nodes[index].x * W;
+    int startY = nodes[index].y * W;
+    x -= startX;
+    y -= startY;
+
+    while (index != -1 && height > 0) {
+        debugPrintfEXT("Test debug");
+        debug(3, 0);
+        int halfSize = W << (height - 1);
+        uint childIndex = 0;
+        if (x >= halfSize) {
+            childIndex ++;
+            x -= halfSize;
+        }
+        if (y >= halfSize) {
+            childIndex += 2;
+            y -= halfSize;
+        }
+        debug(2, halfSize);
+        debug(2, childIndex);
+        uint nextIndex = nodes[index].children[childIndex];
+        if (nextIndex == -1) {
+            nextIndex = createChildNode(index, childIndex);
+        }
+        index = nextIndex;
+        height = nodes[index].height;
+        debug(1, index);
+        debug(1, height);
+        debug(-1, 0);
+    }
+    if (index != -1 && x < W && y < W && z < W) {
+        if (nodes[index].leaf == -1) {
+            nodes[index].leaf = createLeaf();
+        }
+        if (nodes[index].leaf != -1) {
+            leaves[nodes[index].leaf].blocks[getBlockInd(x, y, z)] = 1;
+        }
+    }
+}
+
+uint createNode() {
+    if (nodes.length() <= lastNodeIndex) {
+        return -1;
+    }
+    uint index = lastNodeIndex++;
+    nodes[index].leaf = -1;
+    for (int i = 0; i < 4; i++) {
+        nodes[index].children[i] = -1;
+    }
+    return index;
+}
+
+// If the current root does not allow to cover the addedblock, a new root (or severals) of higher height will be created
+void checkCurrentRootCoverage(int x, int y) {
+    while (isNotCoveredByRoot(x, y)) {
+        // The current root does not cover the added block
+        rootNodeIndex = createParentNode(rootNodeIndex, x, y);
+    }
+}
+
+bool isNotCoveredByRoot(int x, int y) {
+    uint rootHeight = nodes[rootNodeIndex].height;
+    int startX = nodes[rootNodeIndex].x * W;
+    int startY = nodes[rootNodeIndex].y * W;
+    int maxSize = W << rootHeight;
+
+    return x >= maxSize + startX || y >= maxSize + startY || x < startX || y < startY;
+}
+
+uint createParentNode(uint child, int x, int y) {
+    uint index = createNode();
+    if (index != -1) {
+        uint height = nodes[child].height;
+        int nodeX = nodes[child].x;
+        int nodeY = nodes[child].y;
+        int childIndex = 0;
+        if (x < nodeX * W) {
+            childIndex++;
+            nodeX -= 1 << height;
+        }
+        if (y < nodeY * W) {
+            childIndex+=2;
+            nodeY -= 1 << height;
+        }
+        nodes[index].children[childIndex] = child;
+        nodes[index].height = nodes[child].height + 1;
+        nodes[index].x = nodeX;
+        nodes[index].y = nodeY;
+    }
+    return index;
+}
+
+uint createChildNode(uint parent, uint childIndex) {
+    uint index = createNode();
+    debug(0, index);
+    if (index != -1) {
+        nodes[parent].children[childIndex] = index;
+        uint height = nodes[parent].height - 1;
+        nodes[index].height = height;
+        nodes[index].x = nodes[parent].x + int(childIndex % 2 << height);
+        nodes[index].y = nodes[parent].y + int(childIndex / 2 % 2 << height);
+    }
+    return nodes[parent].children[childIndex];
+}
+
+uint createLeaf() {
+    if (leaves.length() <= lastLeafIndex) {
+        return -1;
+    }
+    return lastLeafIndex++;
+}
+
+// TODO: add debug logging?
+// TODO: Performance idea: make addBlock deals with one node at once (starting with rootNode) and allows parallel addBlock on multiple nodes at once

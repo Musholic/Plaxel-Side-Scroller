@@ -38,7 +38,7 @@ private:
                    const vk::MemoryPropertyFlags &properties) const;
 
 public:
-  template <typename T> std::vector<T> getData() {
+  template <typename T> std::vector<T> getVectorData() {
     if (!mappedMemory) {
       mappedMemory = bufferMemory.mapMemory(0, bufferSize);
     }
@@ -46,6 +46,15 @@ public:
     std::vector<T> mem;
     mem.reserve(size);
     memcpy(mem.data(), mappedMemory, bufferSize);
+    return mem;
+  }
+
+  template <typename T> T getData() {
+    if (!mappedMemory) {
+      mappedMemory = bufferMemory.mapMemory(0, bufferSize);
+    }
+    T mem;
+    memcpy(&mem, mappedMemory, bufferSize);
     return mem;
   }
 };

@@ -24,8 +24,27 @@ layout(std430, binding = 2) buffer DrawCommand {
     uint    firstInstance;
 };
 
-layout(std430, binding = 3) buffer VoxelTreeNode {
+struct VoxelTreeLeaf {
     uint blocks[MAX_B];
+};
+
+struct VoxelTreeNode {
+    uint height;
+    uint children[4];
+    uint leaf;
+    int x;
+    int y;
+};
+
+layout(std430, binding = 3) buffer VoxelTreeNodes {
+    uint rootNodeIndex;
+    uint lastNodeIndex;
+    VoxelTreeNode nodes[];
+};
+
+layout(std430, binding = 4) buffer VoxelTreeLeaves {
+    uint lastLeafIndex;
+    VoxelTreeLeaf leaves[];
 };
 
 layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
@@ -34,6 +53,8 @@ layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 uint vInd = 0;
 // Index of the lastly available index buffer index
 uint iInd = 0;
+uint currentLeafIndex = 0;
+uint currentNodeIndex = 0;
 
 uint addVertex(vec3 pos, vec2 texCoord);
 void addSquare(uint a, uint b, uint c, uint d);
@@ -45,12 +66,16 @@ uint getBlockInd(int x, int y, int z);
 void main()
 {
     uint index = gl_GlobalInvocationID.x;
-
-    for (int x = 0; x < W; x ++) {
-        for (int y = 0; y < W; y ++) {
-            for (int z = 0; z < W; z ++) {
-                if (blocks[getBlockInd(x, y, z)] > 0) {
-                    drawCube(x, y, z);
+    for (currentNodeIndex = 0; currentNodeIndex < lastNodeIndex; currentNodeIndex ++) {
+        if (nodes[currentNodeIndex].leaf != -1) {
+            currentLeafIndex = nodes[currentNodeIndex].leaf;
+            for (int x = 0; x < W; x ++) {
+                for (int y = 0; y < W; y ++) {
+                    for (int z = 0; z < W; z ++) {
+                        if (leaves[currentLeafIndex].blocks[getBlockInd(x, y, z)] > 0) {
+                            drawCube(x, y, z);
+                        }
+                    }
                 }
             }
         }
@@ -84,6 +109,9 @@ void setupDrawCommand() {
 }
 
 void drawCube(int x, int y, int z) {
+    x += W * nodes[currentNodeIndex].x;
+    y += W * nodes[currentNodeIndex].y;
+
     // Back side
     uint a, b, c, d;
     if (getBlock(x, y, z - 1) == 0) {
@@ -147,7 +175,7 @@ uint getBlock(int x, int y, int z) {
     z < 0 || z >= W) {
         return 0;
     }
-    return blocks[getBlockInd(x, y, z)];
+    return leaves[currentLeafIndex].blocks[getBlockInd(x, y, z)];
 }
 
 uint getBlockInd(int x, int y, int z) {
