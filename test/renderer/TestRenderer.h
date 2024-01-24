@@ -17,8 +17,8 @@ struct VoxelTreeNode {
   int x{};
   int y{};
   explicit VoxelTreeNode(const plaxel::VoxelTreeNode &node,
-                         const plaxel::VoxelTreeNode gpuNodes[MAX_NODES],
-                         const VoxelTreeLeaf gpuLeaves[MAX_LEAVES]) {
+                         const std::vector<plaxel::VoxelTreeNode> &gpuNodes,
+                         const std::vector<VoxelTreeLeaf> &gpuLeaves) {
     height = node.height;
     x = node.x;
     y = node.y;

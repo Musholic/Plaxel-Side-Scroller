@@ -70,14 +70,16 @@ void Renderer::createComputeDescriptorSets() {
   std::vector<vk::WriteDescriptorSet> descriptorWrites;
 
   computeDescriptorSet = std::move(computeDescriptorSets[0]);
-  descriptorWrites.push_back(vertexBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 0));
-  descriptorWrites.push_back(indexBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 1));
   descriptorWrites.push_back(
-      drawCommandBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 2));
+      voxelTreeNodesBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 0));
   descriptorWrites.push_back(
-      voxelTreeNodesBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 3));
+      voxelTreeLeavesBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 1));
   descriptorWrites.push_back(
-      voxelTreeLeavesBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 4));
+      voxelTreeInfoBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 2));
+  descriptorWrites.push_back(
+      drawCommandBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 3));
+  descriptorWrites.push_back(vertexBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 4));
+  descriptorWrites.push_back(indexBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 5));
 
   addBlockComputeDescriptorSet = std::move(computeDescriptorSets[1]);
   descriptorWrites.push_back(
@@ -85,9 +87,9 @@ void Renderer::createComputeDescriptorSets() {
   descriptorWrites.push_back(
       voxelTreeLeavesBuffer->getDescriptorWriteForCompute(*addBlockComputeDescriptorSet, 1));
   descriptorWrites.push_back(
-      addedBlockBuffer->getDescriptorWriteForCompute(*addBlockComputeDescriptorSet, 2));
+      voxelTreeInfoBuffer->getDescriptorWriteForCompute(*addBlockComputeDescriptorSet, 2));
   descriptorWrites.push_back(
-      debugValuesBuffer->getDescriptorWriteForCompute(*addBlockComputeDescriptorSet, 3));
+      addedBlockBuffer->getDescriptorWriteForCompute(*addBlockComputeDescriptorSet, 3));
 
   device.updateDescriptorSets(descriptorWrites, nullptr);
 }
@@ -137,14 +139,16 @@ void Renderer::createComputeBuffers() {
 
   drawCommandBuffer.emplace(device, physicalDevice, sizeof(VkDrawIndexedIndirectCommand),
                             eStorageBuffer | eIndirectBuffer, eDeviceLocal);
-  constexpr VoxelTreeNodes voxelTreeNodes{};
-  voxelTreeNodesBuffer =
-      createBufferWithInitialData(eStorageBuffer, &voxelTreeNodes, sizeof(voxelTreeNodes));
-  constexpr VoxelTreeLeaves voxelTreeLeaves{};
-  voxelTreeLeavesBuffer =
-      createBufferWithInitialData(eStorageBuffer, &voxelTreeLeaves, sizeof(voxelTreeLeaves));
-  addedBlockBuffer.emplace(device, physicalDevice, sizeof(AddedBlock), eStorageBuffer,
+  voxelTreeNodesBuffer.emplace(device, physicalDevice, MAX_NODES * sizeof(VoxelTreeNode),
+                               eStorageBuffer, eDeviceLocal);
+  voxelTreeLeavesBuffer.emplace(device, physicalDevice, MAX_LEAVES * sizeof(VoxelTreeLeaf),
+                                eStorageBuffer, eDeviceLocal);
+  constexpr VoxelTreeInfo voxelTreeInfo{0,0,0};
+  voxelTreeInfoBuffer =
+      createBufferWithInitialData(eStorageBuffer, &voxelTreeInfo, sizeof(voxelTreeInfo));
+  addedBlockBuffer.emplace(device, physicalDevice, sizeof(AddedBlock), eUniformBuffer,
                            eHostVisible | eHostCoherent);
+  // TODO: remove debugValues and prefer only printf?
   const DebugValues debugValues{};
   debugValuesBuffer =
       createBufferWithInitialData(eStorageBuffer, &debugValues, sizeof(debugValues));
@@ -254,9 +258,9 @@ void Renderer::createDescriptorSetLayout() {
 void Renderer::createComputeDescriptorPool() {
   std::array<vk::DescriptorPoolSize, 2> poolSizes;
   poolSizes[0].type = vk::DescriptorType::eStorageBuffer;
-  poolSizes[0].descriptorCount = NB_COMPUTE_BUFFERS;
-  poolSizes[1].type = vk::DescriptorType::eStorageBuffer;
-  poolSizes[1].descriptorCount = NB_ADD_BLOCK_COMPUTE_BUFFERS;
+  poolSizes[0].descriptorCount = NB_COMPUTE_BUFFERS + NB_ADD_BLOCK_COMPUTE_BUFFERS;
+  poolSizes[1].type = vk::DescriptorType::eUniformBuffer;
+  poolSizes[1].descriptorCount = 1;
 
   vk::DescriptorPoolCreateInfo poolInfo;
   poolInfo.poolSizeCount = poolSizes.size();
@@ -390,6 +394,8 @@ void Renderer::createAddBlockComputeDescriptorSetLayout() {
     layoutBindings.emplace_back(i, vk::DescriptorType::eStorageBuffer, 1,
                                 vk::ShaderStageFlagBits::eCompute);
   }
+  layoutBindings.emplace_back(NB_ADD_BLOCK_COMPUTE_BUFFERS, vk::DescriptorType::eUniformBuffer, 1,
+                              vk::ShaderStageFlagBits::eCompute);
 
   vk::DescriptorSetLayoutCreateInfo layoutInfo{};
   layoutInfo.bindingCount = static_cast<uint32_t>(layoutBindings.size());

@@ -9,6 +9,7 @@
 
 #include "cmrc/cmrc.hpp"
 #include <GLFW/glfw3.h>
+#include <boost/iostreams/filter/zlib.hpp>
 #include <fstream>
 #include <glm/detail/type_mat4x4.hpp>
 #include <glm/fwd.hpp>
@@ -17,8 +18,8 @@
 #include <iostream>
 #include <optional>
 
-static constexpr int NB_COMPUTE_BUFFERS = 5;
-static constexpr int NB_ADD_BLOCK_COMPUTE_BUFFERS = 4;
+static constexpr int NB_COMPUTE_BUFFERS = 6;
+static constexpr int NB_ADD_BLOCK_COMPUTE_BUFFERS = 3;
 namespace plaxel {
 
 struct MouseButtons {
@@ -88,6 +89,7 @@ private:
   // These objects needs to be destructed last
   vk::raii::Context context;
   vk::raii::Instance instance = nullptr;
+  vk::raii::DebugReportCallbackEXT debugReportCallbackHandle = nullptr;
 
 protected:
   virtual void initVulkan();
@@ -98,6 +100,7 @@ protected:
   [[nodiscard]] virtual vk::PipelineLayoutCreateInfo getPipelineLayoutInfo() const;
   [[nodiscard]] virtual vk::PipelineLayoutCreateInfo getComputePipelineLayoutInfo() const;
   virtual void initCustomDescriptorSetLayout();
+  void setupDebugReportCallback();
   void createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling,
                    vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
                    vk::raii::Image &image, vk::raii::DeviceMemory &imageMemory) const;
@@ -238,6 +241,12 @@ private:
   debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                 VkDebugUtilsMessageTypeFlagsEXT messageTypes,
                 VkDebugUtilsMessengerCallbackDataEXT const *pCallbackData, void * /*pUserData*/);
+  static VKAPI_ATTR VkBool32 VKAPI_CALL debugReportCallback(VkDebugReportFlagsEXT flags,
+                                                            VkDebugReportObjectTypeEXT objType,
+                                                            uint64_t srcObject, size_t location,
+                                                            int32_t msgCode,
+                                                            const char *pLayerPrefix,
+                                                            const char *pMsg, void *pUserData);
   void manageFps() const;
   static void printFps();
 };

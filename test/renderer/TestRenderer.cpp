@@ -22,10 +22,11 @@ std::vector<Triangle> TestRenderer::getTriangles() {
 void TestRenderer::addBlock(int x, int y, int z) { Renderer::addBlock(x, y, z); }
 
 void TestRenderer::getVoxelTree() {
-  auto voxelTreeNodes = voxelTreeNodesBuffer->getData<VoxelTreeNodes>();
-  auto voxelTreeLeaves = voxelTreeLeavesBuffer->getData<VoxelTreeLeaves>();
-  auto rootVoxelTreeNode = voxelTreeNodes.nodes[voxelTreeNodes.rootIndex];
-  VoxelTreeNode voxelTree{rootVoxelTreeNode, voxelTreeNodes.nodes, voxelTreeLeaves.leaves};
+  auto nodes = voxelTreeNodesBuffer->getVectorData<plaxel::VoxelTreeNode>();
+  auto leaves = voxelTreeLeavesBuffer->getVectorData<VoxelTreeLeaf>();
+  auto info = voxelTreeInfoBuffer->getData<VoxelTreeInfo>();
+  auto rootVoxelTreeNode = nodes[info.rootNodeIndex];
+  VoxelTreeNode voxelTree{rootVoxelTreeNode, nodes, leaves};
 }
 
 void TestRenderer::initWorld() {}

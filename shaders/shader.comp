@@ -1,22 +1,15 @@
-#version 450
-
 #define W 8
 #define MAX_B W*W*W
 
 struct Vertex {
-    vec3 position;
-    vec2 texCoord;
+    float3 position;
+    float2 texCoord;
 };
 
-layout(std140, binding = 0) buffer Vertices {
-    Vertex vertices[];
-};
+RWStructuredBuffer<Vertex> vertices : register(u4);
+RWStructuredBuffer<uint> indices : register(u5);
 
-layout(std430, binding = 1) buffer Indices {
-    uint indices[];
-};
-
-layout(std430, binding = 2) buffer DrawCommand {
+struct DrawCommand {
     uint    indexCount;
     uint    instanceCount;
     uint    firstIndex;
@@ -24,9 +17,12 @@ layout(std430, binding = 2) buffer DrawCommand {
     uint    firstInstance;
 };
 
-struct VoxelTreeLeaf {
-    uint blocks[MAX_B];
-};
+RWStructuredBuffer<DrawCommand> drawCommand : register(u3);
+#define indexCount drawCommand[0].indexCount
+#define instanceCount drawCommand[0].instanceCount
+#define firstIndex drawCommand[0].firstIndex
+#define vertexOffset drawCommand[0].vertexOffset
+#define firstInstance drawCommand[0].firstInstance
 
 struct VoxelTreeNode {
     uint height;
@@ -36,36 +32,44 @@ struct VoxelTreeNode {
     int y;
 };
 
-layout(std430, binding = 3) buffer VoxelTreeNodes {
-    uint rootNodeIndex;
-    uint lastNodeIndex;
-    VoxelTreeNode nodes[];
+RWStructuredBuffer<VoxelTreeNode> nodes : register(u0);
+
+struct VoxelTreeLeaf {
+    uint blocks[MAX_B];
 };
 
-layout(std430, binding = 4) buffer VoxelTreeLeaves {
-    uint lastLeafIndex;
-    VoxelTreeLeaf leaves[];
+RWStructuredBuffer<VoxelTreeLeaf> leaves : register(u1);
+
+struct VoxelTreeInfo {
+    uint    rootNodeIndex;
+    uint    lastNodeIndex;
+    uint    lastLeafIndex;
 };
 
-layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+RWStructuredBuffer<VoxelTreeInfo> voxelTreeInfo : register(u2);
+#define rootNodeIndex voxelTreeInfo[0].rootNodeIndex
+#define lastNodeIndex voxelTreeInfo[0].lastNodeIndex
+#define lastLeafIndex voxelTreeInfo[0].lastLeafIndex
 
 // Index of the lastly available vertex buffer index
-uint vInd = 0;
+static uint vInd = 0;
 // Index of the lastly available index buffer index
-uint iInd = 0;
-uint currentLeafIndex = 0;
-uint currentNodeIndex = 0;
+static uint iInd = 0;
+static uint currentLeafIndex = 0;
+static uint currentNodeIndex = 0;
 
-uint addVertex(vec3 pos, vec2 texCoord);
+uint addVertex(float3 pos, float2 texCoord);
 void addSquare(uint a, uint b, uint c, uint d);
 void setupDrawCommand();
 void drawCube(int x, int y, int z);
 uint getBlock(int x, int y, int z);
 uint getBlockInd(int x, int y, int z);
 
-void main()
+[numthreads(1, 1, 1)]
+void main(uint3 globalInvocationID : SV_DispatchThreadID)
 {
-    uint index = gl_GlobalInvocationID.x;
+	printf("indexCount0: %u", iInd);
+    uint index = globalInvocationID.x;
     for (currentNodeIndex = 0; currentNodeIndex < lastNodeIndex; currentNodeIndex ++) {
         if (nodes[currentNodeIndex].leaf != -1) {
             currentLeafIndex = nodes[currentNodeIndex].leaf;
@@ -84,7 +88,7 @@ void main()
     setupDrawCommand();
 }
 
-uint addVertex(vec3 pos, vec2 texCoord) {
+uint addVertex(float3 pos, float2 texCoord) {
     vertices[vInd].position = pos;
     vertices[vInd].texCoord = texCoord;
     return vInd++;
@@ -106,6 +110,8 @@ void setupDrawCommand() {
     firstIndex = 0;
     vertexOffset = 0;
     firstInstance = 0;
+
+	printf("indexCount: %u", iInd);
 }
 
 void drawCube(int x, int y, int z) {
@@ -115,55 +121,55 @@ void drawCube(int x, int y, int z) {
     // Back side
     uint a, b, c, d;
     if (getBlock(x, y, z - 1) == 0) {
-        a = addVertex(vec3(x + 1, y, z), vec2(0, 1));
-        b = addVertex(vec3(x, y, z), vec2(1, 1));
-        c = addVertex(vec3(x, y + 1, z), vec2(1, 0));
-        d = addVertex(vec3(x + 1, y + 1, z), vec2(0, 0));
+        a = addVertex(float3(x + 1, y, z), float2(0, 1));
+        b = addVertex(float3(x, y, z), float2(1, 1));
+        c = addVertex(float3(x, y + 1, z), float2(1, 0));
+        d = addVertex(float3(x + 1, y + 1, z), float2(0, 0));
         addSquare(a, b, c, d);
     }
 
     // Front side
     if (getBlock(x, y, z + 1) == 0) {
-        a = addVertex(vec3(x, y, z + 1), vec2(0, 1));
-        b = addVertex(vec3(x + 1, y, z + 1), vec2(1, 1));
-        c = addVertex(vec3(x + 1, y + 1, z + 1), vec2(1, 0));
-        d = addVertex(vec3(x, y+ 1, z + 1), vec2(0, 0));
+        a = addVertex(float3(x, y, z + 1), float2(0, 1));
+        b = addVertex(float3(x + 1, y, z + 1), float2(1, 1));
+        c = addVertex(float3(x + 1, y + 1, z + 1), float2(1, 0));
+        d = addVertex(float3(x, y+ 1, z + 1), float2(0, 0));
         addSquare(a, b, c, d);
     }
 
     // Left side
     if (getBlock(x - 1, y, z) == 0) {
-        a = addVertex(vec3(x, y, z), vec2(0, 1));
-        b = addVertex(vec3(x, y, z + 1), vec2(1, 1));
-        c = addVertex(vec3(x, y + 1, z + 1), vec2(1, 0));
-        d = addVertex(vec3(x, y + 1, z), vec2(0, 0));
+        a = addVertex(float3(x, y, z), float2(0, 1));
+        b = addVertex(float3(x, y, z + 1), float2(1, 1));
+        c = addVertex(float3(x, y + 1, z + 1), float2(1, 0));
+        d = addVertex(float3(x, y + 1, z), float2(0, 0));
         addSquare(a, b, c, d);
     }
 
     // Right side
     if (getBlock(x + 1, y, z) == 0) {
-        a = addVertex(vec3(x + 1, y, z + 1), vec2(0, 1));
-        b = addVertex(vec3(x + 1, y, z), vec2(1, 1));
-        c = addVertex(vec3(x + 1, y + 1, z), vec2(1, 0));
-        d = addVertex(vec3(x + 1, y + 1, z + 1), vec2(0, 0));
+        a = addVertex(float3(x + 1, y, z + 1), float2(0, 1));
+        b = addVertex(float3(x + 1, y, z), float2(1, 1));
+        c = addVertex(float3(x + 1, y + 1, z), float2(1, 0));
+        d = addVertex(float3(x + 1, y + 1, z + 1), float2(0, 0));
         addSquare(a, b, c, d);
     }
 
     // Bottom side
     if (getBlock(x, y - 1, z) == 0) {
-        a = addVertex(vec3(x, y, z + 1), vec2(0, 1));
-        b = addVertex(vec3(x, y, z), vec2(1, 1));
-        c = addVertex(vec3(x + 1, y, z), vec2(1, 0));
-        d = addVertex(vec3(x + 1, y, z + 1), vec2(0, 0));
+        a = addVertex(float3(x, y, z + 1), float2(0, 1));
+        b = addVertex(float3(x, y, z), float2(1, 1));
+        c = addVertex(float3(x + 1, y, z), float2(1, 0));
+        d = addVertex(float3(x + 1, y, z + 1), float2(0, 0));
         addSquare(a, b, c, d);
     }
 
     // Top side
     if (getBlock(x, y + 1, z) == 0) {
-        a = addVertex(vec3(x, y + 1, z), vec2(0, 1));
-        b = addVertex(vec3(x, y + 1, z + 1), vec2(1, 1));
-        c = addVertex(vec3(x + 1, y + 1, z + 1), vec2(1, 0));
-        d = addVertex(vec3(x + 1, y + 1, z), vec2(0, 0));
+        a = addVertex(float3(x, y + 1, z), float2(0, 1));
+        b = addVertex(float3(x, y + 1, z + 1), float2(1, 1));
+        c = addVertex(float3(x + 1, y + 1, z + 1), float2(1, 0));
+        d = addVertex(float3(x + 1, y + 1, z), float2(0, 0));
         addSquare(a, b, c, d);
     }
 }

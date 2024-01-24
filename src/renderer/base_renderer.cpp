@@ -58,6 +58,7 @@ bool BaseRenderer::shouldClose() const { return glfwWindowShouldClose(window); }
 void BaseRenderer::initVulkan() {
   createInstance();
   setupDebugMessenger();
+  setupDebugReportCallback();
   createSurface();
   pickPhysicalDevice();
   createLogicalDevice();
@@ -83,6 +84,14 @@ void BaseRenderer::initCustomDescriptorSetLayout() {
   // Overridden for additional descriptor set layout
 }
 
+void BaseRenderer::setupDebugReportCallback() {
+  vk::DebugReportCallbackCreateInfoEXT debugReportCreateInfo{};
+  debugReportCreateInfo.pfnCallback = debugReportCallback;
+  using enum vk::DebugReportFlagBitsEXT;
+  debugReportCreateInfo.flags = eInformation | eError | eWarning;
+  debugReportCallbackHandle = instance.createDebugReportCallbackEXT(debugReportCreateInfo);
+}
+
 void BaseRenderer::createInstance() {
   if (enableValidationLayers && !checkValidationLayerSupport()) {
     throw VulkanInitializationError("validation layers requested, but not available!");
@@ -93,7 +102,7 @@ void BaseRenderer::createInstance() {
   appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
   appInfo.pEngineName = "PlaxelEngine";
   appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-  appInfo.apiVersion = VK_API_VERSION_1_0;
+  appInfo.apiVersion = VK_API_VERSION_1_3;
 
   vk::InstanceCreateInfo createInfo{};
   createInfo.pApplicationInfo = &appInfo;
@@ -106,11 +115,18 @@ void BaseRenderer::createInstance() {
   // the instance
   vk::DebugUtilsMessengerCreateInfoEXT debugCreateInfo = createDebugMessengerCreateInfo();
 
+  vk::ValidationFeaturesEXT features{};
+  features.enabledValidationFeatureCount = 1;
+  constexpr vk::ValidationFeatureEnableEXT enabled[] = {
+      vk::ValidationFeatureEnableEXT::eDebugPrintf};
+  features.pEnabledValidationFeatures = enabled;
+
   if (enableValidationLayers) {
     createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
     createInfo.ppEnabledLayerNames = validationLayers.data();
 
     createInfo.pNext = reinterpret_cast<VkDebugUtilsMessengerCreateInfoEXT *>(&debugCreateInfo);
+    debugCreateInfo.pNext = &features;
   } else {
     createInfo.enabledLayerCount = 0;
 
@@ -149,6 +165,7 @@ std::vector<const char *> BaseRenderer::getRequiredExtensions() const {
 
   if (enableValidationLayers) {
     extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    extensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
   }
 
   return extensions;
@@ -156,7 +173,6 @@ std::vector<const char *> BaseRenderer::getRequiredExtensions() const {
 
 vk::DebugUtilsMessengerCreateInfoEXT BaseRenderer::createDebugMessengerCreateInfo() {
   vk::DebugUtilsMessengerCreateInfoEXT createInfo;
-  createInfo.sType = vk::StructureType::eDebugUtilsMessengerCreateInfoEXT;
 
   using enum vk::DebugUtilsMessageSeverityFlagBitsEXT;
   createInfo.messageSeverity = eVerbose | eWarning | eError;
@@ -1265,6 +1281,35 @@ void BaseRenderer::mouseAction(int button, int action, int) {
   if (button == GLFW_MOUSE_BUTTON_LEFT) {
     mouseButtons.left = action == GLFW_PRESS;
   }
+}
+
+VkBool32 BaseRenderer::debugReportCallback(VkDebugReportFlagsEXT flags,
+                                           VkDebugReportObjectTypeEXT objType, uint64_t srcObject,
+                                           size_t location, int32_t msgCode,
+                                           const char *pLayerPrefix, const char *pMsg,
+                                           void *pUserData) {
+  std::string message;
+  {
+    std::stringstream buf;
+    if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT) {
+      buf << "ERROR: ";
+    } else if (flags & VK_DEBUG_REPORT_WARNING_BIT_EXT) {
+      buf << "WARNING: ";
+    } else if (flags & VK_DEBUG_REPORT_INFORMATION_BIT_EXT &&
+               vk::DebugReportObjectTypeEXT{objType} == vk::DebugReportObjectTypeEXT::eUnknown) {
+      // printf message from shaders
+      buf << "INFO: ";
+    } else if (flags & VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT) {
+      buf << "PERF: ";
+    } else {
+      return false;
+    }
+    buf << "[" << pLayerPrefix << "] : " << pMsg;
+    message = buf.str();
+  }
+
+  std::cout << message << std::endl;
+  return false;
 }
 
 VkBool32 BaseRenderer::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,

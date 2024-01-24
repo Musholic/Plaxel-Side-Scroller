@@ -23,6 +23,7 @@ public:
                                                const vk::raii::PhysicalDevice &physicalDevice);
 
 private:
+  vk::BufferUsageFlags usage;
   vk::raii::Buffer buffer;
   vk::raii::DeviceMemory bufferMemory;
   vk::DeviceSize bufferSize;
@@ -31,8 +32,7 @@ private:
   vk::WriteDescriptorSet descriptorWrite{};
   vk::DescriptorBufferInfo storageBufferInfoCurrentFrame{};
 
-  static vk::raii::Buffer initBuffer(const vk::raii::Device &device, unsigned long size,
-                                     const vk::BufferUsageFlags &usage);
+  vk::raii::Buffer initBuffer(const vk::raii::Device &device, unsigned long size) const;
   [[nodiscard]] vk::raii::DeviceMemory
   initBufferMemory(const vk::raii::Device &device, const vk::raii::PhysicalDevice &physicalDevice,
                    const vk::MemoryPropertyFlags &properties) const;

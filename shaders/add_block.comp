@@ -1,12 +1,8 @@
-#version 450
-#extension GL_EXT_debug_printf : enable
-
-#define W 8
+#define W 8u
 #define MAX_B W*W*W
 
-struct VoxelTreeLeaf {
-    uint blocks[MAX_B];
-};
+// TODO: test/use HLSL2021 features (template function, struct methods/operators)
+
 
 struct VoxelTreeNode {
     uint height;
@@ -16,24 +12,28 @@ struct VoxelTreeNode {
     int y;
 };
 
-layout(std430, binding = 0) buffer VoxelTreeNodes {
+RWStructuredBuffer<VoxelTreeNode> nodes : register(u0);
+
+struct VoxelTreeLeaf {
+    uint blocks[MAX_B];
+};
+
+RWStructuredBuffer<VoxelTreeLeaf> leaves : register(u1);
+
+struct VoxelTreeInfo {
     uint rootNodeIndex;
     uint lastNodeIndex;
-    VoxelTreeNode nodes[];
-};
-
-layout(std430, binding = 1) buffer VoxelTreeLeaves {
     uint lastLeafIndex;
-    VoxelTreeLeaf leaves[];
 };
 
-layout(std430, binding = 2) buffer AddedBlock { int addedX, addedY, addedZ; };
+RWStructuredBuffer<VoxelTreeInfo> voxelTreeInfo : register(u2);
+#define rootNodeIndex voxelTreeInfo[0].rootNodeIndex
+#define lastNodeIndex voxelTreeInfo[0].lastNodeIndex
+#define lastLeafIndex voxelTreeInfo[0].lastLeafIndex
 
-struct DebugValue { int key; int value; };
-layout(std430, binding = 3) buffer DebugData { uint debugInd; DebugValue debugValues[]; };
-#define debug(K, V) debugValues[atomicAdd(debugInd, 1)] = DebugValue(int(K), int(V))
-
-layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+cbuffer addedBlock : register(b3) {
+ int addedX, addedY, addedZ;
+};
 
 uint createNode();
 void checkCurrentRootCoverage(int x, int y);
@@ -48,11 +48,14 @@ uint getBlockInd(int x, int y, int z) {
     return x + W * y + W * W * z;
 }
 
+[numthreads(1, 1, 1)]
 void main()
 {
-    debugInd = 0;
     if (lastNodeIndex == 0) {
         rootNodeIndex = createNode();
+        nodes[rootNodeIndex].height = 0;
+        nodes[rootNodeIndex].x = 0;
+        nodes[rootNodeIndex].y = 0;
     }
 
     addBlock(addedX, addedY, addedZ);
@@ -70,8 +73,6 @@ void addBlock(int x, int y, int z) {
     y -= startY;
 
     while (index != -1 && height > 0) {
-        debugPrintfEXT("Test debug");
-        debug(3, 0);
         int halfSize = W << (height - 1);
         uint childIndex = 0;
         if (x >= halfSize) {
@@ -82,18 +83,14 @@ void addBlock(int x, int y, int z) {
             childIndex += 2;
             y -= halfSize;
         }
-        debug(2, halfSize);
-        debug(2, childIndex);
         uint nextIndex = nodes[index].children[childIndex];
         if (nextIndex == -1) {
             nextIndex = createChildNode(index, childIndex);
         }
         index = nextIndex;
         height = nodes[index].height;
-        debug(1, index);
-        debug(1, height);
-        debug(-1, 0);
     }
+
     if (index != -1 && x < W && y < W && z < W) {
         if (nodes[index].leaf == -1) {
             nodes[index].leaf = createLeaf();
@@ -105,7 +102,10 @@ void addBlock(int x, int y, int z) {
 }
 
 uint createNode() {
-    if (nodes.length() <= lastNodeIndex) {
+    uint maxNodes;
+    uint stride;
+    nodes.GetDimensions(maxNodes, stride);
+    if (maxNodes <= lastNodeIndex) {
         return -1;
     }
     uint index = lastNodeIndex++;
@@ -142,11 +142,11 @@ uint createParentNode(uint child, int x, int y) {
         int childIndex = 0;
         if (x < nodeX * W) {
             childIndex++;
-            nodeX -= 1 << height;
+            nodeX -= 1u << height;
         }
         if (y < nodeY * W) {
             childIndex+=2;
-            nodeY -= 1 << height;
+            nodeY -= 1u << height;
         }
         nodes[index].children[childIndex] = child;
         nodes[index].height = nodes[child].height + 1;
@@ -158,7 +158,6 @@ uint createParentNode(uint child, int x, int y) {
 
 uint createChildNode(uint parent, uint childIndex) {
     uint index = createNode();
-    debug(0, index);
     if (index != -1) {
         nodes[parent].children[childIndex] = index;
         uint height = nodes[parent].height - 1;
@@ -170,11 +169,17 @@ uint createChildNode(uint parent, uint childIndex) {
 }
 
 uint createLeaf() {
-    if (leaves.length() <= lastLeafIndex) {
+    uint maxLeaves;
+    uint stride;
+    leaves.GetDimensions(maxLeaves, stride);
+    if (maxLeaves <= lastLeafIndex) {
         return -1;
     }
+    for(uint i = 0; i < MAX_B; i++) {
+        leaves[lastLeafIndex].blocks[i] = 0;
+    }
+    //TODO: initialize all blocks to 0
     return lastLeafIndex++;
 }
 
-// TODO: add debug logging?
 // TODO: Performance idea: make addBlock deals with one node at once (starting with rootNode) and allows parallel addBlock on multiple nodes at once

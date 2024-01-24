@@ -26,19 +26,14 @@ struct VoxelTreeNode {
   int32_t y;
 };
 
-struct VoxelTreeNodes {
-  uint32_t rootIndex;
-  uint32_t lastIndex;
-  VoxelTreeNode nodes[MAX_NODES];
-};
-
 struct VoxelTreeLeaf {
   uint32_t blocks[NB_BLOCKS];
 };
 
-struct VoxelTreeLeaves {
-  uint32_t lastIndex;
-  VoxelTreeLeaf leaves[MAX_LEAVES];
+struct VoxelTreeInfo {
+  uint32_t rootNodeIndex;
+  uint32_t lastNodeIndex;
+  uint32_t lastLeafIndex;
 };
 
 struct AddedBlock {
@@ -108,6 +103,7 @@ protected:
   std::optional<Buffer> drawCommandBuffer;
   std::optional<Buffer> voxelTreeNodesBuffer;
   std::optional<Buffer> voxelTreeLeavesBuffer;
+  std::optional<Buffer> voxelTreeInfoBuffer;
   std::optional<Buffer> addedBlockBuffer;
   std::optional<Buffer> debugValuesBuffer;
 

@@ -1,17 +1,26 @@
-#version 450
+struct UBOMatrices {
+	float4x4 model;
+	float4x4 view;
+	float4x4 proj;
+};
 
-layout(binding = 0) uniform UniformBufferObject {
-    mat4 model;
-    mat4 view;
-    mat4 proj;
-} ubo;
+cbuffer ubo : register(b0) { UBOMatrices ubo; };
 
-layout(location = 0) in vec3 inPosition;
-layout(location = 1) in vec2 inTexCoord;
+struct VSInput
+{
+[[vk::location(0)]] float3 pos : POSITION0;
+[[vk::location(1)]] float2 texCoord : TEXCOORD0;
+};
 
-layout(location = 0) out vec2 fragTexCoord;
+struct VSOutput
+{
+    float4 pos : SV_POSITION;
+[[vk::location(0)]] float2 texCoord : TEXCOORD0;
+};
 
-void main() {
-    gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPosition, 1.0);
-    fragTexCoord = inTexCoord;
+VSOutput main(VSInput input) {
+	VSOutput output = (VSOutput)0;
+	output.pos = mul(ubo.proj, mul(ubo.view, mul(ubo.model, float4(input.pos, 1.0))));
+	output.texCoord = input.texCoord;
+	return output;
 }
