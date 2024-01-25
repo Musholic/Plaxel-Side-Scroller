@@ -16,7 +16,6 @@ constexpr int BLOCK_W = 8;
 constexpr int NB_BLOCKS = BLOCK_W * BLOCK_W * BLOCK_W;
 constexpr int MAX_NODES = 100;
 constexpr int MAX_LEAVES = MAX_NODES;
-constexpr int MAX_DEBUG_VALUES = 1000;
 
 struct VoxelTreeNode {
   uint32_t height;
@@ -38,16 +37,6 @@ struct VoxelTreeInfo {
 
 struct AddedBlock {
   int32_t x, y, z;
-};
-
-struct DebugValue {
-  int32_t key;
-  int32_t value;
-};
-
-struct DebugValues {
-  uint32_t lastIndex;
-  DebugValue values[MAX_DEBUG_VALUES];
 };
 
 struct Vertex {
@@ -105,7 +94,6 @@ protected:
   std::optional<Buffer> voxelTreeLeavesBuffer;
   std::optional<Buffer> voxelTreeInfoBuffer;
   std::optional<Buffer> addedBlockBuffer;
-  std::optional<Buffer> debugValuesBuffer;
 
   vk::raii::DescriptorSetLayout addBlockComputeDescriptorSetLayout = nullptr;
   vk::raii::DescriptorSet addBlockComputeDescriptorSet = nullptr;
@@ -134,7 +122,6 @@ protected:
                                      vk::DeviceSize size) const;
   void createAddBlockComputePipeline();
   void createAddBlockComputeDescriptorSetLayout();
-  void printDebugValues();
   void addBlock(int x, int y, int z);
   virtual void initWorld();
 };

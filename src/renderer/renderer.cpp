@@ -148,10 +148,6 @@ void Renderer::createComputeBuffers() {
       createBufferWithInitialData(eStorageBuffer, &voxelTreeInfo, sizeof(voxelTreeInfo));
   addedBlockBuffer.emplace(device, physicalDevice, sizeof(AddedBlock), eUniformBuffer,
                            eHostVisible | eHostCoherent);
-  // TODO: remove debugValues and prefer only printf?
-  const DebugValues debugValues{};
-  debugValuesBuffer =
-      createBufferWithInitialData(eStorageBuffer, &debugValues, sizeof(debugValues));
 }
 
 Buffer Renderer::createBufferWithInitialData(const vk::BufferUsageFlags usage, const void *src,
@@ -404,17 +400,6 @@ void Renderer::createAddBlockComputeDescriptorSetLayout() {
   addBlockComputeDescriptorSetLayout = vk::raii::DescriptorSetLayout(device, layoutInfo);
 }
 
-void Renderer::printDebugValues() {
-  const auto debugValues = debugValuesBuffer->getData<DebugValues>();
-  std::string debugData;
-  for (int i = 0; i < debugValues.lastIndex; ++i) {
-    const auto debugValue = debugValues.values[i];
-    debugData += "\n\t" + std::to_string(debugValue.key) + ": " + std::to_string(debugValue.value);
-  }
-
-  std::cout << "Debug data: " << debugData << std::endl;
-}
-
 void Renderer::addBlock(int x, int y, int z) {
   const AddedBlock addedBlock{x, y, z};
   addedBlockBuffer->copyToMemory(&addedBlock);
@@ -436,7 +421,6 @@ void Renderer::addBlock(int x, int y, int z) {
 
   computeQueue.submit(submitInfo);
   device.waitIdle();
-  printDebugValues();
 }
 
 void Renderer::initWorld() {

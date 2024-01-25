@@ -68,7 +68,6 @@ uint getBlockInd(int x, int y, int z);
 [numthreads(1, 1, 1)]
 void main(uint3 globalInvocationID : SV_DispatchThreadID)
 {
-	printf("indexCount0: %u", iInd);
     uint index = globalInvocationID.x;
     for (currentNodeIndex = 0; currentNodeIndex < lastNodeIndex; currentNodeIndex ++) {
         if (nodes[currentNodeIndex].leaf != -1) {
@@ -110,8 +109,6 @@ void setupDrawCommand() {
     firstIndex = 0;
     vertexOffset = 0;
     firstInstance = 0;
-
-	printf("indexCount: %u", iInd);
 }
 
 void drawCube(int x, int y, int z) {
