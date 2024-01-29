@@ -1,35 +1,6 @@
-#define W 8u
-#define MAX_B W*W*W
-
 // TODO: test/use HLSL2021 features (template function, struct methods/operators)
 
-
-struct VoxelTreeNode {
-    uint height;
-    uint children[4];
-    uint leaf;
-    int x;
-    int y;
-};
-
-RWStructuredBuffer<VoxelTreeNode> nodes : register(u0);
-
-struct VoxelTreeLeaf {
-    uint blocks[MAX_B];
-};
-
-RWStructuredBuffer<VoxelTreeLeaf> leaves : register(u1);
-
-struct VoxelTreeInfo {
-    uint rootNodeIndex;
-    uint lastNodeIndex;
-    uint lastLeafIndex;
-};
-
-RWStructuredBuffer<VoxelTreeInfo> voxelTreeInfo : register(u2);
-#define rootNodeIndex voxelTreeInfo[0].rootNodeIndex
-#define lastNodeIndex voxelTreeInfo[0].lastNodeIndex
-#define lastLeafIndex voxelTreeInfo[0].lastLeafIndex
+#include "common.hlsli"
 
 cbuffer addedBlock : register(b3) {
  int addedX, addedY, addedZ;
@@ -44,11 +15,6 @@ uint createChildNode(uint parent, uint childIndex);
 uint createLeaf();
 uint findLeafNode(inout int x, inout int y);
 uint findChildIndex(uint index, inout int x, inout int y);
-
-// TODO:refactor
-uint getBlockInd(int x, int y, int z) {
-    return x + W * y + W * W * z;
-}
 
 [numthreads(1, 1, 1)]
 void main()
