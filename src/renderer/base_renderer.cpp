@@ -1296,8 +1296,9 @@ VkBool32 BaseRenderer::debugReportCallback(VkDebugReportFlagsEXT flags,
     } else if (flags & VK_DEBUG_REPORT_WARNING_BIT_EXT) {
       buf << "WARNING: ";
     } else if (flags & VK_DEBUG_REPORT_INFORMATION_BIT_EXT &&
-               vk::DebugReportObjectTypeEXT{objType} == vk::DebugReportObjectTypeEXT::eUnknown) {
-      // printf message from shaders
+               strcmp(pLayerPrefix, "Loader Message") != 0) {
+      // Filter out loader message which is verbose and not what we are interested in
+      // Includes printf message from shaders
       buf << "INFO: ";
     } else if (flags & VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT) {
       buf << "PERF: ";

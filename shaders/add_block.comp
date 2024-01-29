@@ -42,6 +42,8 @@ void addBlock(int x, int y, int z);
 uint createParentNode(uint child, int x, int y);
 uint createChildNode(uint parent, uint childIndex);
 uint createLeaf();
+uint findLeafNode(inout int x, inout int y);
+uint findChildIndex(uint index, inout int x, inout int y);
 
 // TODO:refactor
 uint getBlockInd(int x, int y, int z) {
@@ -64,34 +66,9 @@ void main()
 void addBlock(int x, int y, int z) {
     checkCurrentRootCoverage(x, y);
 
-    uint index = rootNodeIndex;
-    uint height = nodes[index].height;
+    uint index = findLeafNode(x, y);
 
-    int startX = nodes[index].x * W;
-    int startY = nodes[index].y * W;
-    x -= startX;
-    y -= startY;
-
-    while (index != -1 && height > 0) {
-        int halfSize = W << (height - 1);
-        uint childIndex = 0;
-        if (x >= halfSize) {
-            childIndex ++;
-            x -= halfSize;
-        }
-        if (y >= halfSize) {
-            childIndex += 2;
-            y -= halfSize;
-        }
-        uint nextIndex = nodes[index].children[childIndex];
-        if (nextIndex == -1) {
-            nextIndex = createChildNode(index, childIndex);
-        }
-        index = nextIndex;
-        height = nodes[index].height;
-    }
-
-    if (index != -1 && x < W && y < W && z < W) {
+    if (index != -1) {
         if (nodes[index].leaf == -1) {
             nodes[index].leaf = createLeaf();
         }
@@ -182,4 +159,40 @@ uint createLeaf() {
     return lastLeafIndex++;
 }
 
+uint findChildIndex(uint index, inout int x, inout int y) {
+        uint height = nodes[index].height;
+        int halfSize = W << (height - 1);
+        uint childIndex = 0;
+        if (x >= halfSize) {
+            childIndex ++;
+            x -= halfSize;
+        }
+        if (y >= halfSize) {
+            childIndex += 2;
+            y -= halfSize;
+        }
+        uint nextIndex = nodes[index].children[childIndex];
+        if (nextIndex == -1) {
+            nextIndex = createChildNode(index, childIndex);
+        }
+        return nextIndex;
+}
+
+uint findLeafNode(inout int x, inout int y) {
+    uint index = rootNodeIndex;
+
+    int startX = nodes[index].x * W;
+    int startY = nodes[index].y * W;
+    x -= startX;
+    y -= startY;
+
+    // This for loop should be replace by a while loop, but the while loop seems bugged by only iterating once
+    // TODO: check if the problem is also there on an actual graphic card
+    [unroll(20)]
+    for(int i = 0; i < 20; i++)
+    if (index != -1 && nodes[index].height > 0) {
+        index = findChildIndex(index, x, y);
+    }
+    return index;
+}
 // TODO: Performance idea: make addBlock deals with one node at once (starting with rootNode) and allows parallel addBlock on multiple nodes at once
