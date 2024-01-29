@@ -3,9 +3,9 @@
 namespace plaxel {
 
 Buffer::Buffer(const vk::raii::Device &device, const vk::raii::PhysicalDevice &physicalDevice,
-               const vk::DeviceSize size, const vk::BufferUsageFlags usage,
+               const vk::DeviceSize size, const vk::BufferUsageFlags bufferUsage,
                const vk::MemoryPropertyFlags properties)
-    : usage(usage), buffer(initBuffer(device, size)),
+    : usage(bufferUsage), buffer(initBuffer(device, size)),
       bufferMemory(initBufferMemory(device, physicalDevice, properties)), bufferSize(size) {
 
   buffer.bindMemory(*bufferMemory, 0);

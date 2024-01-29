@@ -1284,10 +1284,12 @@ void BaseRenderer::mouseAction(int button, int action, int) {
 }
 
 VkBool32 BaseRenderer::debugReportCallback(VkDebugReportFlagsEXT flags,
-                                           VkDebugReportObjectTypeEXT objType, uint64_t srcObject,
-                                           size_t location, int32_t msgCode,
+                                           [[maybe_unused]] VkDebugReportObjectTypeEXT objType,
+                                           [[maybe_unused]] uint64_t srcObject,
+                                           [[maybe_unused]] size_t location,
+                                           [[maybe_unused]] int32_t msgCode,
                                            const char *pLayerPrefix, const char *pMsg,
-                                           void *pUserData) {
+                                           [[maybe_unused]] void *pUserData) {
   std::string message;
   {
     std::stringstream buf;

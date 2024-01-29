@@ -12,7 +12,7 @@ public:
 class Buffer {
 public:
   Buffer(const vk::raii::Device &device, const vk::raii::PhysicalDevice &physicalDevice,
-         vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
+         vk::DeviceSize size, vk::BufferUsageFlags bufferUsage, vk::MemoryPropertyFlags properties);
   [[nodiscard]] vk::Buffer getBuffer() const;
   vk::WriteDescriptorSet &getDescriptorWriteForCompute(vk::DescriptorSet computeDescriptorSet,
                                                        int dstBinding);

@@ -5,6 +5,8 @@
 #include <set>
 
 namespace plaxel::test {
+constexpr uint32_t UINT32_NULL_VALUE = -1;
+
 struct Triangle {
   Vertex vertices[3];
   [[nodiscard]] std::string toString() const;
@@ -24,20 +26,20 @@ struct VoxelTreeNode {
     y = node.y;
     for (int i = 0; i < 4; ++i) {
       const uint32_t child = node.children[i];
-      if (child != -1) {
+      if (child != UINT32_NULL_VALUE) {
         children[i].emplace(gpuNodes[child], gpuNodes, gpuLeaves);
       }
     }
-    if (node.leaf != -1) {
+    if (node.leaf != UINT32_NULL_VALUE) {
       for (int i = 0; i < NB_BLOCKS; ++i) {
         if (gpuLeaves[node.leaf].blocks[i] == 1) {
-          const int x = i % BLOCK_W;
-          const int y = (i / BLOCK_W) % BLOCK_W;
-          const int z = i / BLOCK_W / BLOCK_W;
+          const int xBlock = i % BLOCK_W;
+          const int yBlock = (i / BLOCK_W) % BLOCK_W;
+          const int zBlock = i / BLOCK_W / BLOCK_W;
           std::string block;
-          block += std::to_string(x) + ";";
-          block += std::to_string(y) + ";";
-          block += std::to_string(z);
+          block += std::to_string(xBlock) + ";";
+          block += std::to_string(yBlock) + ";";
+          block += std::to_string(zBlock);
 
           blocks.emplace(block);
         }
