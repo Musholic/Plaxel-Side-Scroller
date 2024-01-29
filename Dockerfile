@@ -1,5 +1,5 @@
 # Debian testing is used since we need a recent version of vulkan headers
-FROM debian:testing-slim
+FROM debian:unstable-slim
 ARG DEBIAN_FRONTEND=noninteractive
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
@@ -14,7 +14,13 @@ RUN sh vcpkg/bootstrap-vcpkg.sh
 RUN --mount=type=cache,target=/app/vcpkg/buildtrees \
     --mount=type=cache,target=/app/vcpkg/downloads \
     --mount=type=cache,target=/app/vcpkg/packages \
-    ./vcpkg/vcpkg install
+    ./vcpkg/vcpkg install \
+#TODO: update the compiler to a more recent version since this one crashes when we use the "-fspv-debug=vulkan-with-source" parameter
+RUN wget https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.7.2308/linux_dxc_2023_08_14.x86_64.tar.gz -O dxc.tar.gz
+RUN mkdir /opt/dxc
+RUN tar -xvzf dxc.tar.gz -C /opt/dxc
+RUN chmod +x /opt/dxc/bin/dxc
+ENV PATH="${PATH}:/opt/dxc/bin"
 ADD . /app/
 RUN cmake --workflow --preset build
 WORKDIR /app/build/debug
