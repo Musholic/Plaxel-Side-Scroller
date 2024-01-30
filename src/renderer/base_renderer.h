@@ -4,6 +4,7 @@
 #include <vulkan/vulkan_raii.hpp>
 
 #include "Buffer.h"
+#include "UIOverlay.h"
 #include "camera.h"
 #include "file_utils.h"
 
@@ -80,6 +81,7 @@ public:
 
   void closeWindow() const;
   [[nodiscard]] bool shouldClose() const;
+  void initializeOverlay();
   void draw();
   void showWindow();
 
@@ -129,6 +131,8 @@ protected:
   std::vector<Buffer> uniformBuffers{};
   vk::raii::CommandBuffer computeCommandBuffer = nullptr;
   vk::raii::Queue computeQueue = nullptr;
+
+  UIOverlay overlay;
 
 private:
   GLFWwindow *window{};
@@ -215,7 +219,7 @@ private:
   virtual void recordComputeCommandBuffer(vk::CommandBuffer commandBuffer) = 0;
   void waitForFence(vk::Fence fence) const;
   void recreateSwapChain();
-  void recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t imageIndex) const;
+  void recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t imageIndex);
 
   void drawFrame();
   virtual void drawCommand(vk::CommandBuffer commandBuffer) const = 0;

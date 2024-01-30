@@ -55,6 +55,20 @@ void BaseRenderer::framebufferResizeCallback(GLFWwindow *window, [[maybe_unused]
 
 bool BaseRenderer::shouldClose() const { return glfwWindowShouldClose(window); }
 
+void BaseRenderer::initializeOverlay() {
+  ImGui_ImplVulkan_InitInfo initInfo{};
+  initInfo.Instance = *instance;
+  initInfo.PhysicalDevice = *physicalDevice;
+  const QueueFamilyIndices indices = findQueueFamilies(*physicalDevice);
+  initInfo.QueueFamily = *indices.graphicsAndComputeFamily;
+  initInfo.Queue = *graphicsQueue;
+  initInfo.Subpass = 0;
+  initInfo.MinImageCount = 2;
+  initInfo.ImageCount = 2;
+  initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+
+  overlay.initialize(initInfo, window, *renderPass, device);
+}
 void BaseRenderer::initVulkan() {
   createInstance();
   setupDebugMessenger();
@@ -78,6 +92,8 @@ void BaseRenderer::initVulkan() {
   createCommandBuffers();
   createComputeCommandBuffers();
   createSyncObjects();
+
+  initializeOverlay();
 }
 
 void BaseRenderer::initCustomDescriptorSetLayout() {
@@ -709,6 +725,7 @@ void BaseRenderer::createSyncObjects() {
 
 void BaseRenderer::draw() {
   glfwPollEvents();
+  overlay.initNewFrame();
   drawFrame();
   manageFps();
   printFps();
@@ -843,7 +860,7 @@ void BaseRenderer::recreateSwapChain() {
 }
 
 void BaseRenderer::recordCommandBuffer(const vk::CommandBuffer commandBuffer,
-                                       const uint32_t imageIndex) const {
+                                       const uint32_t imageIndex) {
   constexpr vk::CommandBufferBeginInfo beginInfo;
 
   commandBuffer.begin(beginInfo);
@@ -880,6 +897,8 @@ void BaseRenderer::recordCommandBuffer(const vk::CommandBuffer commandBuffer,
   commandBuffer.setScissor(0, scissor);
 
   drawCommand(commandBuffer);
+
+  overlay.render(commandBuffer);
 
   commandBuffer.endRenderPass();
   commandBuffer.end();

@@ -10,6 +10,7 @@ find_package(glm CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 find_package(CMakeRC CONFIG REQUIRED)
+find_package(imgui CONFIG REQUIRED)
 
 # plaxel_lib setup
 set(SOURCES
@@ -26,7 +27,9 @@ set(SOURCES
         src/renderer/file_utils.cpp
         src/renderer/file_utils.h
         test/test_utils.cpp
-        test/test_utils.h)
+        test/test_utils.h
+        src/renderer/UIOverlay.cpp
+        src/renderer/UIOverlay.h)
 
 add_library(plaxel_lib STATIC ${SOURCES})
 
@@ -34,6 +37,7 @@ target_link_libraries(plaxel_lib PRIVATE glm::glm)
 target_link_libraries(plaxel_lib PRIVATE glfw)
 # Public seems required for compilation of test binaries...
 target_link_libraries(plaxel_lib PUBLIC Vulkan::Vulkan)
+target_link_libraries(plaxel_lib PRIVATE imgui::imgui)
 
 target_include_directories(plaxel_lib PRIVATE ${Stb_INCLUDE_DIR})
 
