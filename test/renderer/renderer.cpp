@@ -10,6 +10,8 @@ class RendererTest : public ::testing::Test {
 protected:
   TestRenderer renderer;
   void SetUp() override {
+    UIOverlay::testName =
+        std::string(::testing::UnitTest::GetInstance()->current_test_info()->name());
     if (!SHOW_WINDOW) {
       hideWindowsByDefault();
     }

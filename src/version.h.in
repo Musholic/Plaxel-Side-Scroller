@@ -1,0 +1,5 @@
+#ifndef VERSION_H
+#define VERSION_H
+
+#cmakedefine PROJECT_GIT_VERSION "@PROJECT_GIT_VERSION@"
+#endif //VERSION_H

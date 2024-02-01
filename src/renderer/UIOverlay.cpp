@@ -1,10 +1,14 @@
 #include "UIOverlay.h"
 
+#include "file_utils.h"
+#include "version.h"
+
 #include <array>
 #include <cstdio>
 #include <cstdlib>
 
 using namespace plaxel;
+std::optional<std::string> UIOverlay::testName;
 
 UIOverlay::~UIOverlay() {
   if (ImGui::GetCurrentContext()) {
@@ -28,13 +32,26 @@ void UIOverlay::createDescriptorPool(const vk::raii::Device &device) {
   descriptorPool = vk::raii::DescriptorPool(device, poolInfo);
 }
 
+void UIOverlay::buildFont() {
+  const ImGuiIO &io = ImGui::GetIO();
+  const auto fontFile = files::readFile("fonts/NotoSans-Regular.ttf");
+  ImFontConfig fontConfig{};
+  fontConfig.FontData = std::bit_cast<void *>(fontFile.begin());
+  fontConfig.FontDataSize = static_cast<int>(fontFile.size());
+  fontConfig.SizePixels = 32;
+  // The font data is automatically freed by us
+  fontConfig.FontDataOwnedByAtlas = false;
+  io.Fonts->AddFont(&fontConfig);
+  io.Fonts->Build();
+}
+
 void UIOverlay::initialize(ImGui_ImplVulkan_InitInfo &initInfo, GLFWwindow *window,
-                           VkRenderPass renderPass, const vk::raii::Device &device) {
+                           const VkRenderPass renderPass, const vk::raii::Device &device) {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
+  buildFont();
   ImGuiIO &io = ImGui::GetIO();
-  io.Fonts->AddFontDefault();
-  io.Fonts->Build();
+  io.IniFilename = nullptr;
 
   ImGui_ImplGlfw_InitForVulkan(window, true);
 
@@ -48,11 +65,29 @@ void UIOverlay::initialize(ImGui_ImplVulkan_InitInfo &initInfo, GLFWwindow *wind
   ImGui_ImplVulkan_Init(&initInfo, renderPass);
 }
 
-void UIOverlay::initNewFrame() {
+void UIOverlay::initNewFrame(const int lastFps) {
   ImGui_ImplVulkan_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
-  ImGui::ShowDemoWindow();
+  ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoTitleBar |
+                                 ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+  ImGui::SetNextWindowPos(ImVec2(0, 0));
+
+  ImGui::SetNextWindowSize(ImVec2(400, 300));
+  ImGui::Begin("Debug info", nullptr, windowFlags);
+  std::string title;
+  if (testName.has_value()) {
+    title += "TDD: ";
+    title += *testName;
+  } else {
+    title += "Plaxel v";
+    title += PROJECT_GIT_VERSION;
+  }
+  ImGui::Text(title.c_str());
+  std::string fpsText = "FPS: ";
+  fpsText += std::to_string(lastFps);
+  ImGui::Text(fpsText.c_str());
+  ImGui::End();
 }
 
 void UIOverlay::render(VkCommandBuffer commandBuffer) {

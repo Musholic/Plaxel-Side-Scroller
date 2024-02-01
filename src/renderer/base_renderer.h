@@ -116,6 +116,7 @@ protected:
 
   uint32_t currentFrame = 0;
   const double frameTimeS;
+  int lastFps = 0;
 
   vk::raii::Device device = nullptr;
 
@@ -252,7 +253,7 @@ private:
                                                             const char *pLayerPrefix,
                                                             const char *pMsg, void *pUserData);
   void manageFps() const;
-  static void printFps();
+  void computeFps();
 };
 
 } // namespace plaxel

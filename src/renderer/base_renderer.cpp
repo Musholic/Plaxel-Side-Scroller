@@ -725,10 +725,10 @@ void BaseRenderer::createSyncObjects() {
 
 void BaseRenderer::draw() {
   glfwPollEvents();
-  overlay.initNewFrame();
+  overlay.initNewFrame(lastFps);
   drawFrame();
   manageFps();
-  printFps();
+  computeFps();
 }
 
 void BaseRenderer::manageFps() const {
@@ -745,14 +745,14 @@ void BaseRenderer::manageFps() const {
   frameStartTime = frameEndTime;
 }
 
-void BaseRenderer::printFps() {
+void BaseRenderer::computeFps() {
   static double lastFpsCountTime = 0.0f;
   static int fpsCount = 0;
   const double currentTime = glfwGetTime();
 
   fpsCount++;
   if (currentTime - lastFpsCountTime >= 1.0) {
-    std::cout << "FPS: " << fpsCount << std::endl;
+    lastFps = fpsCount;
 
     lastFpsCountTime = currentTime;
     fpsCount = 0;

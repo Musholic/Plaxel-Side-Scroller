@@ -12,12 +12,14 @@ class UIOverlay {
 public:
   ~UIOverlay();
   void createDescriptorPool(const vk::raii::Device &device);
+  void buildFont();
 
   void initialize(ImGui_ImplVulkan_InitInfo &initInfo, GLFWwindow *window, VkRenderPass renderPass,
                   const vk::raii::Device &device);
   void render(VkCommandBuffer commandBuffer);
-  void initNewFrame();
+  void initNewFrame(int lastFps);
   static void checkVkResult(VkResult err);
+  static std::optional<std::string> testName;
 
 private:
   vk::raii::DescriptorPool descriptorPool = nullptr;

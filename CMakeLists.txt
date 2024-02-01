@@ -2,6 +2,12 @@ cmake_minimum_required(VERSION 3.22)
 
 project(plaxel)
 
+execute_process(COMMAND git describe --tags
+        OUTPUT_VARIABLE PROJECT_GIT_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+configure_file(src/version.h.in generated/version.h @ONLY)
+
+
 set(CMAKE_CXX_STANDARD 20)
 set(Boost_NO_WARN_NEW_VERSIONS 1)
 
@@ -40,6 +46,7 @@ target_link_libraries(plaxel_lib PUBLIC Vulkan::Vulkan)
 target_link_libraries(plaxel_lib PRIVATE imgui::imgui)
 
 target_include_directories(plaxel_lib PRIVATE ${Stb_INCLUDE_DIR})
+target_include_directories(plaxel_lib PUBLIC "${PROJECT_BINARY_DIR}/generated")
 
 # plaxel main executable
 add_executable(plaxel main.cpp)
@@ -82,6 +89,7 @@ endif ()
 include(shaderCompiling-CMakeLists.txt)
 
 cmrc_add_resource_library(plaxel-resources ALIAS plaxel::rc NAMESPACE plaxel textures/forest_ground_04_diff_4k.png)
+cmrc_add_resources(plaxel-resources fonts/NotoSans-Regular.ttf)
 cmrc_add_resources(plaxel-resources WHENCE ${PROJECT_BINARY_DIR} ${SPIRV_BINARY_FILES})
 target_link_libraries(plaxel_lib PUBLIC plaxel-resources)
 
