@@ -4,6 +4,8 @@ file(GLOB_RECURSE HLSL_SOURCE_FILES
         "shaders/*.comp"
 )
 
+file(CHMOD ${DIRECTX_DXC_TOOL} PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ)
+
 foreach (HLSL ${HLSL_SOURCE_FILES})
     get_filename_component(FILE_NAME ${HLSL} NAME)
     if (FILE_NAME MATCHES ".vert$")
