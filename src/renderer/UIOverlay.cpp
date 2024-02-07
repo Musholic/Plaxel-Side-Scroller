@@ -73,14 +73,14 @@ void UIOverlay::initNewFrame(const int lastFps) {
                                  ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
   ImGui::SetNextWindowPos(ImVec2(0, 0));
 
-  ImGui::SetNextWindowSize(ImVec2(400, 300));
+  ImGui::SetNextWindowSize(ImVec2(800, 300));
   ImGui::Begin("Debug info", nullptr, windowFlags);
   std::string title;
   if (testName.has_value()) {
     title += "TDD: ";
     title += *testName;
   } else {
-    title += "Plaxel v";
+    title += "PlaxelSS v";
     title += PROJECT_GIT_VERSION;
   }
   ImGui::Text(title.c_str());

@@ -139,11 +139,15 @@ void Renderer::createComputeBuffers() {
 
   drawCommandBuffer.emplace(device, physicalDevice, sizeof(VkDrawIndexedIndirectCommand),
                             eStorageBuffer | eIndirectBuffer, eDeviceLocal);
-  voxelTreeNodesBuffer.emplace(device, physicalDevice, MAX_NODES * sizeof(VoxelTreeNode),
-                               eStorageBuffer, eDeviceLocal);
-  voxelTreeLeavesBuffer.emplace(device, physicalDevice, MAX_LEAVES * sizeof(VoxelTreeLeaf),
-                                eStorageBuffer, eDeviceLocal);
-  constexpr VoxelTreeInfo voxelTreeInfo{0,0,0};
+  constexpr VoxelTreeNode voxelTreeNodes[MAX_NODES] = {};
+  voxelTreeNodesBuffer =
+      createBufferWithInitialData(eStorageBuffer, &voxelTreeNodes, sizeof(voxelTreeNodes));
+
+  constexpr VoxelTreeLeaf voxelTreeLeaves[MAX_LEAVES] = {};
+  voxelTreeLeavesBuffer =
+      createBufferWithInitialData(eStorageBuffer, &voxelTreeLeaves, sizeof(voxelTreeLeaves));
+
+  constexpr VoxelTreeInfo voxelTreeInfo{0, 0, 0};
   voxelTreeInfoBuffer =
       createBufferWithInitialData(eStorageBuffer, &voxelTreeInfo, sizeof(voxelTreeInfo));
   addedBlockBuffer.emplace(device, physicalDevice, sizeof(AddedBlock), eUniformBuffer,

@@ -56,9 +56,6 @@ void plaxel::test::drawAndSaveScreenshot(TestRenderer &r, const char *testName) 
 }
 
 std::vector<Triangle> plaxel::test::drawAndGetTriangles(TestRenderer &renderer) {
-
-  // We need to draw 2 frames, to free up one of the swapChainImage so we can use it to save our
-  // screenshot
   renderer.draw();
   auto indexBufferData = renderer.getTriangles();
 

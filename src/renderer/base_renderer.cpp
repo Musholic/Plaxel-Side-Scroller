@@ -4,6 +4,7 @@
 #include <glm/ext/matrix_clip_space.hpp>
 #include <limits>
 #include <random>
+#include <regex>
 #include <set>
 #include <thread>
 
@@ -101,11 +102,14 @@ void BaseRenderer::initCustomDescriptorSetLayout() {
 }
 
 void BaseRenderer::setupDebugReportCallback() {
-  vk::DebugReportCallbackCreateInfoEXT debugReportCreateInfo{};
-  debugReportCreateInfo.pfnCallback = debugReportCallback;
-  using enum vk::DebugReportFlagBitsEXT;
-  debugReportCreateInfo.flags = eInformation | eError | eWarning;
-  debugReportCallbackHandle = instance.createDebugReportCallbackEXT(debugReportCreateInfo);
+  bool disableDebugReport = std::getenv("DISABLE_DEBUG_REPORT");
+  if (!disableDebugReport) {
+    vk::DebugReportCallbackCreateInfoEXT debugReportCreateInfo{};
+    debugReportCreateInfo.pfnCallback = debugReportCallback;
+    using enum vk::DebugReportFlagBitsEXT;
+    debugReportCreateInfo.flags = eInformation | eError | eWarning;
+    debugReportCallbackHandle = instance.createDebugReportCallbackEXT(debugReportCreateInfo);
+  }
 }
 
 void BaseRenderer::createInstance() {
@@ -1320,13 +1324,22 @@ VkBool32 BaseRenderer::debugReportCallback(VkDebugReportFlagsEXT flags,
                strcmp(pLayerPrefix, "Loader Message") != 0) {
       // Filter out loader message which is verbose and not what we are interested in
       // Includes printf message from shaders
-      buf << "INFO: ";
+      std::regex re("Shader Instruction Index = (?:\\d+)\\. (.+) Debug shader printf message "
+                    "generated in file (\\S+) at line (\\d+)");
+
+      std::smatch match;
+
+      std::string verboseMessage(pMsg);
+      if (std::regex_search(verboseMessage, match, re)) {
+        buf << "DEBUG PRINTF: " << match[1] << " ( " << match[2] << ":" << match[3] << " )";
+      } else {
+        buf << "INFO: [" << pLayerPrefix << "] : " << pMsg;
+      }
     } else if (flags & VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT) {
       buf << "PERF: ";
     } else {
       return false;
     }
-    buf << "[" << pLayerPrefix << "] : " << pMsg;
     message = buf.str();
   }
 

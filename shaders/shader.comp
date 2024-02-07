@@ -1,3 +1,4 @@
+#line 1
 #include "common.hlsli"
 
 struct Vertex {
@@ -47,6 +48,7 @@ void main(uint3 globalInvocationID : SV_DispatchThreadID)
                 for (int y = 0; y < W; y ++) {
                     for (int z = 0; z < W; z ++) {
                         if (leaves[currentLeafIndex].blocks[getBlockInd(x, y, z)] > 0) {
+                        	printf("Draw cube %u{%d;%d;%d}: %u", currentLeafIndex, x, y, z, leaves[currentLeafIndex].blocks[getBlockInd(x, y, z)]);
                             drawCube(x, y, z);
                         }
                     }
@@ -83,71 +85,79 @@ void setupDrawCommand() {
 }
 
 void drawCube(int x, int y, int z) {
-    x += W * nodes[currentNodeIndex].x;
-    y += W * nodes[currentNodeIndex].y;
+    int absX = W * nodes[currentNodeIndex].x + x;
+    int absY = W * nodes[currentNodeIndex].y + y;
 
     // Back side
     uint a, b, c, d;
     if (getBlock(x, y, z - 1) == 0) {
-        a = addVertex(float3(x + 1, y, z), float2(0, 1));
-        b = addVertex(float3(x, y, z), float2(1, 1));
-        c = addVertex(float3(x, y + 1, z), float2(1, 0));
-        d = addVertex(float3(x + 1, y + 1, z), float2(0, 0));
+        a = addVertex(float3(absX + 1, absY, z), float2(0, 1));
+        b = addVertex(float3(absX, absY, z), float2(1, 1));
+        c = addVertex(float3(absX, absY + 1, z), float2(1, 0));
+        d = addVertex(float3(absX + 1, absY + 1, z), float2(0, 0));
         addSquare(a, b, c, d);
     }
 
     // Front side
     if (getBlock(x, y, z + 1) == 0) {
-        a = addVertex(float3(x, y, z + 1), float2(0, 1));
-        b = addVertex(float3(x + 1, y, z + 1), float2(1, 1));
-        c = addVertex(float3(x + 1, y + 1, z + 1), float2(1, 0));
-        d = addVertex(float3(x, y+ 1, z + 1), float2(0, 0));
+        a = addVertex(float3(absX, absY, z + 1), float2(0, 1));
+        b = addVertex(float3(absX + 1, absY, z + 1), float2(1, 1));
+        c = addVertex(float3(absX + 1, absY + 1, z + 1), float2(1, 0));
+        d = addVertex(float3(absX, absY+ 1, z + 1), float2(0, 0));
         addSquare(a, b, c, d);
     }
 
     // Left side
     if (getBlock(x - 1, y, z) == 0) {
-        a = addVertex(float3(x, y, z), float2(0, 1));
-        b = addVertex(float3(x, y, z + 1), float2(1, 1));
-        c = addVertex(float3(x, y + 1, z + 1), float2(1, 0));
-        d = addVertex(float3(x, y + 1, z), float2(0, 0));
+        a = addVertex(float3(absX, absY, z), float2(0, 1));
+        b = addVertex(float3(absX, absY, z + 1), float2(1, 1));
+        c = addVertex(float3(absX, absY + 1, z + 1), float2(1, 0));
+        d = addVertex(float3(absX, absY + 1, z), float2(0, 0));
         addSquare(a, b, c, d);
     }
 
     // Right side
     if (getBlock(x + 1, y, z) == 0) {
-        a = addVertex(float3(x + 1, y, z + 1), float2(0, 1));
-        b = addVertex(float3(x + 1, y, z), float2(1, 1));
-        c = addVertex(float3(x + 1, y + 1, z), float2(1, 0));
-        d = addVertex(float3(x + 1, y + 1, z + 1), float2(0, 0));
+        a = addVertex(float3(absX + 1, absY, z + 1), float2(0, 1));
+        b = addVertex(float3(absX + 1, absY, z), float2(1, 1));
+        c = addVertex(float3(absX + 1, absY + 1, z), float2(1, 0));
+        d = addVertex(float3(absX + 1, absY + 1, z + 1), float2(0, 0));
         addSquare(a, b, c, d);
     }
 
     // Bottom side
     if (getBlock(x, y - 1, z) == 0) {
-        a = addVertex(float3(x, y, z + 1), float2(0, 1));
-        b = addVertex(float3(x, y, z), float2(1, 1));
-        c = addVertex(float3(x + 1, y, z), float2(1, 0));
-        d = addVertex(float3(x + 1, y, z + 1), float2(0, 0));
+        a = addVertex(float3(absX, absY, z + 1), float2(0, 1));
+        b = addVertex(float3(absX, absY, z), float2(1, 1));
+        c = addVertex(float3(absX + 1, absY, z), float2(1, 0));
+        d = addVertex(float3(absX + 1, absY, z + 1), float2(0, 0));
         addSquare(a, b, c, d);
     }
 
     // Top side
     if (getBlock(x, y + 1, z) == 0) {
-        a = addVertex(float3(x, y + 1, z), float2(0, 1));
-        b = addVertex(float3(x, y + 1, z + 1), float2(1, 1));
-        c = addVertex(float3(x + 1, y + 1, z + 1), float2(1, 0));
-        d = addVertex(float3(x + 1, y + 1, z), float2(0, 0));
+        a = addVertex(float3(absX, absY + 1, z), float2(0, 1));
+        b = addVertex(float3(absX, absY + 1, z + 1), float2(1, 1));
+        c = addVertex(float3(absX + 1, absY + 1, z + 1), float2(1, 0));
+        d = addVertex(float3(absX + 1, absY + 1, z), float2(0, 0));
         addSquare(a, b, c, d);
     }
 }
 
 uint getBlock(int x, int y, int z) {
-    if (
-    x < 0 || x >= W ||
-    y < 0 || y >= W ||
-    z < 0 || z >= W) {
+    if(z < 0 || z > W) {
         return 0;
     }
-    return leaves[currentLeafIndex].blocks[getBlockInd(x, y, z)];
+    uint leafIndex = currentLeafIndex;
+    if (x >= W || y >= W || x < 0 || y < 0) {
+        x += nodes[currentNodeIndex].x * W;
+        y += nodes[currentNodeIndex].y * W;
+		uint nodeIndex = findLeafNode(x, y);
+		if(nodeIndex == -1) {
+            return 0;
+        }
+        leafIndex = nodes[nodeIndex].leaf;
+    }
+    uint ind = getBlockInd(x, y, z);
+    return leaves[leafIndex].blocks[ind];
 }

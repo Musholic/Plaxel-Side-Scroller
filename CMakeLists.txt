@@ -83,6 +83,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_options(plaxel PRIVATE -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic --coverage -O0 -g)
     target_compile_options(plaxel_lib PRIVATE -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic --coverage -O0 -g)
     target_compile_options(plaxel_test PRIVATE -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic --coverage -O0 -g)
+    configure_file(vk_layer_settings.txt vk_layer_settings.txt COPYONLY)
 endif ()
 
 # Add all necessary resources embedded into the executable

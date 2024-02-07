@@ -18,8 +18,8 @@ foreach (HLSL ${HLSL_SOURCE_FILES})
     add_custom_command(
             OUTPUT ${SPIRV}
             COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/shaders/"
-            COMMAND dxc -spirv -T ${SHADER_PROFILE}_6_4 -E main -fspv-target-env=vulkan1.3 ${HLSL} -Zi -fspv-debug=vulkan-with-source -Fo ${SPIRV}
-            DEPENDS ${HLSL})
+            COMMAND dxc -spirv -T ${SHADER_PROFILE}_6_4 -E main -fspv-target-env=vulkan1.3 ${HLSL} -Zi -fspv-debug=line -Fo ${SPIRV}
+            DEPENDS ${HLSL_SOURCE_FILES})
     list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 endforeach (HLSL)
 

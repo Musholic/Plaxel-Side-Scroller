@@ -1,5 +1,7 @@
+#line 1
 // TODO: test/use HLSL2021 features (template function, struct methods/operators)
 
+#define ADD_BLOCK
 #include "common.hlsli"
 
 cbuffer addedBlock : register(b3) {
@@ -11,7 +13,6 @@ void checkCurrentRootCoverage(int x, int y);
 bool isNotCoveredByRoot(int x, int y);
 void addBlock(int x, int y, int z);
 uint createParentNode(uint child, int x, int y);
-uint createChildNode(uint parent, uint childIndex);
 uint createLeaf();
 uint findLeafNode(inout int x, inout int y);
 uint findChildIndex(uint index, inout int x, inout int y);
@@ -19,11 +20,9 @@ uint findChildIndex(uint index, inout int x, inout int y);
 [numthreads(1, 1, 1)]
 void main()
 {
+    // printf("Add block: %d;%d;%d", addedX, addedY, addedZ);
     if (lastNodeIndex == 0) {
         rootNodeIndex = createNode();
-        nodes[rootNodeIndex].height = 0;
-        nodes[rootNodeIndex].x = 0;
-        nodes[rootNodeIndex].y = 0;
     }
 
     addBlock(addedX, addedY, addedZ);
@@ -71,7 +70,7 @@ bool isNotCoveredByRoot(int x, int y) {
     uint rootHeight = nodes[rootNodeIndex].height;
     int startX = nodes[rootNodeIndex].x * W;
     int startY = nodes[rootNodeIndex].y * W;
-    int maxSize = W << rootHeight;
+    int maxSize = WU << rootHeight;
 
     return x >= maxSize + startX || y >= maxSize + startY || x < startX || y < startY;
 }
@@ -118,47 +117,8 @@ uint createLeaf() {
     if (maxLeaves <= lastLeafIndex) {
         return -1;
     }
-    for(uint i = 0; i < MAX_B; i++) {
-        leaves[lastLeafIndex].blocks[i] = 0;
-    }
-    //TODO: initialize all blocks to 0
+printf("Create leaf %u", lastLeafIndex);
     return lastLeafIndex++;
 }
 
-uint findChildIndex(uint index, inout int x, inout int y) {
-        uint height = nodes[index].height;
-        int halfSize = W << (height - 1);
-        uint childIndex = 0;
-        if (x >= halfSize) {
-            childIndex ++;
-            x -= halfSize;
-        }
-        if (y >= halfSize) {
-            childIndex += 2;
-            y -= halfSize;
-        }
-        uint nextIndex = nodes[index].children[childIndex];
-        if (nextIndex == -1) {
-            nextIndex = createChildNode(index, childIndex);
-        }
-        return nextIndex;
-}
-
-uint findLeafNode(inout int x, inout int y) {
-    uint index = rootNodeIndex;
-
-    int startX = nodes[index].x * W;
-    int startY = nodes[index].y * W;
-    x -= startX;
-    y -= startY;
-
-    // This for loop should be replace by a while loop, but the while loop seems bugged by only iterating once
-    // TODO: check if the problem is also there on an actual graphic card
-    [unroll(20)]
-    for(int i = 0; i < 20; i++)
-    if (index != -1 && nodes[index].height > 0) {
-        index = findChildIndex(index, x, y);
-    }
-    return index;
-}
 // TODO: Performance idea: make addBlock deals with one node at once (starting with rootNode) and allows parallel addBlock on multiple nodes at once
