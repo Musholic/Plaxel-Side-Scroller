@@ -5,6 +5,7 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_vulkan.h"
 #include <GLFW/glfw3.h>
+#include <optional>
 #include <vulkan/vulkan_raii.hpp>
 
 namespace plaxel {
