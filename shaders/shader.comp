@@ -48,7 +48,7 @@ void main(uint3 globalInvocationID : SV_DispatchThreadID)
                 for (int y = 0; y < W; y ++) {
                     for (int z = 0; z < W; z ++) {
                         if (leaves[currentLeafIndex].blocks[getBlockInd(x, y, z)] > 0) {
-                        	printf("Draw cube %u{%d;%d;%d}: %u", currentLeafIndex, x, y, z, leaves[currentLeafIndex].blocks[getBlockInd(x, y, z)]);
+                        	//printf("Draw cube %u{%d;%d;%d}: %u", currentLeafIndex, x, y, z, leaves[currentLeafIndex].blocks[getBlockInd(x, y, z)]);
                             drawCube(x, y, z);
                         }
                     }

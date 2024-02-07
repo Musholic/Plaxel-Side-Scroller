@@ -14,6 +14,7 @@ protected:
         std::string(::testing::UnitTest::GetInstance()->current_test_info()->name());
     if (!SHOW_WINDOW) {
       hideWindowsByDefault();
+      renderer.showOverlay = false;
     }
     renderer.showWindow();
   }

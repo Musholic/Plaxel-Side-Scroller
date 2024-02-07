@@ -729,7 +729,9 @@ void BaseRenderer::createSyncObjects() {
 
 void BaseRenderer::draw() {
   glfwPollEvents();
-  overlay.initNewFrame(lastFps);
+  if (showOverlay) {
+    overlay.initNewFrame(lastFps);
+  }
   drawFrame();
   manageFps();
   computeFps();
@@ -902,7 +904,9 @@ void BaseRenderer::recordCommandBuffer(const vk::CommandBuffer commandBuffer,
 
   drawCommand(commandBuffer);
 
-  overlay.render(commandBuffer);
+  if (showOverlay) {
+    overlay.render(commandBuffer);
+  }
 
   commandBuffer.endRenderPass();
   commandBuffer.end();

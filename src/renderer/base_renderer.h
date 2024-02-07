@@ -86,6 +86,7 @@ public:
   void showWindow();
 
   void saveScreenshot(const char *filename) const;
+  bool showOverlay = true;
 
 private:
   // These objects needs to be destructed last

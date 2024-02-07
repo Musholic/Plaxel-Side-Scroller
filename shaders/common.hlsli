@@ -57,7 +57,6 @@ uint findChildIndex(uint index, inout int x, inout int y) {
 
 uint findLeafNode(inout int x, inout int y) {
   uint index = rootNodeIndex;
-  printf("findLeafNode %d;%d", x, y);
 
   int startX = nodes[index].x * W;
   int startY = nodes[index].y * W;
@@ -77,6 +76,5 @@ uint findLeafNode(inout int x, inout int y) {
   [unroll(20)] for (int i = 0; i < 20; i++) if (index != -1 && nodes[index].height > 0) {
     index = findChildIndex(index, x, y);
   }
-  printf("index %d", index);
   return index;
 }
