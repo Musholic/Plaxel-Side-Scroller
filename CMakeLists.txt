@@ -17,6 +17,7 @@ find_package(glfw3 CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 find_package(CMakeRC CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
+find_package(directx-dxc CONFIG REQUIRED)
 
 # plaxel_lib setup
 set(SOURCES

@@ -42,6 +42,10 @@
         "glfw-binding",
         "vulkan-binding"
       ]
+    },
+    {
+      "name": "directx-dxc",
+      "version>=": "2023-08-14"
     }
   ]
 }
