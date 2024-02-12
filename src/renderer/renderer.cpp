@@ -247,7 +247,14 @@ void Renderer::createDescriptorSetLayout() {
   samplerLayoutBinding.pImmutableSamplers = nullptr;
   samplerLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eFragment;
 
-  const std::array bindings = {uboLayoutBinding, samplerLayoutBinding};
+  vk::DescriptorSetLayoutBinding uboMeshLayoutBinding;
+  uboMeshLayoutBinding.binding = 2;
+  uboMeshLayoutBinding.descriptorCount = 1;
+  uboMeshLayoutBinding.descriptorType = vk::DescriptorType::eUniformBuffer;
+  uboMeshLayoutBinding.pImmutableSamplers = nullptr;
+  uboMeshLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eMeshEXT;
+
+  const std::array bindings = {uboLayoutBinding, samplerLayoutBinding, uboMeshLayoutBinding};
   vk::DescriptorSetLayoutCreateInfo layoutInfo;
   layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
   layoutInfo.pBindings = bindings.data();
@@ -308,6 +315,14 @@ void Renderer::createDescriptorSets() {
     descriptorWrite2.descriptorType = vk::DescriptorType::eCombinedImageSampler;
     descriptorWrite2.descriptorCount = 1;
     descriptorWrite2.pImageInfo = &imageInfo;
+
+    vk::WriteDescriptorSet &descriptorWrite3 = descriptorWrites.emplace_back();
+    descriptorWrite3.dstSet = *descriptorSets[i];
+    descriptorWrite3.dstBinding = 2;
+    descriptorWrite3.dstArrayElement = 0;
+    descriptorWrite3.descriptorType = vk::DescriptorType::eUniformBuffer;
+    descriptorWrite3.descriptorCount = 1;
+    descriptorWrite3.pBufferInfo = &bufferInfo;
 
     device.updateDescriptorSets(descriptorWrites, nullptr);
   }

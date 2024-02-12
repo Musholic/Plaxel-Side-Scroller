@@ -36,7 +36,9 @@ set(SOURCES
         test/test_utils.cpp
         test/test_utils.h
         src/renderer/UIOverlay.cpp
-        src/renderer/UIOverlay.h)
+        src/renderer/UIOverlay.h
+        src/renderer/vulkan_dispatch_loader.h
+        src/renderer/vulkan_dispatch_loader.cpp)
 
 add_library(plaxel_lib STATIC ${SOURCES})
 

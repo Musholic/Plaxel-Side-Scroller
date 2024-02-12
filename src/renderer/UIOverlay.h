@@ -1,12 +1,13 @@
 #ifndef OVERLAY_H
 #define OVERLAY_H
 
+#include "vulkan_dispatch_loader.h"
+
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_vulkan.h"
 #include <GLFW/glfw3.h>
 #include <optional>
-#include <vulkan/vulkan_raii.hpp>
 
 namespace plaxel {
 class UIOverlay {

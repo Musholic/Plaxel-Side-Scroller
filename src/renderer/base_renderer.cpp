@@ -83,7 +83,7 @@ void BaseRenderer::initVulkan() {
 
   initCustomDescriptorSetLayout();
 
-  createGraphicsPipeline();
+  createGraphicsPipelines();
   createComputePipeline();
   createCommandPool();
   createDepthResources();
@@ -113,6 +113,7 @@ void BaseRenderer::setupDebugReportCallback() {
 }
 
 void BaseRenderer::createInstance() {
+  VULKAN_HPP_DEFAULT_DISPATCHER.init();
   if (enableValidationLayers && !checkValidationLayerSupport()) {
     throw VulkanInitializationError("validation layers requested, but not available!");
   }
@@ -149,11 +150,10 @@ void BaseRenderer::createInstance() {
     debugCreateInfo.pNext = &features;
   } else {
     createInfo.enabledLayerCount = 0;
-
-    createInfo.pNext = nullptr;
   }
 
   instance = vk::raii::Instance(context, createInfo);
+  VULKAN_HPP_DEFAULT_DISPATCHER.init(*instance);
 }
 
 bool BaseRenderer::checkValidationLayerSupport() {
@@ -335,7 +335,13 @@ void BaseRenderer::createLogicalDevice() {
     createInfo.enabledLayerCount = 0;
   }
 
+  // Enable mesh shader feature
+  vk::PhysicalDeviceMeshShaderFeaturesEXT meshShaderFeaturesExt{};
+  meshShaderFeaturesExt.meshShader = vk::True;
+  createInfo.pNext = &meshShaderFeaturesExt;
+
   device = vk::raii::Device(physicalDevice, createInfo);
+  VULKAN_HPP_DEFAULT_DISPATCHER.init(*device);
 
   graphicsQueue = device.getQueue(indices.graphicsAndComputeFamily.value(), 0);
   computeQueue = device.getQueue(indices.graphicsAndComputeFamily.value(), 0);
@@ -498,7 +504,7 @@ void BaseRenderer::createRenderPass() {
   renderPass = vk::raii::RenderPass(device, renderPassInfo);
 }
 
-void BaseRenderer::createGraphicsPipeline() {
+void BaseRenderer::createGraphicsPipelines() {
   auto vertShaderCode = files::readFile("shaders/worldBlock.vert.spv");
   auto fragShaderCode = files::readFile("shaders/worldBlock.frag.spv");
 
@@ -515,8 +521,7 @@ void BaseRenderer::createGraphicsPipeline() {
   fragShaderStageInfo.module = *fragShaderModule;
   fragShaderStageInfo.pName = "main";
 
-  std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = {vertShaderStageInfo,
-                                                                 fragShaderStageInfo};
+  std::vector shaderStages = {vertShaderStageInfo, fragShaderStageInfo};
 
   vk::PipelineVertexInputStateCreateInfo vertexInputInfo;
 
@@ -595,7 +600,31 @@ void BaseRenderer::createGraphicsPipeline() {
   pipelineInfo.subpass = 0;
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-  graphicsPipeline = vk::raii::Pipeline(device, nullptr, pipelineInfo);
+  worldPipeline = vk::raii::Pipeline(device, nullptr, pipelineInfo);
+  shaderStages.clear();
+
+  auto cursorBlockShaderCode = files::readFile("shaders/cursorBlock.mesh.spv");
+  vk::raii::ShaderModule cursorBlockShaderModule = createShaderModule(cursorBlockShaderCode);
+  vk::PipelineShaderStageCreateInfo &cursorBlockShaderStageInfo = shaderStages.emplace_back();
+  cursorBlockShaderStageInfo.stage = vk::ShaderStageFlagBits::eMeshEXT;
+  cursorBlockShaderStageInfo.module = *cursorBlockShaderModule;
+  cursorBlockShaderStageInfo.pName = "main";
+
+  auto cursorBlockFragShaderCode = files::readFile("shaders/cursorBlock.frag.spv");
+  vk::raii::ShaderModule cursorBlockFragShaderModule =
+      createShaderModule(cursorBlockFragShaderCode);
+  vk::PipelineShaderStageCreateInfo &cursorBlockFragShaderStageInfo = shaderStages.emplace_back();
+  cursorBlockFragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
+  cursorBlockFragShaderStageInfo.module = *cursorBlockFragShaderModule;
+  cursorBlockFragShaderStageInfo.pName = "main";
+
+  pipelineInfo.stageCount = shaderStages.size();
+  pipelineInfo.pStages = shaderStages.data();
+
+  pipelineInfo.pInputAssemblyState = nullptr;
+  pipelineInfo.pVertexInputState = nullptr;
+
+  cursorPipeline = vk::raii::Pipeline(device, nullptr, pipelineInfo);
 }
 
 vk::PipelineLayoutCreateInfo BaseRenderer::getPipelineLayoutInfo() const {
@@ -886,7 +915,7 @@ void BaseRenderer::recordCommandBuffer(const vk::CommandBuffer commandBuffer,
 
   commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
 
-  commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *graphicsPipeline);
+  commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *worldPipeline);
 
   vk::Viewport viewport;
   viewport.x = 0.0f;
@@ -903,6 +932,9 @@ void BaseRenderer::recordCommandBuffer(const vk::CommandBuffer commandBuffer,
   commandBuffer.setScissor(0, scissor);
 
   drawCommand(commandBuffer);
+
+  commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *cursorPipeline);
+  commandBuffer.drawMeshTasksEXT(1, 1, 1);
 
   if (showOverlay) {
     overlay.render(commandBuffer);

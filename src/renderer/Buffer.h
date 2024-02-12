@@ -1,7 +1,8 @@
 #ifndef PLAXEL_BUFFER_H
 #define PLAXEL_BUFFER_H
 
-#include <vulkan/vulkan_raii.hpp>
+#include "vulkan_dispatch_loader.h"
+
 namespace plaxel {
 
 class BufferInitializationError final : public std::runtime_error {

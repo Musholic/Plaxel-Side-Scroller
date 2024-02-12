@@ -2,6 +2,7 @@ file(GLOB_RECURSE HLSL_SOURCE_FILES
         "shaders/*.frag"
         "shaders/*.vert"
         "shaders/*.comp"
+        "shaders/*.mesh"
 )
 
 file(CHMOD ${DIRECTX_DXC_TOOL} PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ)
@@ -12,6 +13,8 @@ foreach (HLSL ${HLSL_SOURCE_FILES})
         set(SHADER_PROFILE "vs")
     elseif (FILE_NAME MATCHES ".frag$")
         set(SHADER_PROFILE "ps")
+    elseif (FILE_NAME MATCHES ".mesh$")
+        set(SHADER_PROFILE "ms")
     else ()
         set(SHADER_PROFILE "cs")
     endif ()
@@ -20,7 +23,7 @@ foreach (HLSL ${HLSL_SOURCE_FILES})
     add_custom_command(
             OUTPUT ${SPIRV}
             COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/shaders/"
-            COMMAND ${DIRECTX_DXC_TOOL} -spirv -T ${SHADER_PROFILE}_6_4 -E main -fspv-target-env=vulkan1.3 ${HLSL} -Zi -fspv-debug=line -Fo ${SPIRV}
+            COMMAND ${DIRECTX_DXC_TOOL} -spirv -T ${SHADER_PROFILE}_6_6 -E main -fspv-target-env=vulkan1.3 ${HLSL} -Zi -fspv-debug=line -Fo ${SPIRV}
             DEPENDS ${HLSL_SOURCE_FILES})
     list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 endforeach (HLSL)
