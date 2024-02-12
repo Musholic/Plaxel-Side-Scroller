@@ -1321,9 +1321,9 @@ VkBool32 BaseRenderer::debugReportCallback(VkDebugReportFlagsEXT flags,
   {
     std::stringstream buf;
     if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT) {
-      buf << "ERROR: ";
+      buf << "ERROR: " << pMsg;
     } else if (flags & VK_DEBUG_REPORT_WARNING_BIT_EXT) {
-      buf << "WARNING: ";
+      buf << "WARNING: " << pMsg;
     } else if (flags & VK_DEBUG_REPORT_INFORMATION_BIT_EXT &&
                strcmp(pLayerPrefix, "Loader Message") != 0) {
       // Filter out loader message which is verbose and not what we are interested in
@@ -1340,7 +1340,7 @@ VkBool32 BaseRenderer::debugReportCallback(VkDebugReportFlagsEXT flags,
         buf << "INFO: [" << pLayerPrefix << "] : " << pMsg;
       }
     } else if (flags & VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT) {
-      buf << "PERF: ";
+      buf << "PERF: " << pMsg;
     } else {
       return false;
     }
