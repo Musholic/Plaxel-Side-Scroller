@@ -499,8 +499,8 @@ void BaseRenderer::createRenderPass() {
 }
 
 void BaseRenderer::createGraphicsPipeline() {
-  auto vertShaderCode = files::readFile("shaders/shader.vert.spv");
-  auto fragShaderCode = files::readFile("shaders/shader.frag.spv");
+  auto vertShaderCode = files::readFile("shaders/worldBlock.vert.spv");
+  auto fragShaderCode = files::readFile("shaders/worldBlock.frag.spv");
 
   vk::raii::ShaderModule vertShaderModule = createShaderModule(vertShaderCode);
   vk::raii::ShaderModule fragShaderModule = createShaderModule(fragShaderCode);
@@ -621,7 +621,7 @@ vk::raii::ShaderModule BaseRenderer::createShaderModule(const cmrc::file &code) 
 }
 
 void BaseRenderer::createComputePipeline() {
-  const auto computeShaderCode = files::readFile("shaders/shader.comp.spv");
+  const auto computeShaderCode = files::readFile("shaders/worldRenderer.comp.spv");
 
   const vk::raii::ShaderModule computeShaderModule = createShaderModule(computeShaderCode);
 
