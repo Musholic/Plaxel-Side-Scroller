@@ -6,8 +6,7 @@ namespace plaxel::test {
 std::vector<Triangle> TestRenderer::getTriangles() {
   const auto indexBufferData = indexBuffer->getVectorData<uint32_t>();
   const auto vertexBufferData = vertexBuffer->getVectorData<Vertex>();
-  const auto drawCommandBufferData =
-      drawCommandBuffer->getData<VkDrawIndexedIndirectCommand>();
+  const auto drawCommandBufferData = drawCommandBuffer->getData<VkDrawIndexedIndirectCommand>();
   const uint indexCount = drawCommandBufferData.indexCount;
   std::vector<Triangle> triangles;
   for (uint i = 0; i < indexCount / 3; ++i) {
@@ -28,6 +27,8 @@ void TestRenderer::getVoxelTree() {
   auto rootVoxelTreeNode = nodes[info.rootNodeIndex];
   VoxelTreeNode voxelTree{rootVoxelTreeNode, nodes, leaves};
 }
+
+void TestRenderer::moveCursor(const glm::ivec3 pos) { cursorPosition.pos = pos; }
 
 void TestRenderer::initWorld() {}
 

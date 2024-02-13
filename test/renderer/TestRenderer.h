@@ -53,6 +53,7 @@ public:
   std::vector<Triangle> getTriangles();
   void addBlock(int x, int y, int z);
   void getVoxelTree();
+  void moveCursor(glm::ivec3 pos);
 
 protected:
   void initWorld() override;

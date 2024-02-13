@@ -32,6 +32,8 @@ TEST_F(RendererTest, SimpleDrawing) {
   // Arrange
   const auto testName = "simple_drawing_test";
   renderer.addBlock(0, 0, 0);
+  // Move the cursor away since we don't want to include it in the screenshot
+  renderer.moveCursor({500, 0, 0});
 
   // Act
   drawAndSaveScreenshot(renderer, testName);
