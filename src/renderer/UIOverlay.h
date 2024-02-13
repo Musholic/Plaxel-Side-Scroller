@@ -1,6 +1,7 @@
 #ifndef OVERLAY_H
 #define OVERLAY_H
 
+#include "camera.h"
 #include "vulkan_dispatch_loader.h"
 
 #include "imgui.h"
@@ -10,6 +11,10 @@
 #include <optional>
 
 namespace plaxel {
+// Move to another header file
+struct CursorPositionBufferObject {
+  glm::ivec3 pos;
+};
 class UIOverlay {
 public:
   ~UIOverlay();
@@ -19,7 +24,7 @@ public:
   void initialize(ImGui_ImplVulkan_InitInfo &initInfo, GLFWwindow *window, VkRenderPass renderPass,
                   const vk::raii::Device &device);
   void render(VkCommandBuffer commandBuffer);
-  void initNewFrame(int lastFps);
+  void initNewFrame(int lastFps, Camera camera, CursorPositionBufferObject cursorPos);
   static void checkVkResult(VkResult err);
   static std::optional<std::string> testName;
 

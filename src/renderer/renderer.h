@@ -12,7 +12,6 @@
 #include <glm/fwd.hpp>
 namespace plaxel {
 
-constexpr int BLOCK_W = 8;
 constexpr int NB_BLOCKS = BLOCK_W * BLOCK_W * BLOCK_W;
 constexpr int MAX_NODES = 100;
 constexpr int MAX_LEAVES = MAX_NODES;

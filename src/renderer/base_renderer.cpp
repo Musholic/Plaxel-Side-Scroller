@@ -759,7 +759,7 @@ void BaseRenderer::createSyncObjects() {
 void BaseRenderer::draw() {
   glfwPollEvents();
   if (showOverlay) {
-    overlay.initNewFrame(lastFps);
+    overlay.initNewFrame(lastFps, camera, cursorPosition);
   }
   drawFrame();
   manageFps();
@@ -805,8 +805,7 @@ void BaseRenderer::drawFrame() {
 
   if (shouldAddBlockAtCursor) {
     shouldAddBlockAtCursor = false;
-    // TODO: show cursor position in UI Overlay
-    addBlock(cursorPosition.x, cursorPosition.y, cursorPosition.z);
+    addBlock(cursorPosition.pos.x, cursorPosition.pos.y, cursorPosition.pos.z);
   }
 
   computeCommandBuffer.reset();
@@ -1313,21 +1312,25 @@ void BaseRenderer::keyboardHandler(GLFWwindow *window, int key, [[maybe_unused]]
 }
 
 void BaseRenderer::keyPressed(int key) { handleCameraKeys(key, true); }
+void BaseRenderer::handleCursorKeys(int key) {
+  if (key == GLFW_KEY_LEFT) {
+    cursorPosition.pos += camera.getLeftDirection();
+  } else if (key == GLFW_KEY_RIGHT) {
+    cursorPosition.pos -= camera.getLeftDirection();
+  }
+  if (key == GLFW_KEY_DOWN) {
+    cursorPosition.pos.y--;
+  } else if (key == GLFW_KEY_UP) {
+    cursorPosition.pos.y++;
+  }
+  cursorPosition.pos.z = std::clamp(cursorPosition.pos.z, 0, BLOCK_W - 1);
+}
 void BaseRenderer::keyReleased(int key) {
   handleCameraKeys(key, false);
   if (key == GLFW_KEY_P) {
     camera.printDebug();
   }
-  if (key == GLFW_KEY_LEFT) {
-    cursorPosition.x--;
-  } else if (key == GLFW_KEY_RIGHT) {
-    cursorPosition.x++;
-  }
-  if (key == GLFW_KEY_DOWN) {
-    cursorPosition.y--;
-  } else if (key == GLFW_KEY_UP) {
-    cursorPosition.y++;
-  }
+  handleCursorKeys(key);
   if (key == GLFW_KEY_ENTER) {
     shouldAddBlockAtCursor = true;
   }

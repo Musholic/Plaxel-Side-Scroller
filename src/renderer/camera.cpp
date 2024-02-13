@@ -1,5 +1,6 @@
 #include "camera.h"
 #include <GLFW/glfw3.h>
+#include <algorithm>
 #include <glm/detail/type_mat4x4.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/geometric.hpp>
@@ -19,8 +20,28 @@ glm::mat4 Camera::getViewMatrix() const {
   return rotM * transM;
 }
 
+glm::ivec3 Camera::getLeftDirection() const {
+  if (rotation.y < 45 || rotation.y > 315) {
+    return {-1, 0, 0};
+  }
+  if (rotation.y < 135) {
+    return {0, 0, -1};
+  }
+  if (rotation.y < 225) {
+    return {1, 0, 0};
+  }
+  return {0, 0, 1};
+}
+
 void Camera::rotate(const float &dx, const float &dy) {
   rotation += glm::vec3(-dy * rotationSpeed, -dx * rotationSpeed, 0.0f);
+  rotation.x = std::clamp(rotation.x, -90.0f, 90.0f);
+  if (rotation.y < 360) {
+    rotation.y += 360;
+  }
+  if (rotation.y > 360) {
+    rotation.y -= 360;
+  }
 }
 
 glm::vec3 Camera::getFront() const {

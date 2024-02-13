@@ -65,7 +65,7 @@ void UIOverlay::initialize(ImGui_ImplVulkan_InitInfo &initInfo, GLFWwindow *wind
   ImGui_ImplVulkan_Init(&initInfo, renderPass);
 }
 
-void UIOverlay::initNewFrame(const int lastFps) {
+void UIOverlay::initNewFrame(const int lastFps, Camera camera, CursorPositionBufferObject cursorPos) {
   ImGui_ImplVulkan_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
@@ -87,6 +87,23 @@ void UIOverlay::initNewFrame(const int lastFps) {
   std::string fpsText = "FPS: ";
   fpsText += std::to_string(lastFps);
   ImGui::Text(fpsText.c_str());
+  ImGui::End();
+
+  ImGui::SetNextWindowPos(ImVec2(0, ImGui::GetIO().DisplaySize.y - 100));
+  ImGui::Begin("Debug info (down)", nullptr, windowFlags);
+  std::string cameraText = "Camera: ";
+  cameraText += std::format("{:.1f}",camera.position.x) + ";";
+  cameraText += std::format("{:.1f}", camera.position.y) + ";";
+  cameraText += std::format("{:.1f}", camera.position.z) + "{";
+  cameraText += std::format("{:.1f}", camera.rotation.x) + ";";
+  cameraText += std::format("{:.1f}", camera.rotation.y) + ";";
+  cameraText += std::format("{:.1f}", camera.rotation.z) + "}";
+  ImGui::Text(cameraText.c_str());
+  std::string cursorText = "Cursor: ";
+  cursorText += std::to_string(cursorPos.pos.x) + ";";
+  cursorText += std::to_string(cursorPos.pos.y) + ";";
+  cursorText += std::to_string(cursorPos.pos.z);
+  ImGui::Text(cursorText.c_str());
   ImGui::End();
 }
 

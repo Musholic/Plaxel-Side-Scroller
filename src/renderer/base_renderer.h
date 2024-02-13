@@ -20,6 +20,7 @@
 static constexpr int NB_COMPUTE_BUFFERS = 6;
 static constexpr int NB_ADD_BLOCK_COMPUTE_BUFFERS = 3;
 namespace plaxel {
+constexpr int BLOCK_W = 8;
 
 struct MouseButtons {
   bool left = false;
@@ -29,10 +30,6 @@ struct UniformBufferObject {
   alignas(16) glm::mat4 model;
   alignas(16) glm::mat4 view;
   alignas(16) glm::mat4 proj;
-};
-
-struct CursorPositionBufferObject {
-  int32_t x, y, z;
 };
 
 struct QueueFamilyIndices {
@@ -136,7 +133,7 @@ protected:
   vk::raii::PhysicalDevice physicalDevice = nullptr;
   vk::raii::PipelineLayout pipelineLayout = nullptr;
   std::vector<Buffer> uniformBuffers{};
-  CursorPositionBufferObject cursorPosition{0, 1, 1};
+  CursorPositionBufferObject cursorPosition{{0, 1, 1}};
   std::optional<Buffer> cursorPositionBuffer;
   bool shouldAddBlockAtCursor = false;
   vk::raii::CommandBuffer computeCommandBuffer = nullptr;
@@ -248,6 +245,7 @@ private:
   static vk::PipelineStageFlags pipelineStageForLayout(vk::ImageLayout layout);
   void mouseMoved(const glm::vec2 &newPos);
   void keyPressed(int key);
+  void handleCursorKeys(int key);
   void keyReleased(int key);
   void mouseAction(int button, int action, int mods);
   void handleCameraKeys(int key, bool pressed);
