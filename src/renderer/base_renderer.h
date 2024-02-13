@@ -1,7 +1,6 @@
 #ifndef PLAXEL_BASE_RENDERER_H
 #define PLAXEL_BASE_RENDERER_H
 
-
 #include "Buffer.h"
 #include "UIOverlay.h"
 #include "camera.h"
@@ -30,6 +29,10 @@ struct UniformBufferObject {
   alignas(16) glm::mat4 model;
   alignas(16) glm::mat4 view;
   alignas(16) glm::mat4 proj;
+};
+
+struct CursorPositionBufferObject {
+  int32_t x, y, z;
 };
 
 struct QueueFamilyIndices {
@@ -115,6 +118,8 @@ protected:
                              vk::ImageLayout newLayout) const;
   vk::raii::ShaderModule createShaderModule(const cmrc::file &code);
 
+  virtual void addBlock(int x, int y, int z) = 0;
+
   uint32_t currentFrame = 0;
   const double frameTimeS;
   int lastFps = 0;
@@ -131,6 +136,9 @@ protected:
   vk::raii::PhysicalDevice physicalDevice = nullptr;
   vk::raii::PipelineLayout pipelineLayout = nullptr;
   std::vector<Buffer> uniformBuffers{};
+  CursorPositionBufferObject cursorPosition{0, 1, 1};
+  std::optional<Buffer> cursorPositionBuffer;
+  bool shouldAddBlockAtCursor = false;
   vk::raii::CommandBuffer computeCommandBuffer = nullptr;
   vk::raii::Queue computeQueue = nullptr;
 

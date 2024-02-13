@@ -233,28 +233,43 @@ void Renderer::createTextureSampler() {
 }
 
 void Renderer::createDescriptorSetLayout() {
-  vk::DescriptorSetLayoutBinding uboLayoutBinding;
-  uboLayoutBinding.binding = 0;
-  uboLayoutBinding.descriptorCount = 1;
-  uboLayoutBinding.descriptorType = vk::DescriptorType::eUniformBuffer;
-  uboLayoutBinding.pImmutableSamplers = nullptr;
-  uboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex;
+  std::vector<vk::DescriptorSetLayoutBinding> bindings;
+  {
+    vk::DescriptorSetLayoutBinding &uboLayoutBinding = bindings.emplace_back();
+    uboLayoutBinding.binding = 0;
+    uboLayoutBinding.descriptorCount = 1;
+    uboLayoutBinding.descriptorType = vk::DescriptorType::eUniformBuffer;
+    uboLayoutBinding.pImmutableSamplers = nullptr;
+    uboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex;
+  }
 
-  vk::DescriptorSetLayoutBinding samplerLayoutBinding;
-  samplerLayoutBinding.binding = 1;
-  samplerLayoutBinding.descriptorCount = 1;
-  samplerLayoutBinding.descriptorType = vk::DescriptorType::eCombinedImageSampler;
-  samplerLayoutBinding.pImmutableSamplers = nullptr;
-  samplerLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eFragment;
+  {
+    vk::DescriptorSetLayoutBinding &samplerLayoutBinding = bindings.emplace_back();
+    samplerLayoutBinding.binding = 1;
+    samplerLayoutBinding.descriptorCount = 1;
+    samplerLayoutBinding.descriptorType = vk::DescriptorType::eCombinedImageSampler;
+    samplerLayoutBinding.pImmutableSamplers = nullptr;
+    samplerLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eFragment;
+  }
 
-  vk::DescriptorSetLayoutBinding uboMeshLayoutBinding;
-  uboMeshLayoutBinding.binding = 2;
-  uboMeshLayoutBinding.descriptorCount = 1;
-  uboMeshLayoutBinding.descriptorType = vk::DescriptorType::eUniformBuffer;
-  uboMeshLayoutBinding.pImmutableSamplers = nullptr;
-  uboMeshLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eMeshEXT;
+  {
+    vk::DescriptorSetLayoutBinding &uboMeshLayoutBinding = bindings.emplace_back();
+    uboMeshLayoutBinding.binding = 2;
+    uboMeshLayoutBinding.descriptorCount = 1;
+    uboMeshLayoutBinding.descriptorType = vk::DescriptorType::eUniformBuffer;
+    uboMeshLayoutBinding.pImmutableSamplers = nullptr;
+    uboMeshLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eMeshEXT;
+  }
 
-  const std::array bindings = {uboLayoutBinding, samplerLayoutBinding, uboMeshLayoutBinding};
+  {
+    vk::DescriptorSetLayoutBinding &cursorPositionLayoutBinding = bindings.emplace_back();
+    cursorPositionLayoutBinding.binding = 3;
+    cursorPositionLayoutBinding.descriptorCount = 1;
+    cursorPositionLayoutBinding.descriptorType = vk::DescriptorType::eUniformBuffer;
+    cursorPositionLayoutBinding.pImmutableSamplers = nullptr;
+    cursorPositionLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eMeshEXT;
+  }
+
   vk::DescriptorSetLayoutCreateInfo layoutInfo;
   layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
   layoutInfo.pBindings = bindings.data();
@@ -293,6 +308,11 @@ void Renderer::createDescriptorSets() {
     bufferInfo.offset = 0;
     bufferInfo.range = sizeof(UniformBufferObject);
 
+    vk::DescriptorBufferInfo cursorPositionBufferInfo;
+    cursorPositionBufferInfo.buffer = cursorPositionBuffer->getBuffer();
+    cursorPositionBufferInfo.offset = 0;
+    cursorPositionBufferInfo.range = sizeof(CursorPositionBufferObject);
+
     vk::DescriptorImageInfo imageInfo;
     imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
     imageInfo.imageView = *textureImageView;
@@ -300,29 +320,45 @@ void Renderer::createDescriptorSets() {
 
     std::vector<vk::WriteDescriptorSet> descriptorWrites;
 
-    vk::WriteDescriptorSet &descriptorWrite = descriptorWrites.emplace_back();
-    descriptorWrite.dstSet = *descriptorSets[i];
-    descriptorWrite.dstBinding = 0;
-    descriptorWrite.dstArrayElement = 0;
-    descriptorWrite.descriptorType = vk::DescriptorType::eUniformBuffer;
-    descriptorWrite.descriptorCount = 1;
-    descriptorWrite.pBufferInfo = &bufferInfo;
+    {
+      vk::WriteDescriptorSet &descriptorWrite = descriptorWrites.emplace_back();
+      descriptorWrite.dstSet = *descriptorSets[i];
+      descriptorWrite.dstBinding = 0;
+      descriptorWrite.dstArrayElement = 0;
+      descriptorWrite.descriptorType = vk::DescriptorType::eUniformBuffer;
+      descriptorWrite.descriptorCount = 1;
+      descriptorWrite.pBufferInfo = &bufferInfo;
+    }
 
-    vk::WriteDescriptorSet &descriptorWrite2 = descriptorWrites.emplace_back();
-    descriptorWrite2.dstSet = *descriptorSets[i];
-    descriptorWrite2.dstBinding = 1;
-    descriptorWrite2.dstArrayElement = 0;
-    descriptorWrite2.descriptorType = vk::DescriptorType::eCombinedImageSampler;
-    descriptorWrite2.descriptorCount = 1;
-    descriptorWrite2.pImageInfo = &imageInfo;
+    {
+      vk::WriteDescriptorSet &descriptorWrite = descriptorWrites.emplace_back();
+      descriptorWrite.dstSet = *descriptorSets[i];
+      descriptorWrite.dstBinding = 1;
+      descriptorWrite.dstArrayElement = 0;
+      descriptorWrite.descriptorType = vk::DescriptorType::eCombinedImageSampler;
+      descriptorWrite.descriptorCount = 1;
+      descriptorWrite.pImageInfo = &imageInfo;
+    }
 
-    vk::WriteDescriptorSet &descriptorWrite3 = descriptorWrites.emplace_back();
-    descriptorWrite3.dstSet = *descriptorSets[i];
-    descriptorWrite3.dstBinding = 2;
-    descriptorWrite3.dstArrayElement = 0;
-    descriptorWrite3.descriptorType = vk::DescriptorType::eUniformBuffer;
-    descriptorWrite3.descriptorCount = 1;
-    descriptorWrite3.pBufferInfo = &bufferInfo;
+    {
+      vk::WriteDescriptorSet &descriptorWrite = descriptorWrites.emplace_back();
+      descriptorWrite.dstSet = *descriptorSets[i];
+      descriptorWrite.dstBinding = 2;
+      descriptorWrite.dstArrayElement = 0;
+      descriptorWrite.descriptorType = vk::DescriptorType::eUniformBuffer;
+      descriptorWrite.descriptorCount = 1;
+      descriptorWrite.pBufferInfo = &bufferInfo;
+    }
+
+    {
+      vk::WriteDescriptorSet &descriptorWrite = descriptorWrites.emplace_back();
+      descriptorWrite.dstSet = *descriptorSets[i];
+      descriptorWrite.dstBinding = 3;
+      descriptorWrite.dstArrayElement = 0;
+      descriptorWrite.descriptorType = vk::DescriptorType::eUniformBuffer;
+      descriptorWrite.descriptorCount = 1;
+      descriptorWrite.pBufferInfo = &cursorPositionBufferInfo;
+    }
 
     device.updateDescriptorSets(descriptorWrites, nullptr);
   }

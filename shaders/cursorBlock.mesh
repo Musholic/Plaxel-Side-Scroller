@@ -6,6 +6,12 @@ struct UBOMatrices {
 
 cbuffer ubo : register(b2) { UBOMatrices ubo; };
 
+struct CursorPosition {
+    int x, y, z;
+};
+
+cbuffer cursorPos : register(b3) { CursorPosition cursorPos; };
+
 struct VertexOutput
 {
 	float4 position: SV_Position;
@@ -43,11 +49,9 @@ void main(out indices uint2 lines[12], out vertices VertexOutput vertices[3], ui
 {
 	float4x4 mvp = mul(ubo.proj, mul(ubo.view, ubo.model));
 
-	float4 offset = float4(0.0, 0.0, (float)DispatchThreadID, 0.0);
-
 	SetMeshOutputCounts(8, 12);
     for (uint i = 0; i < 8; i++) {
-		vertices[i].position = mul(mvp, cube_vertices[i] + float4(1.0,1.0,1.0,0.0));
+		vertices[i].position = mul(mvp, cube_vertices[i] + float4(cursorPos.x, cursorPos.y, cursorPos.z,0.0));
     }
     for (uint i = 0; i < 12; i++) {
 		lines[i] = cube_indices[i];

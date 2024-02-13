@@ -803,6 +803,12 @@ void BaseRenderer::drawFrame() {
 
   device.resetFences(*computeFence);
 
+  if (shouldAddBlockAtCursor) {
+    shouldAddBlockAtCursor = false;
+    // TODO: show cursor position in UI Overlay
+    addBlock(cursorPosition.x, cursorPosition.y, cursorPosition.z);
+  }
+
   computeCommandBuffer.reset();
   recordComputeCommandBuffer(*computeCommandBuffer);
 
@@ -952,6 +958,11 @@ void BaseRenderer::createUniformBuffers() {
         device, physicalDevice, bufferSize, vk::BufferUsageFlagBits::eUniformBuffer,
         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
   }
+
+  bufferSize = sizeof(CursorPositionBufferObject);
+  cursorPositionBuffer.emplace(
+      device, physicalDevice, bufferSize, vk::BufferUsageFlagBits::eUniformBuffer,
+      vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
 }
 
 void BaseRenderer::updateUniformBuffer(uint32_t currentImage) {
@@ -969,6 +980,8 @@ void BaseRenderer::updateUniformBuffer(uint32_t currentImage) {
   ubo.proj[1][1] *= -1;
 
   uniformBuffers[currentImage].copyToMemory(&ubo);
+
+  cursorPositionBuffer->copyToMemory(&cursorPosition);
 }
 
 void BaseRenderer::createDepthResources() {
@@ -1304,6 +1317,19 @@ void BaseRenderer::keyReleased(int key) {
   handleCameraKeys(key, false);
   if (key == GLFW_KEY_P) {
     camera.printDebug();
+  }
+  if (key == GLFW_KEY_LEFT) {
+    cursorPosition.x--;
+  } else if (key == GLFW_KEY_RIGHT) {
+    cursorPosition.x++;
+  }
+  if (key == GLFW_KEY_DOWN) {
+    cursorPosition.y--;
+  } else if (key == GLFW_KEY_UP) {
+    cursorPosition.y++;
+  }
+  if (key == GLFW_KEY_ENTER) {
+    shouldAddBlockAtCursor = true;
   }
 }
 void BaseRenderer::handleCameraKeys(int key, bool pressed) {

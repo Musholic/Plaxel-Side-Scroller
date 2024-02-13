@@ -73,6 +73,7 @@ private:
 protected:
   void initVulkan() override;
   void initCustomDescriptorSetLayout() override;
+  void addBlock(int x, int y, int z) override;
   vk::raii::CommandBuffers computeCommandBuffers = nullptr;
 
   vk::raii::Image textureImage = nullptr;
@@ -122,7 +123,6 @@ protected:
                                      vk::DeviceSize size) const;
   void createAddBlockComputePipeline();
   void createAddBlockComputeDescriptorSetLayout();
-  void addBlock(int x, int y, int z);
   virtual void initWorld();
 };
 
