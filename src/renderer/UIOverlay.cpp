@@ -6,6 +6,7 @@
 #include <array>
 #include <cstdio>
 #include <cstdlib>
+#include <format>
 
 using namespace plaxel;
 std::optional<std::string> UIOverlay::testName;
