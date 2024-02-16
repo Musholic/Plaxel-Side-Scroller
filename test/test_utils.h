@@ -2,6 +2,7 @@
 #define TEST_UTILS_H
 #include "renderer/TestRenderer.h"
 
+#include <gtest/gtest.h>
 #include <string>
 
 namespace plaxel::test {
@@ -19,6 +20,41 @@ void drawAndSaveScreenshot(TestRenderer &, const char *testName);
 int compareImages(const char *testName);
 [[nodiscard]] std::string toString(std::vector<Triangle> const &vec);
 
+class RendererTest : public ::testing::Test {
+protected:
+  TestRenderer renderer;
+  void SetUp() override {
+    UIOverlay::testName =
+        std::string(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    if (!SHOW_WINDOW) {
+      hideWindowsByDefault();
+      renderer.showOverlay = false;
+    }
+    renderer.showWindow();
+  }
+  void TearDown() override {
+    if (SHOW_WINDOW) {
+      while (!renderer.shouldClose()) {
+        renderer.draw();
+      }
+    }
+    renderer.closeWindow();
+  }
+};
+
+class BenchmarkRendererTest : public RendererTest {
+public:
+  double benchmark();
+
+protected:
+  void SetUp() override {
+    RendererTest::SetUp();
+
+    if (!SHOW_WINDOW) {
+      setenv("DISABLE_FPS_LIMIT", "1", 0);
+    }
+  }
+};
 } // namespace plaxel::test
 
 #endif // TEST_UTILS_H

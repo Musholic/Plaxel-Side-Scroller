@@ -6,27 +6,6 @@
 using namespace plaxel;
 using namespace plaxel::test;
 
-class RendererTest : public ::testing::Test {
-protected:
-  TestRenderer renderer;
-  void SetUp() override {
-    UIOverlay::testName =
-        std::string(::testing::UnitTest::GetInstance()->current_test_info()->name());
-    if (!SHOW_WINDOW) {
-      hideWindowsByDefault();
-      renderer.showOverlay = false;
-    }
-    renderer.showWindow();
-  }
-  void TearDown() override {
-    if (SHOW_WINDOW) {
-      while (!renderer.shouldClose()) {
-        renderer.draw();
-      }
-      renderer.closeWindow();
-    }
-  }
-};
 
 TEST_F(RendererTest, SimpleDrawing) {
   // Arrange

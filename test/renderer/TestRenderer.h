@@ -18,7 +18,7 @@ struct VoxelTreeNode {
   std::set<std::string> blocks;
   int x{};
   int y{};
-  explicit VoxelTreeNode(const plaxel::VoxelTreeNode &node,
+  VoxelTreeNode(const plaxel::VoxelTreeNode &node,
                          const std::vector<plaxel::VoxelTreeNode> &gpuNodes,
                          const std::vector<VoxelTreeLeaf> &gpuLeaves) {
     height = node.height;
@@ -52,7 +52,7 @@ class TestRenderer : public Renderer {
 public:
   std::vector<Triangle> getTriangles();
   void addBlock(int x, int y, int z);
-  void getVoxelTree();
+  VoxelTreeNode getVoxelTree();
   void moveCursor(glm::ivec3 pos);
 
 protected:

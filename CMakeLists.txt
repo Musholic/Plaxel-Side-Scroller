@@ -63,7 +63,8 @@ find_package(Boost REQUIRED COMPONENTS thread filesystem iostreams)
 
 add_executable(plaxel_test test/renderer/renderer.cpp
         test/renderer/TestRenderer.cpp
-        test/renderer/TestRenderer.h)
+        test/renderer/TestRenderer.h
+        test/renderer/rendererBenchmark.cpp)
 
 enable_testing()
 

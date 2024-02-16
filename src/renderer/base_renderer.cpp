@@ -767,6 +767,9 @@ void BaseRenderer::draw() {
 }
 
 void BaseRenderer::manageFps() const {
+  if (std::getenv("DISABLE_FPS_LIMIT")) {
+    return;
+  }
   static double frameStartTime = 0;
 
   double frameEndTime = glfwGetTime();

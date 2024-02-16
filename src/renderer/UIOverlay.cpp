@@ -90,6 +90,7 @@ void UIOverlay::initNewFrame(const int lastFps, Camera camera, CursorPositionBuf
   ImGui::End();
 
   ImGui::SetNextWindowPos(ImVec2(0, ImGui::GetIO().DisplaySize.y - 100));
+  ImGui::SetNextWindowSize(ImVec2(800, 100));
   ImGui::Begin("Debug info (down)", nullptr, windowFlags);
   std::string cameraText = "Camera: ";
   cameraText += std::format("{:.1f}",camera.position.x) + ";";

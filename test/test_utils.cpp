@@ -12,6 +12,9 @@
 #include <fstream>
 #include <numeric>
 
+#define ANKERL_NANOBENCH_IMPLEMENT
+#include <nanobench.h>
+
 using namespace plaxel::test;
 
 void plaxel::test::hideWindowsByDefault() {
@@ -125,4 +128,21 @@ std::string plaxel::test::toString(std::vector<Triangle> const &vec) {
   return std::accumulate(
       vec.begin() + 1, vec.end(), vec[0].toString(),
       [](const std::string &a, const Triangle &b) { return a + ", " + b.toString(); });
+}
+
+double BenchmarkRendererTest::benchmark() {
+  if (SHOW_WINDOW) {
+    // If we're showing the window, we're not interested in the becnhmark result
+    renderer.draw();
+    return 0;
+  }
+  using namespace std::chrono_literals;
+  ankerl::nanobench::Result result = ankerl::nanobench::Bench()
+                                         .warmup(1)
+                                         .minEpochIterations(20)
+                                         .timeUnit(1ms, "ms")
+                                         .run("renderer.draw", [&] { renderer.draw(); })
+                                         .results()
+                                         .front();
+  return result.average(ankerl::nanobench::Result::Measure::elapsed) * 1000;
 }

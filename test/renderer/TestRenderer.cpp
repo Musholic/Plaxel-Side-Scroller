@@ -20,12 +20,12 @@ std::vector<Triangle> TestRenderer::getTriangles() {
 }
 void TestRenderer::addBlock(int x, int y, int z) { Renderer::addBlock(x, y, z); }
 
-void TestRenderer::getVoxelTree() {
+VoxelTreeNode TestRenderer::getVoxelTree() {
   auto nodes = voxelTreeNodesBuffer->getVectorData<plaxel::VoxelTreeNode>();
   auto leaves = voxelTreeLeavesBuffer->getVectorData<VoxelTreeLeaf>();
   auto info = voxelTreeInfoBuffer->getData<VoxelTreeInfo>();
   auto rootVoxelTreeNode = nodes[info.rootNodeIndex];
-  VoxelTreeNode voxelTree{rootVoxelTreeNode, nodes, leaves};
+  return {rootVoxelTreeNode, nodes, leaves};
 }
 
 void TestRenderer::moveCursor(const glm::ivec3 pos) { cursorPosition.pos = pos; }
