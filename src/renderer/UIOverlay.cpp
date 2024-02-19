@@ -6,7 +6,6 @@
 #include <array>
 #include <cstdio>
 #include <cstdlib>
-#include <format>
 
 using namespace plaxel;
 std::optional<std::string> UIOverlay::testName;
@@ -66,7 +65,8 @@ void UIOverlay::initialize(ImGui_ImplVulkan_InitInfo &initInfo, GLFWwindow *wind
   ImGui_ImplVulkan_Init(&initInfo, renderPass);
 }
 
-void UIOverlay::initNewFrame(const int lastFps, Camera camera, CursorPositionBufferObject cursorPos) {
+void UIOverlay::initNewFrame(const int lastFps, Camera camera,
+                             CursorPositionBufferObject cursorPos) {
   ImGui_ImplVulkan_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
@@ -94,12 +94,12 @@ void UIOverlay::initNewFrame(const int lastFps, Camera camera, CursorPositionBuf
   ImGui::SetNextWindowSize(ImVec2(800, 100));
   ImGui::Begin("Debug info (down)", nullptr, windowFlags);
   std::string cameraText = "Camera: ";
-  cameraText += std::format("{:.1f}",camera.position.x) + ";";
-  cameraText += std::format("{:.1f}", camera.position.y) + ";";
-  cameraText += std::format("{:.1f}", camera.position.z) + "{";
-  cameraText += std::format("{:.1f}", camera.rotation.x) + ";";
-  cameraText += std::format("{:.1f}", camera.rotation.y) + ";";
-  cameraText += std::format("{:.1f}", camera.rotation.z) + "}";
+  cameraText += formatFloat(camera.position.x) + ";";
+  cameraText += formatFloat(camera.position.y) + ";";
+  cameraText += formatFloat(camera.position.z) + "{";
+  cameraText += formatFloat(camera.rotation.x) + ";";
+  cameraText += formatFloat(camera.rotation.y) + ";";
+  cameraText += formatFloat(camera.rotation.z) + "}";
   ImGui::Text(cameraText.c_str());
   std::string cursorText = "Cursor: ";
   cursorText += std::to_string(cursorPos.pos.x) + ";";
@@ -112,6 +112,12 @@ void UIOverlay::initNewFrame(const int lastFps, Camera camera, CursorPositionBuf
 void UIOverlay::render(VkCommandBuffer commandBuffer) {
   ImGui::Render();
   ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
+}
+
+std::string UIOverlay::formatFloat(float x) {
+  char result[20];
+  std::sprintf(result, "%.1f", x);
+  return result;
 }
 
 void UIOverlay::checkVkResult(VkResult err) {
