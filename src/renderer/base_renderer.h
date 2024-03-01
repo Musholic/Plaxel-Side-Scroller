@@ -1,14 +1,14 @@
 #ifndef PLAXEL_BASE_RENDERER_H
 #define PLAXEL_BASE_RENDERER_H
 
-#include <vulkan/vulkan_raii.hpp>
-
 #include "Buffer.h"
+#include "UIOverlay.h"
 #include "camera.h"
 #include "file_utils.h"
 
 #include "cmrc/cmrc.hpp"
 #include <GLFW/glfw3.h>
+#include <boost/iostreams/filter/zlib.hpp>
 #include <fstream>
 #include <glm/detail/type_mat4x4.hpp>
 #include <glm/fwd.hpp>
@@ -17,8 +17,10 @@
 #include <iostream>
 #include <optional>
 
-static constexpr int NB_COMPUTE_BUFFERS = 4;
+static constexpr int NB_COMPUTE_BUFFERS = 6;
+static constexpr int NB_ADD_BLOCK_COMPUTE_BUFFERS = 3;
 namespace plaxel {
+constexpr int BLOCK_W = 8;
 
 struct MouseButtons {
   bool left = false;
@@ -46,13 +48,14 @@ struct SwapChainSupportDetails {
 };
 
 const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
-const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+                                                    VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME,
+                                                    VK_EXT_MESH_SHADER_EXTENSION_NAME};
 constexpr uint32_t MAX_VERTEX_COUNT = 8192;
 constexpr uint32_t MAX_INDEX_COUNT = 8192;
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 constexpr uint64_t FENCE_TIMEOUT = 100000000;
 constexpr int TARGET_FPS = 60;
-constexpr double FRAME_TIME_S = 1.0 / TARGET_FPS;
 
 class VulkanInitializationError : public std::runtime_error {
 public:
@@ -69,36 +72,38 @@ public:
   using runtime_error::runtime_error;
 };
 
-
 class BaseRenderer {
 public:
-  BaseRenderer() = default;
+  explicit BaseRenderer(int targetFps);
   virtual ~BaseRenderer() = default;
 
   constexpr static std::string_view WINDOW_TITLE = "Plaxel";
 
   void closeWindow() const;
   [[nodiscard]] bool shouldClose() const;
+  void initializeOverlay();
   void draw();
   void showWindow();
 
   void saveScreenshot(const char *filename) const;
+  bool showOverlay = true;
 
 private:
   // These objects needs to be destructed last
   vk::raii::Context context;
   vk::raii::Instance instance = nullptr;
+  vk::raii::DebugReportCallbackEXT debugReportCallbackHandle = nullptr;
 
 protected:
   virtual void initVulkan();
 
   vk::Extent2D windowSize{1280, 720};
 
-  void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer,
-                                   vk::DeviceSize size) const;
+  void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size) const;
   [[nodiscard]] virtual vk::PipelineLayoutCreateInfo getPipelineLayoutInfo() const;
   [[nodiscard]] virtual vk::PipelineLayoutCreateInfo getComputePipelineLayoutInfo() const;
   virtual void initCustomDescriptorSetLayout();
+  void setupDebugReportCallback();
   void createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling,
                    vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
                    vk::raii::Image &image, vk::raii::DeviceMemory &imageMemory) const;
@@ -106,9 +111,15 @@ protected:
                                       vk::ImageAspectFlags aspectFlags);
   [[nodiscard]] vk::raii::CommandBuffer beginSingleTimeCommands() const;
   void endSingleTimeCommands(vk::CommandBuffer commandBuffer) const;
-  void transitionImageLayout(vk::Image image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout) const;
+  void transitionImageLayout(vk::Image image, vk::ImageLayout oldLayout,
+                             vk::ImageLayout newLayout) const;
+  vk::raii::ShaderModule createShaderModule(const cmrc::file &code);
+
+  virtual void addBlock(int x, int y, int z) = 0;
 
   uint32_t currentFrame = 0;
+  const double frameTimeS;
+  int lastFps = 0;
 
   vk::raii::Device device = nullptr;
 
@@ -121,7 +132,14 @@ protected:
   vk::raii::Queue graphicsQueue = nullptr;
   vk::raii::PhysicalDevice physicalDevice = nullptr;
   vk::raii::PipelineLayout pipelineLayout = nullptr;
-  std::vector<plaxel::Buffer> uniformBuffers{};
+  std::vector<Buffer> uniformBuffers{};
+  CursorPositionBufferObject cursorPosition{{0, 1, 1}};
+  std::optional<Buffer> cursorPositionBuffer;
+  bool shouldAddBlockAtCursor = false;
+  vk::raii::CommandBuffer computeCommandBuffer = nullptr;
+  vk::raii::Queue computeQueue = nullptr;
+
+  UIOverlay overlay;
 
 private:
   GLFWwindow *window{};
@@ -134,7 +152,6 @@ private:
   vk::raii::DebugUtilsMessengerEXT debugMessenger = nullptr;
   vk::raii::SurfaceKHR surface = nullptr;
 
-  vk::raii::Queue computeQueue = nullptr;
   vk::raii::Queue presentQueue = nullptr;
 
   vk::raii::SwapchainKHR swapChain = nullptr;
@@ -150,10 +167,10 @@ private:
   vk::Extent2D swapChainExtent;
 
   vk::raii::RenderPass renderPass = nullptr;
-  vk::raii::Pipeline graphicsPipeline = nullptr;
+  vk::raii::Pipeline worldPipeline = nullptr;
+  vk::raii::Pipeline cursorPipeline = nullptr;
 
   vk::raii::CommandBuffers mainCommandBuffers = nullptr;
-  vk::raii::CommandBuffer computeCommandBuffer = nullptr;
 
   std::array<vk::raii::Semaphore, MAX_FRAMES_IN_FLIGHT> imageAvailableSemaphores{nullptr, nullptr};
   std::array<vk::raii::Semaphore, MAX_FRAMES_IN_FLIGHT> renderFinishedSemaphores{nullptr, nullptr};
@@ -197,8 +214,7 @@ private:
   [[nodiscard]] vk::Extent2D chooseSwapExtent(const vk::SurfaceCapabilitiesKHR &capabilities) const;
   void createImageViews();
   void createRenderPass();
-  void createGraphicsPipeline();
-  vk::raii::ShaderModule createShaderModule(const cmrc::file &code);
+  void createGraphicsPipelines();
   void createComputePipeline();
   void createFramebuffers();
   void createCommandPool();
@@ -211,7 +227,7 @@ private:
   virtual void recordComputeCommandBuffer(vk::CommandBuffer commandBuffer) = 0;
   void waitForFence(vk::Fence fence) const;
   void recreateSwapChain();
-  void recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t imageIndex) const;
+  void recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t imageIndex);
 
   void drawFrame();
   virtual void drawCommand(vk::CommandBuffer commandBuffer) const = 0;
@@ -229,6 +245,7 @@ private:
   static vk::PipelineStageFlags pipelineStageForLayout(vk::ImageLayout layout);
   void mouseMoved(const glm::vec2 &newPos);
   void keyPressed(int key);
+  void handleCursorKeys(int key);
   void keyReleased(int key);
   void mouseAction(int button, int action, int mods);
   void handleCameraKeys(int key, bool pressed);
@@ -237,8 +254,14 @@ private:
   debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                 VkDebugUtilsMessageTypeFlagsEXT messageTypes,
                 VkDebugUtilsMessengerCallbackDataEXT const *pCallbackData, void * /*pUserData*/);
-  static void manageFps();
-  static void printFps();
+  static VKAPI_ATTR VkBool32 VKAPI_CALL debugReportCallback(VkDebugReportFlagsEXT flags,
+                                                            VkDebugReportObjectTypeEXT objType,
+                                                            uint64_t srcObject, size_t location,
+                                                            int32_t msgCode,
+                                                            const char *pLayerPrefix,
+                                                            const char *pMsg, void *pUserData);
+  void manageFps() const;
+  void computeFps();
 };
 
 } // namespace plaxel

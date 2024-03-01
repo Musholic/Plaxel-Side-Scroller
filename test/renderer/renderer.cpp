@@ -1,89 +1,164 @@
-#include "../../src/renderer/renderer.h"
-#include <OpenImageIO/imagebuf.h>
-#include <OpenImageIO/imagebufalgo.h>
-#include <OpenImageIO/imageio.h>
-#include <boost/iostreams/copy.hpp>
-#include <boost/iostreams/filter/gzip.hpp>
-#include <boost/iostreams/filtering_streambuf.hpp>
-#include <filesystem>
+#include "../test_utils.h"
+
+#include <boost/iostreams/filter/zlib.hpp>
 #include <gtest/gtest.h>
 
 using namespace plaxel;
+using namespace plaxel::test;
 
-void hideWindowsByDefault() {
-  glfwInit();
-  glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-}
 
-void compressFile(const std::string &fileName, const std::string &outputFileName) {
-  std::ifstream file(fileName, std::ios_base::in | std::ios_base::binary);
-  boost::iostreams::filtering_streambuf<boost::iostreams::input> in;
-  in.push(boost::iostreams::gzip_compressor());
-  in.push(file);
-
-  std::ofstream fileOut(outputFileName, std::ios_base::out | std::ios_base::binary);
-  boost::iostreams::copy(in, fileOut);
-  fileOut.close();
-}
-
-void decompressFile(const std::string &fileName, const std::string &outputFileName) {
-  std::ifstream file(fileName, std::ios_base::in | std::ios_base::binary);
-  boost::iostreams::filtering_streambuf<boost::iostreams::input> in;
-  in.push(boost::iostreams::gzip_decompressor());
-  in.push(file);
-
-  std::ofstream fileOut(outputFileName, std::ios_base::out | std::ios_base::binary);
-  boost::iostreams::copy(in, fileOut);
-  fileOut.close();
-}
-
-TEST(RendererTest, Test) {
+TEST_F(RendererTest, SimpleDrawing) {
   // Arrange
-  hideWindowsByDefault();
-
-  Renderer r;
-  r.showWindow();
+  const auto testName = "simple_drawing_test";
+  renderer.addBlock(0, 0, 0);
+  // Move the cursor away since we don't want to include it in the screenshot
+  renderer.moveCursor({500, 0, 0});
 
   // Act
-  // We need to draw 2 frames, to free up one of the swapChainImage so we can use it to save our
-  // screenshot
-  r.draw();
-  r.draw();
+  drawAndSaveScreenshot(renderer, testName);
 
   // Assert
-  std::filesystem::create_directory("test_report");
-  std::filesystem::create_directory("workTmp");
-  r.saveScreenshot("workTmp/test_result.ppm");
-  r.closeWindow();
+  EXPECT_EQ(compareImages(testName), 0);
+}
 
-  compressFile("workTmp/test_result.ppm", "test_report/test_result.ppm.gz");
-  decompressFile("test/renderer/simple_drawing_test.ppm.gz", "workTmp/expected.ppm");
+TEST_F(RendererTest, OneCube) {
+  // Arrange
+  renderer.addBlock(0, 0, 0);
 
-  const OIIO::ImageBuf refTestImage("workTmp/expected.ppm");
-  const OIIO::ImageBuf testResultImage("workTmp/test_result.ppm");
+  // Act
+  const auto data = drawAndGetTriangles(renderer);
 
-  const OIIO::ImageSpec &spec = testResultImage.spec();
-  const int xres = spec.width;
-  const int yres = spec.height;
-  std::cout << "Spec: " << xres << "x" << yres << std::endl;
+  // Assert
+  const std::string expected =
+      "{1;0;0(0;1),0;0;0(1;1),0;1;0(1;0)}, {0;1;0(1;0),1;1;0(0;0),1;0;0(0;1)}, "
+      "{0;0;1(0;1),1;0;1(1;1),1;1;1(1;0)}, {1;1;1(1;0),0;1;1(0;0),0;0;1(0;1)}, "
+      "{0;0;0(0;1),0;0;1(1;1),0;1;1(1;0)}, {0;1;1(1;0),0;1;0(0;0),0;0;0(0;1)}, "
+      "{1;0;1(0;1),1;0;0(1;1),1;1;0(1;0)}, {1;1;0(1;0),1;1;1(0;0),1;0;1(0;1)}, "
+      "{0;0;1(0;1),0;0;0(1;1),1;0;0(1;0)}, {1;0;0(1;0),1;0;1(0;0),0;0;1(0;1)}, "
+      "{0;1;0(0;1),0;1;1(1;1),1;1;1(1;0)}, {1;1;1(1;0),1;1;0(0;0),0;1;0(0;1)}";
+  EXPECT_EQ(toString(data), expected);
+}
 
-  const auto comp = OIIO::ImageBufAlgo::compare(testResultImage, refTestImage, 3.0f / 255.0f, 0.0f);
+TEST_F(RendererTest, TwoCubes) {
+  // Arrange
+  renderer.addBlock(0, 0, 0);
+  renderer.addBlock(1, 0, 0);
 
-  if (comp.nwarn == 0 && comp.nfail == 0) {
-    std::cout << "Images match within tolerance\n";
-  } else {
-    std::cout << "Image differed: " << comp.nfail << " failures, " << comp.nwarn << " warnings.\n";
-    std::cout << "Average error was " << comp.meanerror << "\n";
-    std::cout << "RMS error was " << comp.rms_error << "\n";
-    std::cout << "PSNR was " << comp.PSNR << "\n";
-    std::cout << "largest error was " << comp.maxerror << " on pixel (" << comp.maxx << ","
-              << comp.maxy << "," << comp.maxz << "), channel " << comp.maxc << "\n";
+  // Act
+  const auto data = drawAndGetTriangles(renderer);
+
+  // Assert
+  const std::string expected =
+      "{1;0;0(0;1),0;0;0(1;1),0;1;0(1;0)}, {0;1;0(1;0),1;1;0(0;0),1;0;0(0;1)}, "
+      "{0;0;1(0;1),1;0;1(1;1),1;1;1(1;0)}, {1;1;1(1;0),0;1;1(0;0),0;0;1(0;1)}, "
+      "{0;0;0(0;1),0;0;1(1;1),0;1;1(1;0)}, {0;1;1(1;0),0;1;0(0;0),0;0;0(0;1)}, "
+      "{0;0;1(0;1),0;0;0(1;1),1;0;0(1;0)}, {1;0;0(1;0),1;0;1(0;0),0;0;1(0;1)}, "
+      "{0;1;0(0;1),0;1;1(1;1),1;1;1(1;0)}, {1;1;1(1;0),1;1;0(0;0),0;1;0(0;1)}, "
+
+      "{2;0;0(0;1),1;0;0(1;1),1;1;0(1;0)}, {1;1;0(1;0),2;1;0(0;0),2;0;0(0;1)}, "
+      "{1;0;1(0;1),2;0;1(1;1),2;1;1(1;0)}, {2;1;1(1;0),1;1;1(0;0),1;0;1(0;1)}, "
+      "{2;0;1(0;1),2;0;0(1;1),2;1;0(1;0)}, {2;1;0(1;0),2;1;1(0;0),2;0;1(0;1)}, "
+      "{1;0;1(0;1),1;0;0(1;1),2;0;0(1;0)}, {2;0;0(1;0),2;0;1(0;0),1;0;1(0;1)}, "
+      "{1;1;0(0;1),1;1;1(1;1),2;1;1(1;0)}, {2;1;1(1;0),2;1;0(0;0),1;1;0(0;1)}";
+  EXPECT_EQ(toString(data), expected);
+}
+
+TEST_F(RendererTest, OneBigCube) {
+  // Arrange
+  for (int x = 0; x < 2; ++x) {
+    for (int y = 0; y < 2; ++y) {
+      for (int z = 0; z < 2; ++z) {
+        renderer.addBlock(x, y, z);
+      }
+    }
   }
 
-  const OpenImageIO_v2_4::ImageBuf &diff =
-      OIIO::ImageBufAlgo::absdiff(refTestImage, testResultImage);
-  diff.write("workTmp/diff.ppm");
-  compressFile("workTmp/diff.ppm", "test_report/diff.ppm.gz");
+  // Act
+  const auto data = drawAndGetTriangles(renderer);
 
-  EXPECT_EQ(comp.nfail, 0);
+  // Assert
+  const std::string expected =
+      "{1;0;0(0;1),0;0;0(1;1),0;1;0(1;0)}, {0;1;0(1;0),1;1;0(0;0),1;0;0(0;1)}, "
+      "{0;0;0(0;1),0;0;1(1;1),0;1;1(1;0)}, {0;1;1(1;0),0;1;0(0;0),0;0;0(0;1)}, "
+      "{0;0;1(0;1),0;0;0(1;1),1;0;0(1;0)}, {1;0;0(1;0),1;0;1(0;0),0;0;1(0;1)}, "
+
+      "{0;0;2(0;1),1;0;2(1;1),1;1;2(1;0)}, {1;1;2(1;0),0;1;2(0;0),0;0;2(0;1)}, "
+      "{0;0;1(0;1),0;0;2(1;1),0;1;2(1;0)}, {0;1;2(1;0),0;1;1(0;0),0;0;1(0;1)}, "
+      "{0;0;2(0;1),0;0;1(1;1),1;0;1(1;0)}, {1;0;1(1;0),1;0;2(0;0),0;0;2(0;1)}, "
+
+      "{1;1;0(0;1),0;1;0(1;1),0;2;0(1;0)}, {0;2;0(1;0),1;2;0(0;0),1;1;0(0;1)}, "
+      "{0;1;0(0;1),0;1;1(1;1),0;2;1(1;0)}, {0;2;1(1;0),0;2;0(0;0),0;1;0(0;1)}, "
+      "{0;2;0(0;1),0;2;1(1;1),1;2;1(1;0)}, {1;2;1(1;0),1;2;0(0;0),0;2;0(0;1)}, "
+
+      "{0;1;2(0;1),1;1;2(1;1),1;2;2(1;0)}, {1;2;2(1;0),0;2;2(0;0),0;1;2(0;1)}, "
+      "{0;1;1(0;1),0;1;2(1;1),0;2;2(1;0)}, {0;2;2(1;0),0;2;1(0;0),0;1;1(0;1)}, "
+      "{0;2;1(0;1),0;2;2(1;1),1;2;2(1;0)}, {1;2;2(1;0),1;2;1(0;0),0;2;1(0;1)}, "
+
+      "{2;0;0(0;1),1;0;0(1;1),1;1;0(1;0)}, {1;1;0(1;0),2;1;0(0;0),2;0;0(0;1)}, "
+      "{2;0;1(0;1),2;0;0(1;1),2;1;0(1;0)}, {2;1;0(1;0),2;1;1(0;0),2;0;1(0;1)}, "
+      "{1;0;1(0;1),1;0;0(1;1),2;0;0(1;0)}, {2;0;0(1;0),2;0;1(0;0),1;0;1(0;1)}, "
+
+      "{1;0;2(0;1),2;0;2(1;1),2;1;2(1;0)}, {2;1;2(1;0),1;1;2(0;0),1;0;2(0;1)}, "
+      "{2;0;2(0;1),2;0;1(1;1),2;1;1(1;0)}, {2;1;1(1;0),2;1;2(0;0),2;0;2(0;1)}, "
+      "{1;0;2(0;1),1;0;1(1;1),2;0;1(1;0)}, {2;0;1(1;0),2;0;2(0;0),1;0;2(0;1)}, "
+
+      "{2;1;0(0;1),1;1;0(1;1),1;2;0(1;0)}, {1;2;0(1;0),2;2;0(0;0),2;1;0(0;1)}, "
+      "{2;1;1(0;1),2;1;0(1;1),2;2;0(1;0)}, {2;2;0(1;0),2;2;1(0;0),2;1;1(0;1)}, "
+      "{1;2;0(0;1),1;2;1(1;1),2;2;1(1;0)}, {2;2;1(1;0),2;2;0(0;0),1;2;0(0;1)}, "
+
+      "{1;1;2(0;1),2;1;2(1;1),2;2;2(1;0)}, {2;2;2(1;0),1;2;2(0;0),1;1;2(0;1)}, "
+      "{2;1;2(0;1),2;1;1(1;1),2;2;1(1;0)}, {2;2;1(1;0),2;2;2(0;0),2;1;2(0;1)}, "
+      "{1;2;1(0;1),1;2;2(1;1),2;2;2(1;0)}, {2;2;2(1;0),2;2;1(0;0),1;2;1(0;1)}";
+  EXPECT_EQ(toString(data), expected);
+}
+
+TEST_F(RendererTest, TwoFarAwayCubes) {
+  // Arrange
+  renderer.addBlock(0, 0, 0);
+  renderer.addBlock(17 * BLOCK_W, 0, 0);
+
+  // Act
+  const auto data = drawAndGetTriangles(renderer);
+
+  // Assert
+  const std::string expected =
+      "{1;0;0(0;1),0;0;0(1;1),0;1;0(1;0)}, {0;1;0(1;0),1;1;0(0;0),1;0;0(0;1)}, "
+      "{0;0;1(0;1),1;0;1(1;1),1;1;1(1;0)}, {1;1;1(1;0),0;1;1(0;0),0;0;1(0;1)}, "
+      "{0;0;0(0;1),0;0;1(1;1),0;1;1(1;0)}, {0;1;1(1;0),0;1;0(0;0),0;0;0(0;1)}, "
+      "{1;0;1(0;1),1;0;0(1;1),1;1;0(1;0)}, {1;1;0(1;0),1;1;1(0;0),1;0;1(0;1)}, "
+      "{0;0;1(0;1),0;0;0(1;1),1;0;0(1;0)}, {1;0;0(1;0),1;0;1(0;0),0;0;1(0;1)}, "
+      "{0;1;0(0;1),0;1;1(1;1),1;1;1(1;0)}, {1;1;1(1;0),1;1;0(0;0),0;1;0(0;1)}, "
+
+      "{137;0;0(0;1),136;0;0(1;1),136;1;0(1;0)}, {136;1;0(1;0),137;1;0(0;0),137;0;0(0;1)}, "
+      "{136;0;1(0;1),137;0;1(1;1),137;1;1(1;0)}, {137;1;1(1;0),136;1;1(0;0),136;0;1(0;1)}, "
+      "{136;0;0(0;1),136;0;1(1;1),136;1;1(1;0)}, {136;1;1(1;0),136;1;0(0;0),136;0;0(0;1)}, "
+      "{137;0;1(0;1),137;0;0(1;1),137;1;0(1;0)}, {137;1;0(1;0),137;1;1(0;0),137;0;1(0;1)}, "
+      "{136;0;1(0;1),136;0;0(1;1),137;0;0(1;0)}, {137;0;0(1;0),137;0;1(0;0),136;0;1(0;1)}, "
+      "{136;1;0(0;1),136;1;1(1;1),137;1;1(1;0)}, {137;1;1(1;0),137;1;0(0;0),136;1;0(0;1)}";
+  EXPECT_EQ(toString(data), expected);
+}
+
+TEST_F(RendererTest, TwoNeighborCubesOnDifferentLeaf) {
+  // Arrange
+  renderer.addBlock(-1, 0, 0);
+  renderer.addBlock(0, 0, 0);
+
+  // Act
+  const auto data = drawAndGetTriangles(renderer);
+
+  // Assert
+  // 10 faces are expected since 2 of them are not visible
+  const std::string expected =
+      "{1;0;0(0;1),0;0;0(1;1),0;1;0(1;0)}, {0;1;0(1;0),1;1;0(0;0),1;0;0(0;1)}, "
+      "{0;0;1(0;1),1;0;1(1;1),1;1;1(1;0)}, {1;1;1(1;0),0;1;1(0;0),0;0;1(0;1)}, "
+      "{1;0;1(0;1),1;0;0(1;1),1;1;0(1;0)}, {1;1;0(1;0),1;1;1(0;0),1;0;1(0;1)}, "
+      "{0;0;1(0;1),0;0;0(1;1),1;0;0(1;0)}, {1;0;0(1;0),1;0;1(0;0),0;0;1(0;1)}, "
+      "{0;1;0(0;1),0;1;1(1;1),1;1;1(1;0)}, {1;1;1(1;0),1;1;0(0;0),0;1;0(0;1)}, "
+
+      "{0;0;0(0;1),-1;0;0(1;1),-1;1;0(1;0)}, {-1;1;0(1;0),0;1;0(0;0),0;0;0(0;1)}, "
+      "{-1;0;1(0;1),0;0;1(1;1),0;1;1(1;0)}, {0;1;1(1;0),-1;1;1(0;0),-1;0;1(0;1)}, "
+      "{-1;0;0(0;1),-1;0;1(1;1),-1;1;1(1;0)}, {-1;1;1(1;0),-1;1;0(0;0),-1;0;0(0;1)}, "
+      "{-1;0;1(0;1),-1;0;0(1;1),0;0;0(1;0)}, {0;0;0(1;0),0;0;1(0;0),-1;0;1(0;1)}, "
+      "{-1;1;0(0;1),-1;1;1(1;1),0;1;1(1;0)}, {0;1;1(1;0),0;1;0(0;0),-1;1;0(0;1)}";
+  EXPECT_EQ(toString(data), expected);
 }

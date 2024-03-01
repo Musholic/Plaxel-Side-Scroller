@@ -1,0 +1,123 @@
+#line 1
+// TODO: test/use HLSL2021 features (template function, struct methods/operators)
+
+#define ADD_BLOCK
+#include "common.hlsli"
+
+cbuffer addedBlock : register(b3) {
+ int addedX, addedY, addedZ;
+};
+
+uint createNode();
+void checkCurrentRootCoverage(int x, int y);
+bool isNotCoveredByRoot(int x, int y);
+void addBlock(int x, int y, int z);
+uint createParentNode(uint child, int x, int y);
+uint createLeaf();
+uint findLeafNode(inout int x, inout int y);
+uint findChildIndex(uint index, inout int x, inout int y);
+
+[numthreads(1, 1, 1)]
+void main()
+{
+    // printf("Add block: %d;%d;%d", addedX, addedY, addedZ);
+    if (lastNodeIndex == 0) {
+        rootNodeIndex = createNode();
+    }
+
+    addBlock(addedX, addedY, addedZ);
+}
+
+void addBlock(int x, int y, int z) {
+    checkCurrentRootCoverage(x, y);
+
+    uint index = findLeafNode(x, y);
+
+    if (index != -1) {
+        if (nodes[index].leaf == -1) {
+            nodes[index].leaf = createLeaf();
+        }
+        if (nodes[index].leaf != -1) {
+            leaves[nodes[index].leaf].blocks[getBlockInd(x, y, z)] = 1;
+        }
+    }
+}
+
+uint createNode() {
+    uint maxNodes;
+    uint stride;
+    nodes.GetDimensions(maxNodes, stride);
+    if (maxNodes <= lastNodeIndex) {
+        return -1;
+    }
+    uint index = lastNodeIndex++;
+    nodes[index].leaf = -1;
+    for (int i = 0; i < 4; i++) {
+        nodes[index].children[i] = -1;
+    }
+    return index;
+}
+
+// If the current root does not allow to cover the addedblock, a new root (or severals) of higher height will be created
+void checkCurrentRootCoverage(int x, int y) {
+    while (isNotCoveredByRoot(x, y)) {
+        // The current root does not cover the added block
+        rootNodeIndex = createParentNode(rootNodeIndex, x, y);
+    }
+}
+
+bool isNotCoveredByRoot(int x, int y) {
+    uint rootHeight = nodes[rootNodeIndex].height;
+    int startX = nodes[rootNodeIndex].x * W;
+    int startY = nodes[rootNodeIndex].y * W;
+    int maxSize = WU << rootHeight;
+
+    return x >= maxSize + startX || y >= maxSize + startY || x < startX || y < startY;
+}
+
+uint createParentNode(uint child, int x, int y) {
+    uint index = createNode();
+    if (index != -1) {
+        uint height = nodes[child].height;
+        int nodeX = nodes[child].x;
+        int nodeY = nodes[child].y;
+        int childIndex = 0;
+        if (x < nodeX * W) {
+            childIndex++;
+            nodeX -= 1u << height;
+        }
+        if (y < nodeY * W) {
+            childIndex+=2;
+            nodeY -= 1u << height;
+        }
+        nodes[index].children[childIndex] = child;
+        nodes[index].height = nodes[child].height + 1;
+        nodes[index].x = nodeX;
+        nodes[index].y = nodeY;
+    }
+    return index;
+}
+
+uint createChildNode(uint parent, uint childIndex) {
+    uint index = createNode();
+    if (index != -1) {
+        nodes[parent].children[childIndex] = index;
+        uint height = nodes[parent].height - 1;
+        nodes[index].height = height;
+        nodes[index].x = nodes[parent].x + int(childIndex % 2 << height);
+        nodes[index].y = nodes[parent].y + int(childIndex / 2 % 2 << height);
+    }
+    return nodes[parent].children[childIndex];
+}
+
+uint createLeaf() {
+    uint maxLeaves;
+    uint stride;
+    leaves.GetDimensions(maxLeaves, stride);
+    if (maxLeaves <= lastLeafIndex) {
+        return -1;
+    }
+    return lastLeafIndex++;
+}
+
+// TODO: Performance idea: make addBlock deals with one node at once (starting with rootNode) and allows parallel addBlock on multiple nodes at once

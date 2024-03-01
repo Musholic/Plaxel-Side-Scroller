@@ -3,16 +3,15 @@
 namespace plaxel {
 
 Buffer::Buffer(const vk::raii::Device &device, const vk::raii::PhysicalDevice &physicalDevice,
-               const vk::DeviceSize size, const vk::BufferUsageFlags usage,
+               const vk::DeviceSize size, const vk::BufferUsageFlags bufferUsage,
                const vk::MemoryPropertyFlags properties)
-    : buffer(initBuffer(device, size, usage)),
+    : usage(bufferUsage), buffer(initBuffer(device, size)),
       bufferMemory(initBufferMemory(device, physicalDevice, properties)), bufferSize(size) {
 
   buffer.bindMemory(*bufferMemory, 0);
 }
 
-vk::raii::Buffer Buffer::initBuffer(const vk::raii::Device &device, unsigned long size,
-                                    const vk::BufferUsageFlags &usage) {
+vk::raii::Buffer Buffer::initBuffer(const vk::raii::Device &device, unsigned long size) const {
   vk::BufferCreateInfo bufferInfo;
   bufferInfo.size = size;
   bufferInfo.usage = usage;
@@ -58,7 +57,11 @@ vk::WriteDescriptorSet &Buffer::getDescriptorWriteForCompute(vk::DescriptorSet c
   descriptorWrite.dstSet = computeDescriptorSet;
   descriptorWrite.dstBinding = dstBinding;
   descriptorWrite.dstArrayElement = 0;
-  descriptorWrite.descriptorType = vk::DescriptorType::eStorageBuffer;
+  if (usage & vk::BufferUsageFlagBits::eStorageBuffer) {
+    descriptorWrite.descriptorType = vk::DescriptorType::eStorageBuffer;
+  } else {
+    descriptorWrite.descriptorType = vk::DescriptorType::eUniformBuffer;
+  }
   descriptorWrite.descriptorCount = 1;
   descriptorWrite.pBufferInfo = &storageBufferInfoCurrentFrame;
 

@@ -4,10 +4,13 @@
 #include <glm/ext/matrix_clip_space.hpp>
 #include <limits>
 #include <random>
+#include <regex>
 #include <set>
 #include <thread>
 
 using namespace plaxel;
+
+BaseRenderer::BaseRenderer(const int targetFps) : frameTimeS(1.0 / targetFps) {}
 
 /**
  * Setup the bare minimum to open a new window
@@ -53,9 +56,24 @@ void BaseRenderer::framebufferResizeCallback(GLFWwindow *window, [[maybe_unused]
 
 bool BaseRenderer::shouldClose() const { return glfwWindowShouldClose(window); }
 
+void BaseRenderer::initializeOverlay() {
+  ImGui_ImplVulkan_InitInfo initInfo{};
+  initInfo.Instance = *instance;
+  initInfo.PhysicalDevice = *physicalDevice;
+  const QueueFamilyIndices indices = findQueueFamilies(*physicalDevice);
+  initInfo.QueueFamily = *indices.graphicsAndComputeFamily;
+  initInfo.Queue = *graphicsQueue;
+  initInfo.Subpass = 0;
+  initInfo.MinImageCount = 2;
+  initInfo.ImageCount = 2;
+  initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+
+  overlay.initialize(initInfo, window, *renderPass, device);
+}
 void BaseRenderer::initVulkan() {
   createInstance();
   setupDebugMessenger();
+  setupDebugReportCallback();
   createSurface();
   pickPhysicalDevice();
   createLogicalDevice();
@@ -65,7 +83,7 @@ void BaseRenderer::initVulkan() {
 
   initCustomDescriptorSetLayout();
 
-  createGraphicsPipeline();
+  createGraphicsPipelines();
   createComputePipeline();
   createCommandPool();
   createDepthResources();
@@ -75,13 +93,27 @@ void BaseRenderer::initVulkan() {
   createCommandBuffers();
   createComputeCommandBuffers();
   createSyncObjects();
+
+  initializeOverlay();
 }
 
 void BaseRenderer::initCustomDescriptorSetLayout() {
   // Overridden for additional descriptor set layout
 }
 
+void BaseRenderer::setupDebugReportCallback() {
+  bool disableDebugReport = std::getenv("DISABLE_DEBUG_REPORT");
+  if (!disableDebugReport) {
+    vk::DebugReportCallbackCreateInfoEXT debugReportCreateInfo{};
+    debugReportCreateInfo.pfnCallback = debugReportCallback;
+    using enum vk::DebugReportFlagBitsEXT;
+    debugReportCreateInfo.flags = eInformation | eError | eWarning;
+    debugReportCallbackHandle = instance.createDebugReportCallbackEXT(debugReportCreateInfo);
+  }
+}
+
 void BaseRenderer::createInstance() {
+  VULKAN_HPP_DEFAULT_DISPATCHER.init();
   if (enableValidationLayers && !checkValidationLayerSupport()) {
     throw VulkanInitializationError("validation layers requested, but not available!");
   }
@@ -91,7 +123,7 @@ void BaseRenderer::createInstance() {
   appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
   appInfo.pEngineName = "PlaxelEngine";
   appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-  appInfo.apiVersion = VK_API_VERSION_1_0;
+  appInfo.apiVersion = VK_API_VERSION_1_3;
 
   vk::InstanceCreateInfo createInfo{};
   createInfo.pApplicationInfo = &appInfo;
@@ -104,18 +136,24 @@ void BaseRenderer::createInstance() {
   // the instance
   vk::DebugUtilsMessengerCreateInfoEXT debugCreateInfo = createDebugMessengerCreateInfo();
 
+  vk::ValidationFeaturesEXT features{};
+  features.enabledValidationFeatureCount = 1;
+  constexpr vk::ValidationFeatureEnableEXT enabled[] = {
+      vk::ValidationFeatureEnableEXT::eDebugPrintf};
+  features.pEnabledValidationFeatures = enabled;
+
   if (enableValidationLayers) {
     createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
     createInfo.ppEnabledLayerNames = validationLayers.data();
 
     createInfo.pNext = reinterpret_cast<VkDebugUtilsMessengerCreateInfoEXT *>(&debugCreateInfo);
+    debugCreateInfo.pNext = &features;
   } else {
     createInfo.enabledLayerCount = 0;
-
-    createInfo.pNext = nullptr;
   }
 
   instance = vk::raii::Instance(context, createInfo);
+  VULKAN_HPP_DEFAULT_DISPATCHER.init(*instance);
 }
 
 bool BaseRenderer::checkValidationLayerSupport() {
@@ -147,6 +185,7 @@ std::vector<const char *> BaseRenderer::getRequiredExtensions() const {
 
   if (enableValidationLayers) {
     extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    extensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
   }
 
   return extensions;
@@ -154,7 +193,6 @@ std::vector<const char *> BaseRenderer::getRequiredExtensions() const {
 
 vk::DebugUtilsMessengerCreateInfoEXT BaseRenderer::createDebugMessengerCreateInfo() {
   vk::DebugUtilsMessengerCreateInfoEXT createInfo;
-  createInfo.sType = vk::StructureType::eDebugUtilsMessengerCreateInfoEXT;
 
   using enum vk::DebugUtilsMessageSeverityFlagBitsEXT;
   createInfo.messageSeverity = eVerbose | eWarning | eError;
@@ -297,7 +335,13 @@ void BaseRenderer::createLogicalDevice() {
     createInfo.enabledLayerCount = 0;
   }
 
+  // Enable mesh shader feature
+  vk::PhysicalDeviceMeshShaderFeaturesEXT meshShaderFeaturesExt{};
+  meshShaderFeaturesExt.meshShader = vk::True;
+  createInfo.pNext = &meshShaderFeaturesExt;
+
   device = vk::raii::Device(physicalDevice, createInfo);
+  VULKAN_HPP_DEFAULT_DISPATCHER.init(*device);
 
   graphicsQueue = device.getQueue(indices.graphicsAndComputeFamily.value(), 0);
   computeQueue = device.getQueue(indices.graphicsAndComputeFamily.value(), 0);
@@ -460,9 +504,9 @@ void BaseRenderer::createRenderPass() {
   renderPass = vk::raii::RenderPass(device, renderPassInfo);
 }
 
-void BaseRenderer::createGraphicsPipeline() {
-  auto vertShaderCode = files::readFile("shaders/shader.vert.spv");
-  auto fragShaderCode = files::readFile("shaders/shader.frag.spv");
+void BaseRenderer::createGraphicsPipelines() {
+  auto vertShaderCode = files::readFile("shaders/worldBlock.vert.spv");
+  auto fragShaderCode = files::readFile("shaders/worldBlock.frag.spv");
 
   vk::raii::ShaderModule vertShaderModule = createShaderModule(vertShaderCode);
   vk::raii::ShaderModule fragShaderModule = createShaderModule(fragShaderCode);
@@ -477,8 +521,7 @@ void BaseRenderer::createGraphicsPipeline() {
   fragShaderStageInfo.module = *fragShaderModule;
   fragShaderStageInfo.pName = "main";
 
-  std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = {vertShaderStageInfo,
-                                                                 fragShaderStageInfo};
+  std::vector shaderStages = {vertShaderStageInfo, fragShaderStageInfo};
 
   vk::PipelineVertexInputStateCreateInfo vertexInputInfo;
 
@@ -557,7 +600,31 @@ void BaseRenderer::createGraphicsPipeline() {
   pipelineInfo.subpass = 0;
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-  graphicsPipeline = vk::raii::Pipeline(device, nullptr, pipelineInfo);
+  worldPipeline = vk::raii::Pipeline(device, nullptr, pipelineInfo);
+  shaderStages.clear();
+
+  auto cursorBlockShaderCode = files::readFile("shaders/cursorBlock.mesh.spv");
+  vk::raii::ShaderModule cursorBlockShaderModule = createShaderModule(cursorBlockShaderCode);
+  vk::PipelineShaderStageCreateInfo &cursorBlockShaderStageInfo = shaderStages.emplace_back();
+  cursorBlockShaderStageInfo.stage = vk::ShaderStageFlagBits::eMeshEXT;
+  cursorBlockShaderStageInfo.module = *cursorBlockShaderModule;
+  cursorBlockShaderStageInfo.pName = "main";
+
+  auto cursorBlockFragShaderCode = files::readFile("shaders/cursorBlock.frag.spv");
+  vk::raii::ShaderModule cursorBlockFragShaderModule =
+      createShaderModule(cursorBlockFragShaderCode);
+  vk::PipelineShaderStageCreateInfo &cursorBlockFragShaderStageInfo = shaderStages.emplace_back();
+  cursorBlockFragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
+  cursorBlockFragShaderStageInfo.module = *cursorBlockFragShaderModule;
+  cursorBlockFragShaderStageInfo.pName = "main";
+
+  pipelineInfo.stageCount = shaderStages.size();
+  pipelineInfo.pStages = shaderStages.data();
+
+  pipelineInfo.pInputAssemblyState = nullptr;
+  pipelineInfo.pVertexInputState = nullptr;
+
+  cursorPipeline = vk::raii::Pipeline(device, nullptr, pipelineInfo);
 }
 
 vk::PipelineLayoutCreateInfo BaseRenderer::getPipelineLayoutInfo() const {
@@ -583,7 +650,7 @@ vk::raii::ShaderModule BaseRenderer::createShaderModule(const cmrc::file &code) 
 }
 
 void BaseRenderer::createComputePipeline() {
-  const auto computeShaderCode = files::readFile("shaders/shader.comp.spv");
+  const auto computeShaderCode = files::readFile("shaders/worldRenderer.comp.spv");
 
   const vk::raii::ShaderModule computeShaderModule = createShaderModule(computeShaderCode);
 
@@ -691,31 +758,39 @@ void BaseRenderer::createSyncObjects() {
 
 void BaseRenderer::draw() {
   glfwPollEvents();
+  if (showOverlay) {
+    overlay.initNewFrame(lastFps, camera, cursorPosition);
+  }
   drawFrame();
   manageFps();
-  printFps();
+  computeFps();
 }
 
-void BaseRenderer::manageFps() {
+void BaseRenderer::manageFps() const {
+  if (std::getenv("DISABLE_FPS_LIMIT")) {
+    return;
+  }
   static double frameStartTime = 0;
 
-  const double frameEndTime = glfwGetTime();
+  double frameEndTime = glfwGetTime();
   const double frameTime = frameEndTime - frameStartTime;
-  frameStartTime = frameEndTime;
 
-  if (frameTime < FRAME_TIME_S) {
-    std::this_thread::sleep_for(std::chrono::duration<double>(FRAME_TIME_S - frameTime));
+  if (frameTime < frameTimeS) {
+    std::this_thread::sleep_for(std::chrono::duration<double>(frameTimeS - frameTime));
+    frameEndTime = glfwGetTime();
   }
+
+  frameStartTime = frameEndTime;
 }
 
-void BaseRenderer::printFps() {
+void BaseRenderer::computeFps() {
   static double lastFpsCountTime = 0.0f;
   static int fpsCount = 0;
   const double currentTime = glfwGetTime();
 
   fpsCount++;
   if (currentTime - lastFpsCountTime >= 1.0) {
-    std::cout << "FPS: " << fpsCount << std::endl;
+    lastFps = fpsCount;
 
     lastFpsCountTime = currentTime;
     fpsCount = 0;
@@ -723,7 +798,6 @@ void BaseRenderer::printFps() {
 }
 
 void BaseRenderer::drawFrame() {
-  vk::SubmitInfo submitInfo;
 
   updateUniformBuffer(currentFrame);
 
@@ -732,9 +806,15 @@ void BaseRenderer::drawFrame() {
 
   device.resetFences(*computeFence);
 
+  if (shouldAddBlockAtCursor) {
+    shouldAddBlockAtCursor = false;
+    addBlock(cursorPosition.pos.x, cursorPosition.pos.y, cursorPosition.pos.z);
+  }
+
   computeCommandBuffer.reset();
   recordComputeCommandBuffer(*computeCommandBuffer);
 
+  vk::SubmitInfo submitInfo;
   submitInfo.commandBufferCount = 1;
   submitInfo.pCommandBuffers = &*computeCommandBuffer;
   submitInfo.signalSemaphoreCount = 1;
@@ -823,7 +903,7 @@ void BaseRenderer::recreateSwapChain() {
 }
 
 void BaseRenderer::recordCommandBuffer(const vk::CommandBuffer commandBuffer,
-                                       const uint32_t imageIndex) const {
+                                       const uint32_t imageIndex) {
   constexpr vk::CommandBufferBeginInfo beginInfo;
 
   commandBuffer.begin(beginInfo);
@@ -843,7 +923,7 @@ void BaseRenderer::recordCommandBuffer(const vk::CommandBuffer commandBuffer,
 
   commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
 
-  commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *graphicsPipeline);
+  commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *worldPipeline);
 
   vk::Viewport viewport;
   viewport.x = 0.0f;
@@ -861,6 +941,13 @@ void BaseRenderer::recordCommandBuffer(const vk::CommandBuffer commandBuffer,
 
   drawCommand(commandBuffer);
 
+  commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *cursorPipeline);
+  commandBuffer.drawMeshTasksEXT(1, 1, 1);
+
+  if (showOverlay) {
+    overlay.render(commandBuffer);
+  }
+
   commandBuffer.endRenderPass();
   commandBuffer.end();
 }
@@ -873,6 +960,11 @@ void BaseRenderer::createUniformBuffers() {
         device, physicalDevice, bufferSize, vk::BufferUsageFlagBits::eUniformBuffer,
         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
   }
+
+  bufferSize = sizeof(CursorPositionBufferObject);
+  cursorPositionBuffer.emplace(
+      device, physicalDevice, bufferSize, vk::BufferUsageFlagBits::eUniformBuffer,
+      vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
 }
 
 void BaseRenderer::updateUniformBuffer(uint32_t currentImage) {
@@ -887,8 +979,11 @@ void BaseRenderer::updateUniformBuffer(uint32_t currentImage) {
                               static_cast<float>(swapChainExtent.width) /
                                   static_cast<float>(swapChainExtent.height),
                               0.001f, 256.0f);
+  ubo.proj[1][1] *= -1;
 
   uniformBuffers[currentImage].copyToMemory(&ubo);
+
+  cursorPositionBuffer->copyToMemory(&cursorPosition);
 }
 
 void BaseRenderer::createDepthResources() {
@@ -1220,10 +1315,27 @@ void BaseRenderer::keyboardHandler(GLFWwindow *window, int key, [[maybe_unused]]
 }
 
 void BaseRenderer::keyPressed(int key) { handleCameraKeys(key, true); }
+void BaseRenderer::handleCursorKeys(int key) {
+  if (key == GLFW_KEY_LEFT) {
+    cursorPosition.pos += camera.getLeftDirection();
+  } else if (key == GLFW_KEY_RIGHT) {
+    cursorPosition.pos -= camera.getLeftDirection();
+  }
+  if (key == GLFW_KEY_DOWN) {
+    cursorPosition.pos.y--;
+  } else if (key == GLFW_KEY_UP) {
+    cursorPosition.pos.y++;
+  }
+  cursorPosition.pos.z = std::clamp(cursorPosition.pos.z, 0, BLOCK_W - 1);
+}
 void BaseRenderer::keyReleased(int key) {
   handleCameraKeys(key, false);
   if (key == GLFW_KEY_P) {
     camera.printDebug();
+  }
+  handleCursorKeys(key);
+  if (key == GLFW_KEY_ENTER) {
+    shouldAddBlockAtCursor = true;
   }
 }
 void BaseRenderer::handleCameraKeys(int key, bool pressed) {
@@ -1260,6 +1372,47 @@ void BaseRenderer::mouseAction(int button, int action, int) {
   if (button == GLFW_MOUSE_BUTTON_LEFT) {
     mouseButtons.left = action == GLFW_PRESS;
   }
+}
+
+VkBool32 BaseRenderer::debugReportCallback(VkDebugReportFlagsEXT flags,
+                                           [[maybe_unused]] VkDebugReportObjectTypeEXT objType,
+                                           [[maybe_unused]] uint64_t srcObject,
+                                           [[maybe_unused]] size_t location,
+                                           [[maybe_unused]] int32_t msgCode,
+                                           const char *pLayerPrefix, const char *pMsg,
+                                           [[maybe_unused]] void *pUserData) {
+  std::string message;
+  {
+    std::stringstream buf;
+    if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT) {
+      buf << "ERROR: " << pMsg;
+    } else if (flags & VK_DEBUG_REPORT_WARNING_BIT_EXT) {
+      buf << "WARNING: " << pMsg;
+    } else if (flags & VK_DEBUG_REPORT_INFORMATION_BIT_EXT &&
+               strcmp(pLayerPrefix, "Loader Message") != 0) {
+      // Filter out loader message which is verbose and not what we are interested in
+      // Includes printf message from shaders
+      std::regex re("Shader Instruction Index = (?:\\d+)\\. (.+) Debug shader printf message "
+                    "generated in file (\\S+) at line (\\d+)");
+
+      std::smatch match;
+
+      std::string verboseMessage(pMsg);
+      if (std::regex_search(verboseMessage, match, re)) {
+        buf << "DEBUG PRINTF: " << match[1] << " ( " << match[2] << ":" << match[3] << " )";
+      } else {
+        buf << "INFO: [" << pLayerPrefix << "] : " << pMsg;
+      }
+    } else if (flags & VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT) {
+      buf << "PERF: " << pMsg;
+    } else {
+      return false;
+    }
+    message = buf.str();
+  }
+
+  std::cout << message << std::endl;
+  return false;
 }
 
 VkBool32 BaseRenderer::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,

@@ -1,0 +1,2 @@
+khronos_validation.printf_buffer_size = 65536
+khronos_validation.printf_verbose = true

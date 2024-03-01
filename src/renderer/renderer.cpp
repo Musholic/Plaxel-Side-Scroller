@@ -4,9 +4,22 @@
 #include <random>
 
 #define STB_IMAGE_IMPLEMENTATION
+#include <sstream>
 #include <stb_image.h>
 
 namespace plaxel {
+Renderer::Renderer() : BaseRenderer(getTargetFps()) {}
+
+int Renderer::getTargetFps() {
+  const char *targetFpsChar = std::getenv("TARGET_FPS");
+  if (targetFpsChar) {
+    const int targetFps = std::atoi(targetFpsChar);
+    if (targetFps > 0) {
+      return targetFps;
+    }
+  }
+  return TARGET_FPS;
+}
 
 void Renderer::initVulkan() {
   BaseRenderer::initVulkan();
@@ -19,7 +32,12 @@ void Renderer::initVulkan() {
 
   createComputeDescriptorPool();
   createDescriptorSets();
+  createAddBlockComputeDescriptorSetLayout();
   createComputeDescriptorSets();
+
+  createAddBlockComputePipeline();
+
+  initWorld();
 }
 
 void Renderer::initCustomDescriptorSetLayout() {
@@ -42,22 +60,36 @@ void Renderer::createComputeDescriptorSetLayout() {
 }
 
 void Renderer::createComputeDescriptorSets() {
-  const std::vector layouts(1, *computeDescriptorSetLayout);
+  const std::vector layouts = {*computeDescriptorSetLayout, *addBlockComputeDescriptorSetLayout};
   vk::DescriptorSetAllocateInfo allocInfo;
   allocInfo.descriptorPool = *computeDescriptorPool;
-  allocInfo.descriptorSetCount = 1;
+  allocInfo.descriptorSetCount = 2;
   allocInfo.pSetLayouts = layouts.data();
 
   auto computeDescriptorSets = vk::raii::DescriptorSets(device, allocInfo);
-  computeDescriptorSet = std::move(computeDescriptorSets[0]);
-
   std::vector<vk::WriteDescriptorSet> descriptorWrites;
-  descriptorWrites.push_back(vertexBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 0));
-  descriptorWrites.push_back(indexBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 1));
+
+  computeDescriptorSet = std::move(computeDescriptorSets[0]);
   descriptorWrites.push_back(
-      drawCommandBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 2));
+      voxelTreeNodesBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 0));
   descriptorWrites.push_back(
-      testDataBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 3));
+      voxelTreeLeavesBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 1));
+  descriptorWrites.push_back(
+      voxelTreeInfoBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 2));
+  descriptorWrites.push_back(
+      drawCommandBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 3));
+  descriptorWrites.push_back(vertexBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 4));
+  descriptorWrites.push_back(indexBuffer->getDescriptorWriteForCompute(*computeDescriptorSet, 5));
+
+  addBlockComputeDescriptorSet = std::move(computeDescriptorSets[1]);
+  descriptorWrites.push_back(
+      voxelTreeNodesBuffer->getDescriptorWriteForCompute(*addBlockComputeDescriptorSet, 0));
+  descriptorWrites.push_back(
+      voxelTreeLeavesBuffer->getDescriptorWriteForCompute(*addBlockComputeDescriptorSet, 1));
+  descriptorWrites.push_back(
+      voxelTreeInfoBuffer->getDescriptorWriteForCompute(*addBlockComputeDescriptorSet, 2));
+  descriptorWrites.push_back(
+      addedBlockBuffer->getDescriptorWriteForCompute(*addBlockComputeDescriptorSet, 3));
 
   device.updateDescriptorSets(descriptorWrites, nullptr);
 }
@@ -107,8 +139,19 @@ void Renderer::createComputeBuffers() {
 
   drawCommandBuffer.emplace(device, physicalDevice, sizeof(VkDrawIndexedIndirectCommand),
                             eStorageBuffer | eIndirectBuffer, eDeviceLocal);
-  constexpr TestData src = {0};
-  testDataBuffer = createBufferWithInitialData(eStorageBuffer, &src, sizeof(src));
+  constexpr VoxelTreeNode voxelTreeNodes[MAX_NODES] = {};
+  voxelTreeNodesBuffer =
+      createBufferWithInitialData(eStorageBuffer, &voxelTreeNodes, sizeof(voxelTreeNodes));
+
+  constexpr VoxelTreeLeaf voxelTreeLeaves[MAX_LEAVES] = {};
+  voxelTreeLeavesBuffer =
+      createBufferWithInitialData(eStorageBuffer, &voxelTreeLeaves, sizeof(voxelTreeLeaves));
+
+  constexpr VoxelTreeInfo voxelTreeInfo{0, 0, 0};
+  voxelTreeInfoBuffer =
+      createBufferWithInitialData(eStorageBuffer, &voxelTreeInfo, sizeof(voxelTreeInfo));
+  addedBlockBuffer.emplace(device, physicalDevice, sizeof(AddedBlock), eUniformBuffer,
+                           eHostVisible | eHostCoherent);
 }
 
 Buffer Renderer::createBufferWithInitialData(const vk::BufferUsageFlags usage, const void *src,
@@ -129,7 +172,7 @@ void Renderer::createTextureImage() {
   int texWidth;
   int texHeight;
   int texChannels;
-  const auto texture = files::readFile("textures/texture.jpg");
+  const auto texture = files::readFile("textures/forest_ground_04_diff_4k.png");
   stbi_uc *pixels = stbi_load_from_memory(reinterpret_cast<const stbi_uc *>(texture.begin()),
                                           static_cast<int>(texture.size()), &texWidth, &texHeight,
                                           &texChannels, STBI_rgb_alpha);
@@ -190,21 +233,43 @@ void Renderer::createTextureSampler() {
 }
 
 void Renderer::createDescriptorSetLayout() {
-  vk::DescriptorSetLayoutBinding uboLayoutBinding;
-  uboLayoutBinding.binding = 0;
-  uboLayoutBinding.descriptorCount = 1;
-  uboLayoutBinding.descriptorType = vk::DescriptorType::eUniformBuffer;
-  uboLayoutBinding.pImmutableSamplers = nullptr;
-  uboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex;
+  std::vector<vk::DescriptorSetLayoutBinding> bindings;
+  {
+    vk::DescriptorSetLayoutBinding &uboLayoutBinding = bindings.emplace_back();
+    uboLayoutBinding.binding = 0;
+    uboLayoutBinding.descriptorCount = 1;
+    uboLayoutBinding.descriptorType = vk::DescriptorType::eUniformBuffer;
+    uboLayoutBinding.pImmutableSamplers = nullptr;
+    uboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex;
+  }
 
-  vk::DescriptorSetLayoutBinding samplerLayoutBinding;
-  samplerLayoutBinding.binding = 1;
-  samplerLayoutBinding.descriptorCount = 1;
-  samplerLayoutBinding.descriptorType = vk::DescriptorType::eCombinedImageSampler;
-  samplerLayoutBinding.pImmutableSamplers = nullptr;
-  samplerLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eFragment;
+  {
+    vk::DescriptorSetLayoutBinding &samplerLayoutBinding = bindings.emplace_back();
+    samplerLayoutBinding.binding = 1;
+    samplerLayoutBinding.descriptorCount = 1;
+    samplerLayoutBinding.descriptorType = vk::DescriptorType::eCombinedImageSampler;
+    samplerLayoutBinding.pImmutableSamplers = nullptr;
+    samplerLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eFragment;
+  }
 
-  const std::array bindings = {uboLayoutBinding, samplerLayoutBinding};
+  {
+    vk::DescriptorSetLayoutBinding &uboMeshLayoutBinding = bindings.emplace_back();
+    uboMeshLayoutBinding.binding = 2;
+    uboMeshLayoutBinding.descriptorCount = 1;
+    uboMeshLayoutBinding.descriptorType = vk::DescriptorType::eUniformBuffer;
+    uboMeshLayoutBinding.pImmutableSamplers = nullptr;
+    uboMeshLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eMeshEXT;
+  }
+
+  {
+    vk::DescriptorSetLayoutBinding &cursorPositionLayoutBinding = bindings.emplace_back();
+    cursorPositionLayoutBinding.binding = 3;
+    cursorPositionLayoutBinding.descriptorCount = 1;
+    cursorPositionLayoutBinding.descriptorType = vk::DescriptorType::eUniformBuffer;
+    cursorPositionLayoutBinding.pImmutableSamplers = nullptr;
+    cursorPositionLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eMeshEXT;
+  }
+
   vk::DescriptorSetLayoutCreateInfo layoutInfo;
   layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
   layoutInfo.pBindings = bindings.data();
@@ -213,14 +278,16 @@ void Renderer::createDescriptorSetLayout() {
 }
 
 void Renderer::createComputeDescriptorPool() {
-  std::array<vk::DescriptorPoolSize, 1> poolSizes;
+  std::array<vk::DescriptorPoolSize, 2> poolSizes;
   poolSizes[0].type = vk::DescriptorType::eStorageBuffer;
-  poolSizes[0].descriptorCount = NB_COMPUTE_BUFFERS;
+  poolSizes[0].descriptorCount = NB_COMPUTE_BUFFERS + NB_ADD_BLOCK_COMPUTE_BUFFERS;
+  poolSizes[1].type = vk::DescriptorType::eUniformBuffer;
+  poolSizes[1].descriptorCount = 1;
 
   vk::DescriptorPoolCreateInfo poolInfo;
   poolInfo.poolSizeCount = poolSizes.size();
   poolInfo.pPoolSizes = poolSizes.data();
-  poolInfo.maxSets = 1;
+  poolInfo.maxSets = 2;
   poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 
   computeDescriptorPool = vk::raii::DescriptorPool(device, poolInfo);
@@ -241,6 +308,11 @@ void Renderer::createDescriptorSets() {
     bufferInfo.offset = 0;
     bufferInfo.range = sizeof(UniformBufferObject);
 
+    vk::DescriptorBufferInfo cursorPositionBufferInfo;
+    cursorPositionBufferInfo.buffer = cursorPositionBuffer->getBuffer();
+    cursorPositionBufferInfo.offset = 0;
+    cursorPositionBufferInfo.range = sizeof(CursorPositionBufferObject);
+
     vk::DescriptorImageInfo imageInfo;
     imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
     imageInfo.imageView = *textureImageView;
@@ -248,21 +320,45 @@ void Renderer::createDescriptorSets() {
 
     std::vector<vk::WriteDescriptorSet> descriptorWrites;
 
-    vk::WriteDescriptorSet &descriptorWrite = descriptorWrites.emplace_back();
-    descriptorWrite.dstSet = *descriptorSets[i];
-    descriptorWrite.dstBinding = 0;
-    descriptorWrite.dstArrayElement = 0;
-    descriptorWrite.descriptorType = vk::DescriptorType::eUniformBuffer;
-    descriptorWrite.descriptorCount = 1;
-    descriptorWrite.pBufferInfo = &bufferInfo;
+    {
+      vk::WriteDescriptorSet &descriptorWrite = descriptorWrites.emplace_back();
+      descriptorWrite.dstSet = *descriptorSets[i];
+      descriptorWrite.dstBinding = 0;
+      descriptorWrite.dstArrayElement = 0;
+      descriptorWrite.descriptorType = vk::DescriptorType::eUniformBuffer;
+      descriptorWrite.descriptorCount = 1;
+      descriptorWrite.pBufferInfo = &bufferInfo;
+    }
 
-    vk::WriteDescriptorSet &descriptorWrite2 = descriptorWrites.emplace_back();
-    descriptorWrite2.dstSet = *descriptorSets[i];
-    descriptorWrite2.dstBinding = 1;
-    descriptorWrite2.dstArrayElement = 0;
-    descriptorWrite2.descriptorType = vk::DescriptorType::eCombinedImageSampler;
-    descriptorWrite2.descriptorCount = 1;
-    descriptorWrite2.pImageInfo = &imageInfo;
+    {
+      vk::WriteDescriptorSet &descriptorWrite = descriptorWrites.emplace_back();
+      descriptorWrite.dstSet = *descriptorSets[i];
+      descriptorWrite.dstBinding = 1;
+      descriptorWrite.dstArrayElement = 0;
+      descriptorWrite.descriptorType = vk::DescriptorType::eCombinedImageSampler;
+      descriptorWrite.descriptorCount = 1;
+      descriptorWrite.pImageInfo = &imageInfo;
+    }
+
+    {
+      vk::WriteDescriptorSet &descriptorWrite = descriptorWrites.emplace_back();
+      descriptorWrite.dstSet = *descriptorSets[i];
+      descriptorWrite.dstBinding = 2;
+      descriptorWrite.dstArrayElement = 0;
+      descriptorWrite.descriptorType = vk::DescriptorType::eUniformBuffer;
+      descriptorWrite.descriptorCount = 1;
+      descriptorWrite.pBufferInfo = &bufferInfo;
+    }
+
+    {
+      vk::WriteDescriptorSet &descriptorWrite = descriptorWrites.emplace_back();
+      descriptorWrite.dstSet = *descriptorSets[i];
+      descriptorWrite.dstBinding = 3;
+      descriptorWrite.dstArrayElement = 0;
+      descriptorWrite.descriptorType = vk::DescriptorType::eUniformBuffer;
+      descriptorWrite.descriptorCount = 1;
+      descriptorWrite.pBufferInfo = &cursorPositionBufferInfo;
+    }
 
     device.updateDescriptorSets(descriptorWrites, nullptr);
   }
@@ -300,6 +396,91 @@ vk::PipelineLayoutCreateInfo Renderer::getComputePipelineLayoutInfo() const {
   pipelineLayoutInfo.setLayoutCount = 1;
   pipelineLayoutInfo.pSetLayouts = &*computeDescriptorSetLayout;
   return pipelineLayoutInfo;
+}
+
+std::string Vertex::toString(const float x) {
+  std::ostringstream out;
+  out.precision(8);
+  out << std::noshowpoint << x;
+  return std::move(out).str();
+}
+
+std::string Vertex::toString() const {
+  std::string result;
+  result += toString(pos.x) + ";";
+  result += toString(pos.y) + ";";
+  result += toString(pos.z) + "(";
+  result += toString(texCoord.x) + ";";
+  result += toString(texCoord.y) + ")";
+
+  return result;
+}
+
+void Renderer::createAddBlockComputePipeline() {
+  const auto computeShaderCode = files::readFile("shaders/add_block.comp.spv");
+
+  const vk::raii::ShaderModule computeShaderModule = createShaderModule(computeShaderCode);
+
+  vk::PipelineShaderStageCreateInfo computeShaderStageInfo;
+  computeShaderStageInfo.stage = vk::ShaderStageFlagBits::eCompute;
+  computeShaderStageInfo.module = *computeShaderModule;
+  computeShaderStageInfo.pName = "main";
+
+  vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
+  pipelineLayoutInfo.setLayoutCount = 1;
+  pipelineLayoutInfo.pSetLayouts = &*addBlockComputeDescriptorSetLayout;
+
+  addBlockComputePipelineLayout = vk::raii::PipelineLayout(device, pipelineLayoutInfo);
+
+  vk::ComputePipelineCreateInfo pipelineInfo;
+  pipelineInfo.layout = *addBlockComputePipelineLayout;
+  pipelineInfo.stage = computeShaderStageInfo;
+
+  addBlockComputePipeline = vk::raii::Pipeline(device, nullptr, pipelineInfo);
+}
+
+void Renderer::createAddBlockComputeDescriptorSetLayout() {
+  std::vector<vk::DescriptorSetLayoutBinding> layoutBindings;
+  for (int i = 0; i < NB_ADD_BLOCK_COMPUTE_BUFFERS; ++i) {
+    layoutBindings.emplace_back(i, vk::DescriptorType::eStorageBuffer, 1,
+                                vk::ShaderStageFlagBits::eCompute);
+  }
+  layoutBindings.emplace_back(NB_ADD_BLOCK_COMPUTE_BUFFERS, vk::DescriptorType::eUniformBuffer, 1,
+                              vk::ShaderStageFlagBits::eCompute);
+
+  vk::DescriptorSetLayoutCreateInfo layoutInfo{};
+  layoutInfo.bindingCount = static_cast<uint32_t>(layoutBindings.size());
+  layoutInfo.pBindings = layoutBindings.data();
+
+  addBlockComputeDescriptorSetLayout = vk::raii::DescriptorSetLayout(device, layoutInfo);
+}
+
+void Renderer::addBlock(int x, int y, int z) {
+  const AddedBlock addedBlock{x, y, z};
+  addedBlockBuffer->copyToMemory(&addedBlock);
+
+  // Compute submission
+  computeCommandBuffer.reset();
+  constexpr vk::CommandBufferBeginInfo beginInfo;
+  computeCommandBuffer.begin(beginInfo);
+  computeCommandBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, *addBlockComputePipeline);
+  computeCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
+                                          *addBlockComputePipelineLayout, 0,
+                                          *addBlockComputeDescriptorSet, nullptr);
+  computeCommandBuffer.dispatch(1, 1, 1);
+  computeCommandBuffer.end();
+
+  vk::SubmitInfo submitInfo;
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &*computeCommandBuffer;
+
+  computeQueue.submit(submitInfo);
+  device.waitIdle();
+}
+
+void Renderer::initWorld() {
+  addBlock(0, 0, 0);
+  addBlock(1, 0, 0);
 }
 
 } // namespace plaxel

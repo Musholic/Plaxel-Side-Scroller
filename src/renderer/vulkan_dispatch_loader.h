@@ -1,0 +1,7 @@
+#ifndef VULKAN_DISPATCH_LOADER_H
+#define VULKAN_DISPATCH_LOADER_H
+
+#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
+#include <vulkan/vulkan_raii.hpp>
+
+#endif //VULKAN_DISPATCH_LOADER_H

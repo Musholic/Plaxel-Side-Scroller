@@ -1,7 +1,8 @@
 #ifndef PLAXEL_BUFFER_H
 #define PLAXEL_BUFFER_H
 
-#include <vulkan/vulkan_raii.hpp>
+#include "vulkan_dispatch_loader.h"
+
 namespace plaxel {
 
 class BufferInitializationError final : public std::runtime_error {
@@ -12,7 +13,7 @@ public:
 class Buffer {
 public:
   Buffer(const vk::raii::Device &device, const vk::raii::PhysicalDevice &physicalDevice,
-         vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
+         vk::DeviceSize size, vk::BufferUsageFlags bufferUsage, vk::MemoryPropertyFlags properties);
   [[nodiscard]] vk::Buffer getBuffer() const;
   vk::WriteDescriptorSet &getDescriptorWriteForCompute(vk::DescriptorSet computeDescriptorSet,
                                                        int dstBinding);
@@ -23,6 +24,7 @@ public:
                                                const vk::raii::PhysicalDevice &physicalDevice);
 
 private:
+  vk::BufferUsageFlags usage;
   vk::raii::Buffer buffer;
   vk::raii::DeviceMemory bufferMemory;
   vk::DeviceSize bufferSize;
@@ -31,11 +33,31 @@ private:
   vk::WriteDescriptorSet descriptorWrite{};
   vk::DescriptorBufferInfo storageBufferInfoCurrentFrame{};
 
-  static vk::raii::Buffer initBuffer(const vk::raii::Device &device, unsigned long size,
-                                     const vk::BufferUsageFlags &usage);
-  [[nodiscard]] vk::raii::DeviceMemory initBufferMemory(const vk::raii::Device &device,
-                                          const vk::raii::PhysicalDevice &physicalDevice,
-                                          const vk::MemoryPropertyFlags &properties) const;
+  vk::raii::Buffer initBuffer(const vk::raii::Device &device, unsigned long size) const;
+  [[nodiscard]] vk::raii::DeviceMemory
+  initBufferMemory(const vk::raii::Device &device, const vk::raii::PhysicalDevice &physicalDevice,
+                   const vk::MemoryPropertyFlags &properties) const;
+
+public:
+  template <typename T> std::vector<T> getVectorData() {
+    if (!mappedMemory) {
+      mappedMemory = bufferMemory.mapMemory(0, bufferSize);
+    }
+    const size_t size = bufferSize / sizeof(T);
+    std::vector<T> mem;
+    mem.reserve(size);
+    memcpy(mem.data(), mappedMemory, bufferSize);
+    return mem;
+  }
+
+  template <typename T> T getData() {
+    if (!mappedMemory) {
+      mappedMemory = bufferMemory.mapMemory(0, bufferSize);
+    }
+    T mem;
+    memcpy(&mem, mappedMemory, bufferSize);
+    return mem;
+  }
 };
 
 } // namespace plaxel

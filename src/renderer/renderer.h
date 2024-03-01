@@ -12,8 +12,30 @@
 #include <glm/fwd.hpp>
 namespace plaxel {
 
-struct TestData {
-  int32_t testData;
+constexpr int NB_BLOCKS = BLOCK_W * BLOCK_W * BLOCK_W;
+constexpr int MAX_NODES = 100;
+constexpr int MAX_LEAVES = MAX_NODES;
+
+struct VoxelTreeNode {
+  uint32_t height;
+  uint32_t children[4];
+  uint32_t leaf;
+  int32_t x;
+  int32_t y;
+};
+
+struct VoxelTreeLeaf {
+  uint32_t blocks[NB_BLOCKS];
+};
+
+struct VoxelTreeInfo {
+  uint32_t rootNodeIndex;
+  uint32_t lastNodeIndex;
+  uint32_t lastLeafIndex;
+};
+
+struct AddedBlock {
+  int32_t x, y, z;
 };
 
 struct Vertex {
@@ -36,12 +58,21 @@ struct Vertex {
 
     return attributeDescriptions;
   }
+  [[nodiscard]] static std::string toString(float x);
+  [[nodiscard]] std::string toString() const;
 };
 
 class Renderer : public BaseRenderer {
+public:
+  Renderer();
+
 private:
+  static int getTargetFps();
+
+protected:
   void initVulkan() override;
   void initCustomDescriptorSetLayout() override;
+  void addBlock(int x, int y, int z) override;
   vk::raii::CommandBuffers computeCommandBuffers = nullptr;
 
   vk::raii::Image textureImage = nullptr;
@@ -59,7 +90,16 @@ private:
   std::optional<Buffer> vertexBuffer;
   std::optional<Buffer> indexBuffer;
   std::optional<Buffer> drawCommandBuffer;
-  std::optional<Buffer> testDataBuffer;
+  std::optional<Buffer> voxelTreeNodesBuffer;
+  std::optional<Buffer> voxelTreeLeavesBuffer;
+  std::optional<Buffer> voxelTreeInfoBuffer;
+  std::optional<Buffer> addedBlockBuffer;
+
+  vk::raii::DescriptorSetLayout addBlockComputeDescriptorSetLayout = nullptr;
+  vk::raii::DescriptorSet addBlockComputeDescriptorSet = nullptr;
+
+  vk::raii::PipelineLayout addBlockComputePipelineLayout = nullptr;
+  vk::raii::Pipeline addBlockComputePipeline = nullptr;
 
   void createComputeDescriptorSetLayout();
   void createComputeDescriptorSets();
@@ -79,7 +119,10 @@ private:
   [[nodiscard]] vk::PipelineLayoutCreateInfo getPipelineLayoutInfo() const override;
   [[nodiscard]] vk::PipelineLayoutCreateInfo getComputePipelineLayoutInfo() const override;
   Buffer createBufferWithInitialData(vk::BufferUsageFlags usage, const void *src,
-                                   vk::DeviceSize size) const;
+                                     vk::DeviceSize size) const;
+  void createAddBlockComputePipeline();
+  void createAddBlockComputeDescriptorSetLayout();
+  virtual void initWorld();
 };
 
 } // namespace plaxel
