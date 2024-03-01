@@ -5,6 +5,11 @@ project(plaxel)
 execute_process(COMMAND git describe --tags
         OUTPUT_VARIABLE PROJECT_GIT_VERSION
         OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+if (PROJECT_GIT_VERSION STREQUAL "")
+    set(PROJECT_GIT_VERSION 0.0.0)
+endif ()
+
 configure_file(src/version.h.in generated/version.h @ONLY)
 
 
